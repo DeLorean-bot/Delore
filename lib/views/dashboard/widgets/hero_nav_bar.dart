@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 /// Bar height; the capsule radius and the pill radius both derive from it.
-const _barHeight = 60.0;
+const _barHeight = 68.0;
 
 /// The slot the selection lens fills: the bar minus its 4 px inner
 /// padding, minus the lens's own 1 px inset.
@@ -191,7 +191,9 @@ class _LiquidNavItemState extends State<_LiquidNavItem> {
   Widget build(BuildContext context) {
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    final muted = context.colorScheme.onSurfaceVariant;
+    // iOS nav glyphs are white at rest, not grey: the muted treatment is
+    // what made the bar look faded and cheap.
+    final muted = context.colorScheme.onSurface.withValues(alpha: 0.86);
     final selectedColor = context.colorScheme.onSurface;
 
     return Semantics(
@@ -219,7 +221,7 @@ class _LiquidNavItemState extends State<_LiquidNavItem> {
                   ? Center(
                       child: Icon(
                         routeXNavigationIcon(widget.item.label),
-                        size: 22,
+                        size: 26,
                         color: widget.selected ? premiumMint : muted,
                       ),
                     )
@@ -228,7 +230,7 @@ class _LiquidNavItemState extends State<_LiquidNavItem> {
                       children: [
                         Icon(
                           routeXNavigationIcon(widget.item.label),
-                          size: 20,
+                          size: 25,
                           color: widget.selected ? premiumMint : muted,
                         ),
                         const SizedBox(height: 3),
@@ -237,13 +239,14 @@ class _LiquidNavItemState extends State<_LiquidNavItem> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: widget.selected ? selectedColor : muted,
-                            fontSize: 9,
-                            height: 1,
+                            color:
+                                widget.selected ? premiumMint : selectedColor,
+                            fontSize: 11.5,
+                            height: 1.05,
                             fontWeight: widget.selected
                                 ? FontWeight.w600
                                 : FontWeight.w500,
-                            letterSpacing: -0.2,
+                            letterSpacing: -0.1,
                             decoration: TextDecoration.none,
                           ),
                         ),

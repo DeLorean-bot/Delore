@@ -145,9 +145,16 @@ extension RouteXGlassVariantDefaults on RouteXGlassVariant {
 /// wide enough to read as a stroke no matter how faint it was.
 const _routeXOpticalRim = OpticalBorder(
   borderSaturation: 1,
-  ambientIntensity: 1,
+  // Low ambient: the ambient term is the part of the rim that is
+  // angle-independent, i.e. the part that draws all the way around the
+  // shape. That ring is the outline.
+  ambientIntensity: 0.35,
   borderSolidity: 0,
-  lightSpread: 0.5,
+  // Tight, not wrapped. On iOS the rim is a highlight where the light
+  // actually hits — bright at the top-left, gone by the far side. At the
+  // default 0.5 it wraps the whole perimeter, which is a drawn border by
+  // another name.
+  lightSpread: 0.12,
 );
 
 /// Where the rim highlight falls, in degrees (`90` = straight down from
@@ -173,15 +180,21 @@ LiquidGlassStyle routeXGlassStyle(
   // Light theme needs a denser fill: the same alpha over a bright
   // backdrop reads as no material at all.
   final (Color tint, double blur, double borderWidth) = switch (variant) {
+    // Barely tinted: on iOS the bar is see-through enough to read the
+    // content sliding under it. Milkiness is what makes glass look
+    // painted on.
     RouteXGlassVariant.navigation => (
-        dark ? const Color(0x18FFFFFF) : const Color(0x33FFFFFF),
+        dark ? const Color(0x0DFFFFFF) : const Color(0x26FFFFFF),
         3.0,
         0.8,
       ),
+    // The selection reads as a lift in brightness, not as an outlined
+    // chip: slightly more fill than the bar it sits in, no blur of its
+    // own.
     RouteXGlassVariant.selection => (
-        dark ? const Color(0x0FFFFFFF) : const Color(0x2AFFFFFF),
+        dark ? const Color(0x1AFFFFFF) : const Color(0x33FFFFFF),
         0.0,
-        0.8,
+        0.6,
       ),
     RouteXGlassVariant.panel => (
         dark ? const Color(0x14FFFFFF) : const Color(0x2EFFFFFF),
