@@ -39,8 +39,7 @@ class HeroNavBar extends ConsumerWidget {
             children: [
               Expanded(
                 child: RouteXGlassSurface(
-                  radius: RouteXRadius.navigation,
-                  blur: 22,
+                  variant: RouteXGlassVariant.navigation,
                   child: Padding(
                     padding: const EdgeInsets.all(4),
                     child: _SlidingPrimaryTabs(
@@ -54,8 +53,7 @@ class HeroNavBar extends ConsumerWidget {
               SizedBox(
                 width: 60,
                 child: RouteXGlassSurface(
-                  radius: RouteXRadius.navigation,
-                  blur: 22,
+                  variant: RouteXGlassVariant.navigation,
                   child: Padding(
                     padding: const EdgeInsets.all(4),
                     child: Stack(

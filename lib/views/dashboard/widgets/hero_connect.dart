@@ -245,7 +245,6 @@ class HeroConnect extends ConsumerWidget {
             constraints: const BoxConstraints(maxWidth: 720),
             child: RouteXGlassSurface(
               expand: false,
-              blur: 30,
               radius: 32,
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
@@ -1447,7 +1446,6 @@ class _EmptyHero extends ConsumerWidget {
           constraints: const BoxConstraints(maxWidth: 680),
           child: RouteXGlassSurface(
             expand: false,
-            blur: 30,
             radius: 32,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(42, 38, 42, 36),

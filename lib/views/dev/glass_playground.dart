@@ -32,7 +32,7 @@ class GlassPlaygroundView extends StatefulWidget {
 }
 
 class _GlassPlaygroundViewState extends State<GlassPlaygroundView> {
-  RouteXGlassParams _params = RouteXGlassParams.routexSurface;
+  RouteXGlassParams _params = RouteXGlassParams.routexPanel;
   RouteXBackdropVariant _backdrop = RouteXBackdropVariant.current;
   LiquidGlassRefreshRate _refreshRate = LiquidGlassRefreshRate.high;
   double _detail = 1;
@@ -82,7 +82,7 @@ class _GlassPlaygroundViewState extends State<GlassPlaygroundView> {
         title: const Text('RouteX Glass Playground'),
         actions: [
           TextButton.icon(
-            onPressed: () => _update(RouteXGlassParams.routexSurface),
+            onPressed: () => _update(RouteXGlassParams.routexPanel),
             icon: const Icon(Icons.restart_alt_rounded, size: 18),
             label: const Text('Reset'),
           ),

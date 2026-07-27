@@ -27,7 +27,6 @@ class NullStatus extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 420),
           child: RouteXGlassSurface(
             expand: false,
-            blur: 26,
             radius: 28,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(34, 30, 34, 32),

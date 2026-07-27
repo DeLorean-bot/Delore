@@ -186,10 +186,9 @@ class _PremiumSideNavigation extends ConsumerWidget {
           // both un-refracted and invisible. Detail the sidebar can
           // actually bend belongs in the backdrop — see RouteXBackdrop.
           child: RouteXGlassSurface(
+            variant: RouteXGlassVariant.navigation,
             radius: 26,
-            blur: 26,
             shadowOffset: const Offset(5, 8),
-            ambientTint: true,
             child: Padding(
               padding: const EdgeInsets.all(6),
               child: Column(

@@ -197,7 +197,6 @@ class _ConnectionOverview extends StatelessWidget {
   @override
   Widget build(BuildContext context) => RouteXGlassSurface(
         expand: false,
-        blur: 28,
         radius: 24,
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -291,7 +290,6 @@ class _QuickRoutes extends StatelessWidget {
   @override
   Widget build(BuildContext context) => RouteXGlassSurface(
         expand: false,
-        blur: 28,
         radius: 24,
         child: Padding(
           padding: const EdgeInsets.all(12),

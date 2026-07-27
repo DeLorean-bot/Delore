@@ -106,29 +106,64 @@ class RouteXGlassParams {
     chromaticAberration: 0,
   );
 
-  /// What `RouteXGlassSurface` renders today.
-  static const routexSurface = RouteXGlassParams(
+  // ── The shipped semantic variants ────────────────────────
+  // These mirror `routeXGlassStyle` in common/premium_theme.dart
+  // (dark theme). Load one, adjust, then Copy Dart back into the token.
+
+  /// `RouteXGlassVariant.panel`.
+  static const routexPanel = RouteXGlassParams(
     tintAlpha: 0.078,
-    blurSigma: 3.24,
+    blurSigma: 3,
   );
 
-  /// What `RouteXSelectionGlass` renders today.
+  /// `RouteXGlassVariant.navigation`.
+  static const routexNavigation = RouteXGlassParams(
+    cornerRadius: 26,
+    borderWidth: 1.2,
+    tintAlpha: 0.094,
+    blurSigma: 4,
+    refractionWidth: 28,
+  );
+
+  /// `RouteXGlassVariant.selection`.
   static const routexSelection = RouteXGlassParams(
-    cornerRadius: 20,
+    cornerRadius: 18,
     borderWidth: 0.8,
-    tintAlpha: 0.078,
-    blurSigma: 1,
+    tintAlpha: 0.059,
+    saturation: 1,
+    blurSigma: 0,
     opticalRefraction: false,
     distortion: 0.05,
     distortionWidth: 10,
-    chromaticAberration: 0,
+  );
+
+  /// `RouteXGlassVariant.dialog`.
+  static const routexDialog = RouteXGlassParams(
+    tintAlpha: 0.133,
+    blurSigma: 6,
+    refractionIndex: 1.45,
+    refractionWidth: 26,
+    depth: 0.5,
+  );
+
+  /// `RouteXGlassVariant.control`.
+  static const routexControl = RouteXGlassParams(
+    cornerRadius: 12,
+    borderWidth: 0.8,
+    tintAlpha: 0.086,
+    blurSigma: 2,
+    refractionWidth: 12,
+    depth: 0.6,
   );
 
   static const presets = <String, RouteXGlassParams>{
     'Official panel': officialPanel,
     'Official nav pill': officialNavPill,
-    'RouteX surface': routexSurface,
-    'RouteX selection': routexSelection,
+    'panel': routexPanel,
+    'navigation': routexNavigation,
+    'selection': routexSelection,
+    'dialog': routexDialog,
+    'control': routexControl,
   };
 
   static const tintSwatches = <String, Color>{

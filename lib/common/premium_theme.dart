@@ -38,51 +38,125 @@ IconData routeXNavigationIcon(PageLabel label) => switch (label) {
       PageLabel.tools => Icons.tune_rounded,
     };
 
-class RouteXGlassSurface extends StatelessWidget {
-  const RouteXGlassSurface({
-    super.key,
-    required this.child,
-    this.radius = RouteXRadius.overlay,
-    this.blur = 18,
-    this.shadowOffset = const Offset(0, 8),
-    this.ambientTint = false,
-    this.expand = true,
-  });
+/// The elevation planes RouteX renders in glass.
+///
+/// One material vocabulary, five roles. They share the radius scale, the
+/// tint family and the optical border; what differs is how much they may
+/// bend and hide what is behind them — a dialog carries dense text and
+/// must stay readable, a selection pill is 52 px wide and cannot afford a
+/// 24 px refraction band on each side.
+enum RouteXGlassVariant {
+  /// Sidebar, app bar, bottom bar. Floats over content, so slightly
+  /// denser than a panel.
+  navigation,
 
-  final Widget child;
-  final double radius;
-  final double blur;
-  final Offset shadowOffset;
-  final bool ambientTint;
-  final bool expand;
+  /// The moving pill inside a navigation surface. Matches the official
+  /// example: no tint to speak of, no blur, a light standard distortion.
+  selection,
 
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final shaderBlur = (blur * 0.18).clamp(1.5, 3.5).toDouble();
-    final glassStyle = LiquidGlassStyle(
-      shape: LiquidGlassShape.continuousRoundedRectangle(
-        cornerRadius: radius,
-        borderWidth: 1,
-        lightIntensity: 1,
-        borderType: const OpticalBorder(
-          borderSaturation: 1,
-          ambientIntensity: 1,
-          borderSolidity: 0,
-          lightSpread: 0.5,
+  /// Cards and sheets on the content plane. The reference material.
+  panel,
+
+  /// Modals. The most opaque of the five: legibility beats effect.
+  dialog,
+
+  /// Buttons and small controls. Narrow refraction band so the bevels
+  /// of opposite rims do not meet inside a 44 px target.
+  control,
+}
+
+extension RouteXGlassVariantDefaults on RouteXGlassVariant {
+  /// The radius this variant renders at when a call site doesn't pin one.
+  double get defaultRadius => switch (this) {
+        RouteXGlassVariant.navigation => RouteXRadius.navigation,
+        RouteXGlassVariant.selection => 18,
+        RouteXGlassVariant.panel => RouteXRadius.overlay,
+        RouteXGlassVariant.dialog => RouteXRadius.overlay,
+        RouteXGlassVariant.control => RouteXRadius.control,
+      };
+}
+
+/// Builds the glass material for [variant].
+///
+/// This is the only place a `LiquidGlassStyle` is constructed in RouteX:
+/// tuned in the developer Glass Playground, then written down here as a
+/// semantic token. Note what is deliberately constant across all five —
+/// `borderSolidity: 0` (a light-driven solid rim reads as plastic on a
+/// dark backdrop), `chromaticAberration: 0` and `magnification: 1`.
+LiquidGlassStyle routeXGlassStyle(
+  BuildContext context,
+  RouteXGlassVariant variant, {
+  double? radius,
+}) {
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  // Light theme needs a denser fill: the same alpha over a bright
+  // backdrop reads as no material at all.
+  final (Color tint, double blur, double borderWidth) = switch (variant) {
+    RouteXGlassVariant.navigation => (
+        dark ? const Color(0x18FFFFFF) : const Color(0x33FFFFFF),
+        4.0,
+        1.2,
+      ),
+    RouteXGlassVariant.selection => (
+        dark ? const Color(0x0FFFFFFF) : const Color(0x2AFFFFFF),
+        0.0,
+        0.8,
+      ),
+    RouteXGlassVariant.panel => (
+        dark ? const Color(0x14FFFFFF) : const Color(0x2EFFFFFF),
+        3.0,
+        1.0,
+      ),
+    RouteXGlassVariant.dialog => (
+        dark ? const Color(0x22FFFFFF) : const Color(0x3DFFFFFF),
+        6.0,
+        1.0,
+      ),
+    RouteXGlassVariant.control => (
+        dark ? const Color(0x16FFFFFF) : const Color(0x30FFFFFF),
+        2.0,
+        0.8,
+      ),
+  };
+  final refraction = switch (variant) {
+    // The official navigation pill: standard distortion, not optical.
+    RouteXGlassVariant.selection => const LiquidGlassRefraction(
+        magnification: 1,
+        chromaticAberration: 0,
+        refractionType: StandardRefraction(
+          distortion: 0.05,
+          distortionWidth: 10,
         ),
       ),
-      appearance: LiquidGlassAppearance(
-        saturation: 1.05,
-        blur: LiquidGlassBlur(
-          sigmaX: shaderBlur,
-          sigmaY: shaderBlur,
+    RouteXGlassVariant.navigation => const LiquidGlassRefraction(
+        magnification: 1,
+        chromaticAberration: 0,
+        refractionType: OpticalRefraction(
+          refraction: 1.5,
+          refractionWidth: 28,
+          depth: 0.7,
         ),
-        color: ambientTint
-            ? (dark ? const Color(0x18FFFFFF) : const Color(0x36FFFFFF))
-            : (dark ? const Color(0x14FFFFFF) : const Color(0x2EFFFFFF)),
       ),
-      refraction: const LiquidGlassRefraction(
+    // Less displacement: text sits directly on this surface.
+    RouteXGlassVariant.dialog => const LiquidGlassRefraction(
+        magnification: 1,
+        chromaticAberration: 0,
+        refractionType: OpticalRefraction(
+          refraction: 1.45,
+          refractionWidth: 26,
+          depth: 0.5,
+        ),
+      ),
+    RouteXGlassVariant.control => const LiquidGlassRefraction(
+        magnification: 1,
+        chromaticAberration: 0,
+        refractionType: OpticalRefraction(
+          refraction: 1.5,
+          refractionWidth: 12,
+          depth: 0.6,
+        ),
+      ),
+    RouteXGlassVariant.panel => const LiquidGlassRefraction(
         magnification: 1,
         chromaticAberration: 0,
         refractionType: OpticalRefraction(
@@ -91,10 +165,55 @@ class RouteXGlassSurface extends StatelessWidget {
           depth: 0.7,
         ),
       ),
-    );
+  };
+  return LiquidGlassStyle(
+    shape: LiquidGlassShape.continuousRoundedRectangle(
+      cornerRadius: radius ?? variant.defaultRadius,
+      borderWidth: borderWidth,
+      lightIntensity: 1,
+      borderType: const OpticalBorder(
+        borderSaturation: 1,
+        ambientIntensity: 1,
+        borderSolidity: 0,
+        lightSpread: 0.5,
+      ),
+    ),
+    appearance: LiquidGlassAppearance(
+      saturation: variant == RouteXGlassVariant.selection ? 1 : 1.05,
+      blur: LiquidGlassBlur(sigmaX: blur, sigmaY: blur),
+      color: tint,
+    ),
+    refraction: refraction,
+  );
+}
+
+/// A glass plane: one lens in the [variant]'s material, with the drop
+/// shadow that separates it from the backdrop.
+class RouteXGlassSurface extends StatelessWidget {
+  const RouteXGlassSurface({
+    super.key,
+    required this.child,
+    this.variant = RouteXGlassVariant.panel,
+    this.radius,
+    this.shadowOffset = const Offset(0, 8),
+    this.expand = true,
+  });
+
+  final Widget child;
+  final RouteXGlassVariant variant;
+
+  /// Overrides the variant's own radius. Prefer the RouteX radius scale.
+  final double? radius;
+  final Offset shadowOffset;
+  final bool expand;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveRadius = radius ?? variant.defaultRadius;
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
+        borderRadius: BorderRadius.circular(effectiveRadius),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: dark ? 0.28 : 0.1),
@@ -105,13 +224,14 @@ class RouteXGlassSurface extends StatelessWidget {
         ],
       ),
       child: LiquidGlassLens(
-        style: glassStyle,
+        style: routeXGlassStyle(context, variant, radius: effectiveRadius),
         child: expand ? SizedBox.expand(child: child) : child,
       ),
     );
   }
 }
 
+/// The moving pill inside a navigation surface.
 class RouteXSelectionGlass extends StatelessWidget {
   const RouteXSelectionGlass({
     super.key,
@@ -123,36 +243,14 @@ class RouteXSelectionGlass extends StatelessWidget {
   final Widget? child;
 
   @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return LiquidGlassLens(
-      style: LiquidGlassStyle(
-        shape: LiquidGlassShape.continuousRoundedRectangle(
-          cornerRadius: radius,
-          borderWidth: 0.8,
-          lightIntensity: 1,
-          borderType: const OpticalBorder(
-            borderSaturation: 1,
-            ambientIntensity: 1,
-            borderSolidity: 0,
-            lightSpread: 0.5,
-          ),
+  Widget build(BuildContext context) => LiquidGlassLens(
+        style: routeXGlassStyle(
+          context,
+          RouteXGlassVariant.selection,
+          radius: radius,
         ),
-        appearance: LiquidGlassAppearance(
-          color: dark ? const Color(0x14FFFFFF) : const Color(0x38FFFFFF),
-          saturation: 1.05,
-          blur: const LiquidGlassBlur(sigmaX: 1, sigmaY: 1),
-        ),
-        refraction: const LiquidGlassRefraction(
-          magnification: 1,
-          chromaticAberration: 0,
-          distortion: 0.05,
-          distortionWidth: 10,
-        ),
-      ),
-      child: child,
-    );
-  }
+        child: child,
+      );
 }
 
 ThemeData buildPremiumTheme({

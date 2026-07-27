@@ -358,8 +358,8 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 7, 8, 3),
           child: RouteXGlassSurface(
+            variant: RouteXGlassVariant.navigation,
             radius: 18,
-            blur: 16,
             shadowOffset: const Offset(0, 4),
             child: Theme(
               data: Theme.of(context).copyWith(

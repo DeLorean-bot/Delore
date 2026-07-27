@@ -1009,9 +1009,8 @@ class _ApplicationDetailsDialog extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 780, maxHeight: 720),
         child: RouteXGlassSurface(
+          variant: RouteXGlassVariant.dialog,
           radius: 28,
-          blur: 18,
-          ambientTint: true,
           shadowOffset: const Offset(0, 24),
           child: Column(
             children: [
@@ -1490,7 +1489,6 @@ class _GlassPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => RouteXGlassSurface(
         radius: radius,
-        blur: 16,
         expand: false,
         shadowOffset: const Offset(0, 14),
         child: Padding(
