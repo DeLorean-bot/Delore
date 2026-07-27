@@ -3,6 +3,7 @@ import 'package:flclashx/enum/enum.dart';
 import 'package:flclashx/models/models.dart';
 import 'package:flclashx/providers/providers.dart';
 import 'package:flclashx/state.dart';
+import 'package:flclashx/widgets/routex_jelly_selection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -42,7 +43,7 @@ class HeroNavBar extends ConsumerWidget {
                   variant: RouteXGlassVariant.navigation,
                   child: Padding(
                     padding: const EdgeInsets.all(4),
-                    child: _SlidingPrimaryTabs(
+                    child: _JellyPrimaryTabs(
                       items: primaryItems,
                       current: current,
                     ),
@@ -78,8 +79,10 @@ class HeroNavBar extends ConsumerWidget {
   }
 }
 
-class _SlidingPrimaryTabs extends StatelessWidget {
-  const _SlidingPrimaryTabs({
+/// The primary destinations with a spring-driven, jelly-deforming
+/// selection lens.
+class _JellyPrimaryTabs extends StatelessWidget {
+  const _JellyPrimaryTabs({
     required this.items,
     required this.current,
   });
@@ -90,44 +93,29 @@ class _SlidingPrimaryTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selectedIndex = items.indexWhere((item) => item.label == current);
-    final targetIndex = selectedIndex < 0 ? 0 : selectedIndex;
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-
     return LayoutBuilder(
-      builder: (context, constraints) {
-        final segmentWidth = constraints.maxWidth / items.length;
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween(end: targetIndex.toDouble()),
-              duration: reduceMotion ? Duration.zero : RouteXMotion.navigation,
-              curve: RouteXMotion.curve,
-              child: const RepaintBoundary(child: _LiquidLens()),
-              builder: (context, position, child) => Transform.translate(
-                offset: Offset(segmentWidth * position, 0),
-                child: SizedBox(
-                  width: segmentWidth,
-                  height: constraints.maxHeight,
-                  child: child,
-                ),
-              ),
-            ),
-            Row(
-              children: [
-                for (final item in items)
-                  Expanded(
-                    child: _LiquidNavItem(
-                      item: item,
-                      selected: item.label == current,
-                    ),
+      builder: (context, constraints) => Stack(
+        clipBehavior: Clip.none,
+        children: [
+          RouteXJellySelection(
+            index: (selectedIndex < 0 ? 0 : selectedIndex).toDouble(),
+            extent: constraints.maxWidth / items.length,
+            crossExtent: constraints.maxHeight,
+            child: const _LiquidLens(),
+          ),
+          Row(
+            children: [
+              for (final item in items)
+                Expanded(
+                  child: _LiquidNavItem(
+                    item: item,
+                    selected: item.label == current,
                   ),
-              ],
-            ),
-          ],
-        );
-      },
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

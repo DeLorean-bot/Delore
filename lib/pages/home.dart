@@ -7,6 +7,7 @@ import 'package:flclashx/providers/providers.dart';
 import 'package:flclashx/state.dart';
 import 'package:flclashx/views/dashboard/dashboard.dart';
 import 'package:flclashx/views/dashboard/widgets/hero_nav_bar.dart';
+import 'package:flclashx/widgets/routex_jelly_selection.dart';
 import 'package:flclashx/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -293,10 +294,6 @@ class _DesktopNavigationItems extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const itemExtent = 56.0;
-    final duration = RouteXMotion.resolve(
-      context,
-      RouteXMotion.navigation,
-    );
 
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
@@ -304,21 +301,12 @@ class _DesktopNavigationItems extends StatelessWidget {
           height: itemExtent * items.length,
           child: Stack(
             children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(end: selectedIndex.toDouble()),
-                duration: duration,
-                curve: RouteXMotion.curve,
-                child: RepaintBoundary(
-                  child: _DesktopSelectionLens(expanded: expanded),
-                ),
-                builder: (context, position, child) => Transform.translate(
-                  offset: Offset(0, itemExtent * position),
-                  child: SizedBox(
-                    height: itemExtent,
-                    width: double.infinity,
-                    child: child,
-                  ),
-                ),
+              RouteXJellySelection(
+                index: selectedIndex.toDouble(),
+                extent: itemExtent,
+                crossExtent: constraints.maxWidth,
+                axis: Axis.vertical,
+                child: _DesktopSelectionLens(expanded: expanded),
               ),
               Column(
                 children: [
