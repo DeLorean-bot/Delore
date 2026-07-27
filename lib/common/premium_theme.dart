@@ -32,54 +32,6 @@ abstract final class RouteXRadius {
   static double capsule(double shorterSide) => shorterSide / 2;
 }
 
-/// The exact silhouette of a RouteX glass surface — the same
-/// Apple capsule-style curve the shader draws, so a drop shadow (or any
-/// decoration) placed behind a lens lines up with it in the corners
-/// instead of showing a circular corner under a continuous one.
-class RouteXGlassBorder extends OutlinedBorder {
-  const RouteXGlassBorder({required this.radius, super.side = BorderSide.none});
-
-  final double radius;
-
-  @override
-  Path getOuterPath(Rect rect, {TextDirection? textDirection}) =>
-      liquidGlassContinuousRoundedRectPath(rect.size, radius)
-          .shift(rect.topLeft);
-
-  @override
-  Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
-      getOuterPath(rect, textDirection: textDirection);
-
-  /// Nothing to stroke: the lens draws its own optical rim.
-  @override
-  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {}
-
-  @override
-  RouteXGlassBorder copyWith({BorderSide? side, double? radius}) =>
-      RouteXGlassBorder(
-        radius: radius ?? this.radius,
-        side: side ?? this.side,
-      );
-
-  @override
-  ShapeBorder scale(double t) => RouteXGlassBorder(
-        radius: radius * t,
-        side: side.scale(t),
-      );
-
-  @override
-  EdgeInsetsGeometry get dimensions => EdgeInsets.zero;
-
-  @override
-  bool operator ==(Object other) =>
-      other is RouteXGlassBorder &&
-      other.radius == radius &&
-      other.side == side;
-
-  @override
-  int get hashCode => Object.hash(radius, side);
-}
-
 IconData routeXNavigationIcon(PageLabel label) => switch (label) {
       PageLabel.dashboard => Icons.home_outlined,
       PageLabel.applications => Icons.grid_view_rounded,
@@ -266,17 +218,19 @@ LiquidGlassStyle routeXGlassStyle(
       ),
   };
   return LiquidGlassStyle(
-    shape: LiquidGlassShape.continuousRoundedRectangle(
+    // Plain circular corners, everywhere.
+    //
+    // The continuous (squircle) corner is the prettier curve, but on this
+    // renderer it cannot be drawn cleanly: its exact clip is a 40-segment
+    // polyline, which is literally faceted, and its cheap clip is a
+    // circular curve that disagrees with the SDF the shader draws. Either
+    // way the silhouette and the refraction part company at the corners
+    // and the edge reads as torn. A circular corner is the one shape
+    // where the shader, the clip and the shadow are all the same analytic
+    // curve, so the edge resolves cleanly. Smoothness beats the squircle.
+    shape: LiquidGlassShape.roundedRectangle(
       cornerRadius: radius ?? variant.defaultRadius,
-      // `exact` traces the continuous corner as a 40-segment polyline
-      // while the shader draws it analytically, and on a tight curve the
-      // two disagree visibly — a faceted, ragged edge. At a full capsule
-      // the continuous shape degenerates to a stadium, which the cheap
-      // circular clip reproduces exactly *and* smoothly, so capsules take
-      // that path instead.
-      clipQuality: capsule
-          ? LiquidGlassClipQuality.roundedRectangle
-          : LiquidGlassClipQuality.exact,
+      clipQuality: LiquidGlassClipQuality.roundedRectangle,
       // The shader's band is `borderWidth * 2 + 2` logical pixels wide in
       // optical mode, so even 0.8 was a 3.6 px stroke. These values are
       // deliberately near the floor.
@@ -307,18 +261,13 @@ LiquidGlassStyle routeXGlassStyle(
 /// continuous corner's belly, so those are left alone.
 Widget _antiAliased({
   required double radius,
-  required bool enabled,
   required Widget child,
-}) {
-  if (!enabled) {
-    return child;
-  }
-  return ClipRRect(
-    borderRadius: BorderRadius.circular(radius),
-    clipBehavior: Clip.antiAliasWithSaveLayer,
-    child: child,
-  );
-}
+}) =>
+    ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      clipBehavior: Clip.antiAliasWithSaveLayer,
+      child: child,
+    );
 
 /// A glass plane: one lens in the [variant]'s material, with the drop
 /// shadow that separates it from the backdrop.
@@ -357,7 +306,9 @@ class RouteXGlassSurface extends StatelessWidget {
       decoration: ShapeDecoration(
         shape: capsule
             ? const StadiumBorder()
-            : RouteXGlassBorder(radius: effectiveRadius),
+            : RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(effectiveRadius),
+              ),
         shadows: [
           BoxShadow(
             color: Colors.black.withValues(alpha: dark ? 0.28 : 0.1),
@@ -369,7 +320,6 @@ class RouteXGlassSurface extends StatelessWidget {
       ),
       child: _antiAliased(
         radius: effectiveRadius,
-        enabled: capsule,
         child: LiquidGlassLens(
           style: routeXGlassStyle(
             context,
@@ -402,7 +352,6 @@ class RouteXSelectionGlass extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _antiAliased(
         radius: radius,
-        enabled: capsule,
         child: LiquidGlassLens(
           style: routeXGlassStyle(
             context,
