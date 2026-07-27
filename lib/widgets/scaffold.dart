@@ -686,6 +686,12 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
       children: [
         if (widget.showAppBar)
           Positioned(
+            // Keyed: without it the Stack matches children by index and
+            // type, so toggling the app bar hands the bar's element to
+            // the app bar and rebuilds the bar from scratch — taking the
+            // selection spring's controller with it, which is why the
+            // pill stopped animating between pages.
+            key: const ValueKey('routex-app-bar'),
             top: 0,
             left: 0,
             right: 0,
@@ -696,6 +702,7 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
           ),
         if (widget.bottomNavigationBar != null)
           Positioned(
+            key: const ValueKey('routex-bottom-nav'),
             left: 0,
             right: 0,
             bottom: 0,

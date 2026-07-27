@@ -248,27 +248,6 @@ LiquidGlassStyle routeXGlassStyle(
   );
 }
 
-/// Re-clips a lens through a composited layer.
-///
-/// Skia antialiases a rounded clip per draw operation, which leaves the
-/// edge visibly stepped — the classic reason a clipped Flutter surface
-/// looks ragged no matter how its border is styled.
-/// [Clip.antiAliasWithSaveLayer] composites the surface first and
-/// antialiases the boundary once, which is the only way to get a clean
-/// curve. It costs a save layer, so it is applied where the silhouette
-/// is unambiguous: capsules, whose stadium outline matches this clip
-/// exactly. On anything else an outer circular clip would crop the
-/// continuous corner's belly, so those are left alone.
-Widget _antiAliased({
-  required double radius,
-  required Widget child,
-}) =>
-    ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      clipBehavior: Clip.antiAliasWithSaveLayer,
-      child: child,
-    );
-
 /// A glass plane: one lens in the [variant]'s material, with the drop
 /// shadow that separates it from the backdrop.
 class RouteXGlassSurface extends StatelessWidget {
@@ -318,17 +297,19 @@ class RouteXGlassSurface extends StatelessWidget {
           ),
         ],
       ),
-      child: _antiAliased(
-        radius: effectiveRadius,
-        child: LiquidGlassLens(
-          style: routeXGlassStyle(
-            context,
-            variant,
-            radius: effectiveRadius,
-            capsule: capsule,
-          ),
-          child: expand ? SizedBox.expand(child: child) : child,
+      // Deliberately NOT wrapped in a Clip.antiAliasWithSaveLayer: that
+      // isolates the subtree into its own layer, and the lens's blur is a
+      // BackdropFilterLayer, which samples what sits behind it *within*
+      // that layer — nothing. Forcing the boundary's antialiasing that
+      // way costs the blur entirely.
+      child: LiquidGlassLens(
+        style: routeXGlassStyle(
+          context,
+          variant,
+          radius: effectiveRadius,
+          capsule: capsule,
         ),
+        child: expand ? SizedBox.expand(child: child) : child,
       ),
     );
   }
@@ -350,17 +331,14 @@ class RouteXSelectionGlass extends StatelessWidget {
   final bool capsule;
 
   @override
-  Widget build(BuildContext context) => _antiAliased(
-        radius: radius,
-        child: LiquidGlassLens(
-          style: routeXGlassStyle(
-            context,
-            RouteXGlassVariant.selection,
-            radius: radius,
-            capsule: capsule,
-          ),
-          child: child,
+  Widget build(BuildContext context) => LiquidGlassLens(
+        style: routeXGlassStyle(
+          context,
+          RouteXGlassVariant.selection,
+          radius: radius,
+          capsule: capsule,
         ),
+        child: child,
       );
 }
 
