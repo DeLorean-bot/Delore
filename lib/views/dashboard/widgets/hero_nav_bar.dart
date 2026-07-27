@@ -8,6 +8,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+/// Bar height; the capsule radius and the pill radius both derive from it.
+const _barHeight = 60.0;
+
+/// The slot the selection lens fills: the bar minus its 4 px inner
+/// padding, minus the lens's own 1 px inset.
+const _pillHeight = _barHeight - 8 - 2;
+
 class HeroNavBar extends ConsumerWidget {
   const HeroNavBar({super.key});
 
@@ -41,6 +48,7 @@ class HeroNavBar extends ConsumerWidget {
               Expanded(
                 child: RouteXGlassSurface(
                   variant: RouteXGlassVariant.navigation,
+                  radius: RouteXRadius.capsule(_barHeight),
                   child: Padding(
                     padding: const EdgeInsets.all(4),
                     child: _JellyPrimaryTabs(
@@ -52,9 +60,10 @@ class HeroNavBar extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               SizedBox(
-                width: 60,
+                width: _barHeight,
                 child: RouteXGlassSurface(
                   variant: RouteXGlassVariant.navigation,
+                  radius: RouteXRadius.capsule(_barHeight),
                   child: Padding(
                     padding: const EdgeInsets.all(4),
                     child: Stack(
@@ -124,9 +133,11 @@ class _LiquidLens extends StatelessWidget {
   const _LiquidLens();
 
   @override
-  Widget build(BuildContext context) => const Padding(
-        padding: EdgeInsets.all(1),
-        child: RouteXSelectionGlass(radius: 22),
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.all(1),
+        child: RouteXSelectionGlass(
+          radius: RouteXRadius.capsule(_pillHeight),
+        ),
       );
 }
 

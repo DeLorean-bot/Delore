@@ -24,6 +24,60 @@ abstract final class RouteXRadius {
   static const card = 16.0;
   static const overlay = 22.0;
   static const navigation = 26.0;
+
+  /// A true capsule: pass half the surface's shorter side. Floating
+  /// navigation reads as a capsule on iOS, and the library's own nav bar
+  /// derives `height / 2` for the same reason — anything less makes a
+  /// short, wide bar look like a rounded rectangle straining to be one.
+  static double capsule(double shorterSide) => shorterSide / 2;
+}
+
+/// The exact silhouette of a RouteX glass surface — the same
+/// Apple capsule-style curve the shader draws, so a drop shadow (or any
+/// decoration) placed behind a lens lines up with it in the corners
+/// instead of showing a circular corner under a continuous one.
+class RouteXGlassBorder extends OutlinedBorder {
+  const RouteXGlassBorder({required this.radius, super.side = BorderSide.none});
+
+  final double radius;
+
+  @override
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) =>
+      liquidGlassContinuousRoundedRectPath(rect.size, radius)
+          .shift(rect.topLeft);
+
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
+      getOuterPath(rect, textDirection: textDirection);
+
+  /// Nothing to stroke: the lens draws its own optical rim.
+  @override
+  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {}
+
+  @override
+  RouteXGlassBorder copyWith({BorderSide? side, double? radius}) =>
+      RouteXGlassBorder(
+        radius: radius ?? this.radius,
+        side: side ?? this.side,
+      );
+
+  @override
+  ShapeBorder scale(double t) => RouteXGlassBorder(
+        radius: radius * t,
+        side: side.scale(t),
+      );
+
+  @override
+  EdgeInsetsGeometry get dimensions => EdgeInsets.zero;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RouteXGlassBorder &&
+      other.radius == radius &&
+      other.side == side;
+
+  @override
+  int get hashCode => Object.hash(radius, side);
 }
 
 IconData routeXNavigationIcon(PageLabel label) => switch (label) {
@@ -76,13 +130,37 @@ extension RouteXGlassVariantDefaults on RouteXGlassVariant {
       };
 }
 
+/// The rim, shared by every variant — the library's own tuned optical
+/// border from `example/lib/nav_bar_tuning.dart`.
+///
+/// A **thin, solid, saturated** rim lit from near the top. The earlier
+/// RouteX rim was the opposite of each of those — thicker (1.0–1.2),
+/// fully translucent (`borderSolidity: 0`), unsaturated and lit from the
+/// right — which is what made the edges read as soft and approximate
+/// rather than like glass. `borderSolidity: 1` is safe here *because*
+/// the backdrop now carries detail; on the flat black it replaced, a
+/// solid rim is what turns into a plastic outline.
+const _routeXOpticalRim = OpticalBorder(
+  borderSaturation: 1.2,
+  ambientIntensity: 1,
+  borderSolidity: 1,
+  lightSpread: 0.5,
+);
+
+/// Where the rim highlight falls, in degrees (`90` = straight down from
+/// the top). The library's tuned nav bar uses `80`; light from above is
+/// what makes an edge read as a physical bevel.
+const _routeXLightDirection = 80.0;
+
 /// Builds the glass material for [variant].
 ///
 /// This is the only place a `LiquidGlassStyle` is constructed in RouteX:
 /// tuned in the developer Glass Playground, then written down here as a
-/// semantic token. Note what is deliberately constant across all five —
-/// `borderSolidity: 0` (a light-driven solid rim reads as plastic on a
-/// dark backdrop), `chromaticAberration: 0` and `magnification: 1`.
+/// semantic token. Constant across all five: the rim above,
+/// `clipQuality: exact` (the shader draws a continuous corner, so the
+/// cheap circular clip leaves the silhouette and the refraction
+/// disagreeing exactly at the corners), `chromaticAberration: 0` and
+/// `magnification: 1`.
 LiquidGlassStyle routeXGlassStyle(
   BuildContext context,
   RouteXGlassVariant variant, {
@@ -94,8 +172,8 @@ LiquidGlassStyle routeXGlassStyle(
   final (Color tint, double blur, double borderWidth) = switch (variant) {
     RouteXGlassVariant.navigation => (
         dark ? const Color(0x18FFFFFF) : const Color(0x33FFFFFF),
-        4.0,
-        1.2,
+        3.0,
+        0.8,
       ),
     RouteXGlassVariant.selection => (
         dark ? const Color(0x0FFFFFFF) : const Color(0x2AFFFFFF),
@@ -105,7 +183,7 @@ LiquidGlassStyle routeXGlassStyle(
     RouteXGlassVariant.panel => (
         dark ? const Color(0x14FFFFFF) : const Color(0x2EFFFFFF),
         3.0,
-        1.0,
+        0.8,
       ),
     RouteXGlassVariant.dialog => (
         dark ? const Color(0x22FFFFFF) : const Color(0x3DFFFFFF),
@@ -169,14 +247,11 @@ LiquidGlassStyle routeXGlassStyle(
   return LiquidGlassStyle(
     shape: LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: radius ?? variant.defaultRadius,
+      clipQuality: LiquidGlassClipQuality.exact,
       borderWidth: borderWidth,
-      lightIntensity: 1,
-      borderType: const OpticalBorder(
-        borderSaturation: 1,
-        ambientIntensity: 1,
-        borderSolidity: 0,
-        lightSpread: 0.5,
-      ),
+      lightIntensity: 1.1,
+      lightDirection: _routeXLightDirection,
+      borderType: _routeXOpticalRim,
     ),
     appearance: LiquidGlassAppearance(
       saturation: variant == RouteXGlassVariant.selection ? 1 : 1.05,
@@ -212,9 +287,12 @@ class RouteXGlassSurface extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final effectiveRadius = radius ?? variant.defaultRadius;
     return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(effectiveRadius),
-        boxShadow: [
+      // The shadow follows the shader's own silhouette, not a circular
+      // rounded rectangle — otherwise a differently-curved shadow peeks
+      // out at each corner and the edge reads as misaligned.
+      decoration: ShapeDecoration(
+        shape: RouteXGlassBorder(radius: effectiveRadius),
+        shadows: [
           BoxShadow(
             color: Colors.black.withValues(alpha: dark ? 0.28 : 0.1),
             blurRadius: 20,
