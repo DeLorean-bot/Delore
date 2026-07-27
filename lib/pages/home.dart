@@ -343,6 +343,7 @@ class _DesktopSelectionLens extends StatelessWidget {
         ),
         child: const RouteXSelectionGlass(
           radius: RouteXRadius.navigation,
+          capsule: true,
         ),
       );
 }

@@ -49,6 +49,7 @@ class HeroNavBar extends ConsumerWidget {
                 child: RouteXGlassSurface(
                   variant: RouteXGlassVariant.navigation,
                   radius: RouteXRadius.capsule(_barHeight),
+                  capsule: true,
                   child: Padding(
                     padding: const EdgeInsets.all(4),
                     child: _JellyPrimaryTabs(
@@ -64,6 +65,7 @@ class HeroNavBar extends ConsumerWidget {
                 child: RouteXGlassSurface(
                   variant: RouteXGlassVariant.navigation,
                   radius: RouteXRadius.capsule(_barHeight),
+                  capsule: true,
                   child: Padding(
                     padding: const EdgeInsets.all(4),
                     child: Stack(
@@ -137,6 +139,7 @@ class _LiquidLens extends StatelessWidget {
         padding: const EdgeInsets.all(1),
         child: RouteXSelectionGlass(
           radius: RouteXRadius.capsule(_pillHeight),
+          capsule: true,
         ),
       );
 }

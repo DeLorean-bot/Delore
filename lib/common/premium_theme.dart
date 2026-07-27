@@ -175,6 +175,7 @@ LiquidGlassStyle routeXGlassStyle(
   BuildContext context,
   RouteXGlassVariant variant, {
   double? radius,
+  bool capsule = false,
 }) {
   final dark = Theme.of(context).brightness == Brightness.dark;
   // Light theme needs a denser fill: the same alpha over a bright
@@ -267,7 +268,15 @@ LiquidGlassStyle routeXGlassStyle(
   return LiquidGlassStyle(
     shape: LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: radius ?? variant.defaultRadius,
-      clipQuality: LiquidGlassClipQuality.exact,
+      // `exact` traces the continuous corner as a 40-segment polyline
+      // while the shader draws it analytically, and on a tight curve the
+      // two disagree visibly — a faceted, ragged edge. At a full capsule
+      // the continuous shape degenerates to a stadium, which the cheap
+      // circular clip reproduces exactly *and* smoothly, so capsules take
+      // that path instead.
+      clipQuality: capsule
+          ? LiquidGlassClipQuality.roundedRectangle
+          : LiquidGlassClipQuality.exact,
       borderWidth: borderWidth,
       lightIntensity: 1,
       lightDirection: _routeXLightDirection,
@@ -292,6 +301,7 @@ class RouteXGlassSurface extends StatelessWidget {
     this.radius,
     this.shadowOffset = const Offset(0, 8),
     this.expand = true,
+    this.capsule = false,
   });
 
   final Widget child;
@@ -302,6 +312,11 @@ class RouteXGlassSurface extends StatelessWidget {
   final Offset shadowOffset;
   final bool expand;
 
+  /// Whether this surface is a full capsule (radius == half its shorter
+  /// side). Capsules get the analytic stadium silhouette rather than the
+  /// traced continuous one — same shape, no faceting.
+  final bool capsule;
+
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
@@ -311,7 +326,9 @@ class RouteXGlassSurface extends StatelessWidget {
       // rounded rectangle — otherwise a differently-curved shadow peeks
       // out at each corner and the edge reads as misaligned.
       decoration: ShapeDecoration(
-        shape: RouteXGlassBorder(radius: effectiveRadius),
+        shape: capsule
+            ? const StadiumBorder()
+            : RouteXGlassBorder(radius: effectiveRadius),
         shadows: [
           BoxShadow(
             color: Colors.black.withValues(alpha: dark ? 0.28 : 0.1),
@@ -322,7 +339,12 @@ class RouteXGlassSurface extends StatelessWidget {
         ],
       ),
       child: LiquidGlassLens(
-        style: routeXGlassStyle(context, variant, radius: effectiveRadius),
+        style: routeXGlassStyle(
+          context,
+          variant,
+          radius: effectiveRadius,
+          capsule: capsule,
+        ),
         child: expand ? SizedBox.expand(child: child) : child,
       ),
     );
@@ -335,10 +357,14 @@ class RouteXSelectionGlass extends StatelessWidget {
     super.key,
     required this.radius,
     this.child,
+    this.capsule = false,
   });
 
   final double radius;
   final Widget? child;
+
+  /// See [RouteXGlassSurface.capsule].
+  final bool capsule;
 
   @override
   Widget build(BuildContext context) => LiquidGlassLens(
@@ -346,6 +372,7 @@ class RouteXSelectionGlass extends StatelessWidget {
           context,
           RouteXGlassVariant.selection,
           radius: radius,
+          capsule: capsule,
         ),
         child: child,
       );
