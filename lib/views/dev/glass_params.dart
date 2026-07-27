@@ -106,9 +106,13 @@ class RouteXGlassParams {
     chromaticAberration: 0,
   );
 
-  /// The library's own tuned nav-bar rim, from
-  /// `example/lib/nav_bar_tuning.dart` — thin, solid, saturated, lit
-  /// from near the top. The reference RouteX's rim is now aligned to.
+  /// The library's own tuned nav-bar glass, verbatim from
+  /// `example/lib/nav_bar_tuning.dart`.
+  ///
+  /// Kept as a comparison preset, **not** as the RouteX token: its solid
+  /// saturated rim is tuned against the example's photographic
+  /// background. Load it over the `flatBlack` backdrop to see it turn
+  /// into a neon outline, and over `spectrum` to see why it works there.
   static const officialNavGlass = RouteXGlassParams(
     cornerRadius: 30,
     exactClip: true,
@@ -133,10 +137,8 @@ class RouteXGlassParams {
     cornerRadius: 30,
     exactClip: true,
     borderWidth: 0.8,
-    lightIntensity: 1.1,
+    lightIntensity: 1,
     lightDirection: 80,
-    borderSaturation: 1.2,
-    borderSolidity: 1,
     tintAlpha: 0.094,
     blurSigma: 3,
   );
@@ -146,10 +148,8 @@ class RouteXGlassParams {
     cornerRadius: 25,
     exactClip: true,
     borderWidth: 0.8,
-    lightIntensity: 1.1,
+    lightIntensity: 1,
     lightDirection: 80,
-    borderSaturation: 1.2,
-    borderSolidity: 1,
     tintAlpha: 0.059,
     saturation: 1,
     blurSigma: 0,
@@ -162,10 +162,8 @@ class RouteXGlassParams {
   static const routexDialog = RouteXGlassParams(
     exactClip: true,
     borderWidth: 1,
-    lightIntensity: 1.1,
+    lightIntensity: 1,
     lightDirection: 80,
-    borderSaturation: 1.2,
-    borderSolidity: 1,
     tintAlpha: 0.133,
     blurSigma: 6,
     refractionIndex: 1.45,
@@ -178,10 +176,8 @@ class RouteXGlassParams {
     cornerRadius: 12,
     exactClip: true,
     borderWidth: 0.8,
-    lightIntensity: 1.1,
+    lightIntensity: 1,
     lightDirection: 80,
-    borderSaturation: 1.2,
-    borderSolidity: 1,
     tintAlpha: 0.086,
     blurSigma: 2,
     refractionWidth: 12,
@@ -202,10 +198,8 @@ class RouteXGlassParams {
   static const _routexBase = RouteXGlassParams(
     exactClip: true,
     borderWidth: 0.8,
-    lightIntensity: 1.1,
+    lightIntensity: 1,
     lightDirection: 80,
-    borderSaturation: 1.2,
-    borderSolidity: 1,
     tintAlpha: 0.078,
     blurSigma: 3,
   );

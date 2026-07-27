@@ -130,20 +130,23 @@ extension RouteXGlassVariantDefaults on RouteXGlassVariant {
       };
 }
 
-/// The rim, shared by every variant — the library's own tuned optical
-/// border from `example/lib/nav_bar_tuning.dart`.
+/// The rim, shared by every variant.
 ///
-/// A **thin, solid, saturated** rim lit from near the top. The earlier
-/// RouteX rim was the opposite of each of those — thicker (1.0–1.2),
-/// fully translucent (`borderSolidity: 0`), unsaturated and lit from the
-/// right — which is what made the edges read as soft and approximate
-/// rather than like glass. `borderSolidity: 1` is safe here *because*
-/// the backdrop now carries detail; on the flat black it replaced, a
-/// solid rim is what turns into a plastic outline.
+/// **Thin and translucent.** The library's tuned nav bar uses
+/// `borderSolidity: 1` with `borderSaturation: 1.2`, but it does so over
+/// the example's photographic background: there the rim samples real
+/// colour from behind the glass. Over RouteX's near-black backdrop the
+/// same values collapse into a hard, saturated line drawn *on* the
+/// panel — a neon outline, which is the single loudest tell that a dark
+/// UI was not designed by hand. Thin plus translucent gives a bevel that
+/// is felt rather than seen.
+///
+/// The thickness matters as much as the solidity: at 1.0–1.2 the rim was
+/// wide enough to read as a stroke no matter how faint it was.
 const _routeXOpticalRim = OpticalBorder(
-  borderSaturation: 1.2,
+  borderSaturation: 1,
   ambientIntensity: 1,
-  borderSolidity: 1,
+  borderSolidity: 0,
   lightSpread: 0.5,
 );
 
@@ -249,7 +252,7 @@ LiquidGlassStyle routeXGlassStyle(
       cornerRadius: radius ?? variant.defaultRadius,
       clipQuality: LiquidGlassClipQuality.exact,
       borderWidth: borderWidth,
-      lightIntensity: 1.1,
+      lightIntensity: 1,
       lightDirection: _routeXLightDirection,
       borderType: _routeXOpticalRim,
     ),

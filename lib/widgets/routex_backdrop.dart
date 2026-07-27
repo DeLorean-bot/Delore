@@ -121,36 +121,39 @@ class RouteXMeshPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final angle = phase * math.pi;
     final gain = detail.clamp(0.0, 2.0) * intensity * (dark ? 1 : 1.4);
+    // Spread across the frame, not only into the corners: a panel in the
+    // middle of the screen has to have something under it, or its glass
+    // has nothing to bend and degrades to a flat translucent rectangle.
     final blobs = <(Offset, double, Color, double)>[
       (
-        Offset(0.08 + math.sin(angle) * 0.05, 0.12 + math.cos(angle) * 0.04),
+        Offset(0.08 + math.sin(angle) * 0.05, 0.10 + math.cos(angle) * 0.04),
+        0.68,
+        premiumMint,
+        0.20,
+      ),
+      (
+        Offset(0.94 - math.cos(angle) * 0.05, 0.80 - math.sin(angle) * 0.04),
+        0.76,
+        premiumBlue,
+        0.22,
+      ),
+      (
+        Offset(0.70 + math.cos(angle * 1.3) * 0.06, 0.30),
+        0.52,
+        premiumBlue,
+        0.12,
+      ),
+      (
+        Offset(0.16, 0.62 - math.sin(angle * 0.8) * 0.05),
+        0.56,
+        premiumMint,
+        0.13,
+      ),
+      (
+        Offset(0.46 + math.sin(angle * 0.6) * 0.08, 0.46),
         0.62,
-        premiumMint,
-        0.10,
-      ),
-      (
-        Offset(0.94 - math.cos(angle) * 0.05, 0.78 - math.sin(angle) * 0.04),
-        0.70,
-        premiumBlue,
-        0.11,
-      ),
-      (
-        Offset(0.62 + math.cos(angle * 1.3) * 0.06, 0.06),
-        0.44,
-        premiumBlue,
-        0.055,
-      ),
-      (
-        Offset(0.04, 0.86 - math.sin(angle * 0.8) * 0.05),
-        0.50,
-        premiumMint,
-        0.06,
-      ),
-      (
-        Offset(0.48 + math.sin(angle * 0.6) * 0.08, 0.52),
-        0.58,
         premiumAmber,
-        0.022,
+        0.06,
       ),
     ];
     for (final (center, radiusFactor, color, alpha) in blobs) {
@@ -235,7 +238,9 @@ void routeXPaintVignette(
   double strength = 1,
 }) {
   final rect = Offset.zero & size;
-  final alpha = (dark ? 0.4 : 0.1) * strength;
+  // Light: the vignette used to eat the mesh at exactly the edges where
+  // the navigation surfaces sit, leaving them over flat black.
+  final alpha = (dark ? 0.16 : 0.06) * strength;
   if (alpha <= 0) {
     return;
   }

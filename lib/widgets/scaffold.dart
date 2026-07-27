@@ -657,7 +657,11 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
 
     return LiquidGlassView(
       backgroundWidget: scene,
-      pixelRatio: 1,
+      // Capture at the display's own density. A fixed `1` is *below*
+      // native on any scaled Windows desktop (125% / 150%), so the
+      // refracted background was being upscaled — the glass looked like
+      // it was rendered at the wrong resolution because it was.
+      pixelRatio: MediaQuery.devicePixelRatioOf(context).clamp(1.0, 2.0),
       realTimeCapture: isDashboard &&
           !(MediaQuery.maybeOf(context)?.disableAnimations ?? false),
       refreshRate: LiquidGlassRefreshRate.high,
