@@ -145,16 +145,16 @@ extension RouteXGlassVariantDefaults on RouteXGlassVariant {
 /// wide enough to read as a stroke no matter how faint it was.
 const _routeXOpticalRim = OpticalBorder(
   borderSaturation: 1,
-  // Low ambient: the ambient term is the part of the rim that is
-  // angle-independent, i.e. the part that draws all the way around the
-  // shape. That ring is the outline.
-  ambientIntensity: 0.35,
+  // Zero, not merely low. The ambient term is angle-independent, so any
+  // amount of it draws a ring around the entire shape — and a ring is
+  // exactly what we keep being told looks wrong. iOS glass has no such
+  // ring: its edge is a highlight where the light lands, and elsewhere
+  // the edge is carried by the blur and the refraction alone.
+  ambientIntensity: 0,
   borderSolidity: 0,
-  // Tight, not wrapped. On iOS the rim is a highlight where the light
-  // actually hits — bright at the top-left, gone by the far side. At the
-  // default 0.5 it wraps the whole perimeter, which is a drawn border by
-  // another name.
-  lightSpread: 0.12,
+  // Barely spread: the highlight stays on the light-facing side instead
+  // of wrapping the perimeter.
+  lightSpread: 0.06,
 );
 
 /// Where the rim highlight falls, in degrees (`90` = straight down from
@@ -191,7 +191,7 @@ LiquidGlassStyle routeXGlassStyle(
         // rim; the blur is what makes it read as frosted material. This
         // only became necessary once the page entered the capture.
         16.0,
-        0.8,
+        0.35,
       ),
     // The selection reads as a lift in brightness, not as an outlined
     // chip: slightly more fill than the bar it sits in, no blur of its
@@ -199,22 +199,22 @@ LiquidGlassStyle routeXGlassStyle(
     RouteXGlassVariant.selection => (
         dark ? const Color(0x1AFFFFFF) : const Color(0x33FFFFFF),
         0.0,
-        0.6,
+        0.3,
       ),
     RouteXGlassVariant.panel => (
         dark ? const Color(0x14FFFFFF) : const Color(0x2EFFFFFF),
         10.0,
-        0.8,
+        0.4,
       ),
     RouteXGlassVariant.dialog => (
         dark ? const Color(0x22FFFFFF) : const Color(0x3DFFFFFF),
         6.0,
-        1.0,
+        0.5,
       ),
     RouteXGlassVariant.control => (
         dark ? const Color(0x16FFFFFF) : const Color(0x30FFFFFF),
         2.0,
-        0.8,
+        0.35,
       ),
   };
   final refraction = switch (variant) {
@@ -277,8 +277,11 @@ LiquidGlassStyle routeXGlassStyle(
       clipQuality: capsule
           ? LiquidGlassClipQuality.roundedRectangle
           : LiquidGlassClipQuality.exact,
+      // The shader's band is `borderWidth * 2 + 2` logical pixels wide in
+      // optical mode, so even 0.8 was a 3.6 px stroke. These values are
+      // deliberately near the floor.
       borderWidth: borderWidth,
-      lightIntensity: 1,
+      lightIntensity: 0.9,
       lightDirection: _routeXLightDirection,
       borderType: _routeXOpticalRim,
     ),
