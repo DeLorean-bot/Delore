@@ -43,15 +43,17 @@ class HomePage extends StatelessWidget {
                 : null;
             final sideNavigationBar =
                 viewMode != ViewMode.mobile ? navigationBar : null;
+            final isDashboard = pageLabel == PageLabel.dashboard;
             return CommonScaffold(
               key: globalState.homeScaffoldKey,
+              // The Dashboard opens with its own heading, so the chrome
+              // bar would just repeat the page name above it.
+              showAppBar: !isDashboard,
               title: Intl.message(
                 pageLabel.name,
               ),
               sideNavigationBar: sideNavigationBar,
-              body: pageLabel == PageLabel.dashboard
-                  ? const DashboardView()
-                  : child!,
+              body: isDashboard ? const DashboardView() : child!,
               bottomNavigationBar: bottomNavigationBar,
             );
           },

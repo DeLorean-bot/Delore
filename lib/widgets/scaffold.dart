@@ -34,6 +34,7 @@ class CommonScaffold extends ConsumerStatefulWidget {
     this.appBarEditState,
     this.floatingActionButton,
     this.disableBackground = false,
+    this.showAppBar = true,
   });
 
   CommonScaffold.open({
@@ -70,6 +71,12 @@ class CommonScaffold extends ConsumerStatefulWidget {
   final AppBarEditState? appBarEditState;
   final FloatingActionButton? floatingActionButton;
   final bool disableBackground;
+
+  /// Whether the floating glass app bar is drawn. A screen that opens
+  /// with its own heading — the Dashboard — sets this false: a chrome bar
+  /// repeating the page name above a card that names it again is noise,
+  /// and it costs the top of the viewport.
+  final bool showAppBar;
 
   @override
   ConsumerState<CommonScaffold> createState() => CommonScaffoldState();
@@ -634,10 +641,12 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
           );
 
     final contentScaffold = Scaffold(
-      appBar: const PreferredSize(
-        preferredSize: Size.fromHeight(_appBarHeight),
-        child: SizedBox.shrink(),
-      ),
+      appBar: widget.showAppBar
+          ? const PreferredSize(
+              preferredSize: Size.fromHeight(_appBarHeight),
+              child: SizedBox.shrink(),
+            )
+          : null,
       body: body,
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.transparent,
@@ -675,15 +684,16 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
     final chromeColumn = Stack(
       fit: StackFit.expand,
       children: [
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: SizedBox(
-            height: _appBarHeight,
-            child: _buildAppBar(),
+        if (widget.showAppBar)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SizedBox(
+              height: _appBarHeight,
+              child: _buildAppBar(),
+            ),
           ),
-        ),
         if (widget.bottomNavigationBar != null)
           Positioned(
             left: 0,
