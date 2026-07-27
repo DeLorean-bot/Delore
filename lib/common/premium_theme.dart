@@ -185,7 +185,11 @@ LiquidGlassStyle routeXGlassStyle(
     // painted on.
     RouteXGlassVariant.navigation => (
         dark ? const Color(0x0DFFFFFF) : const Color(0x26FFFFFF),
-        3.0,
+        // Heavy, now that real UI passes underneath. Refraction alone
+        // turns dense list text into a legible smear dragged along the
+        // rim; the blur is what makes it read as frosted material. This
+        // only became necessary once the page entered the capture.
+        16.0,
         0.8,
       ),
     // The selection reads as a lift in brightness, not as an outlined
@@ -198,7 +202,7 @@ LiquidGlassStyle routeXGlassStyle(
       ),
     RouteXGlassVariant.panel => (
         dark ? const Color(0x14FFFFFF) : const Color(0x2EFFFFFF),
-        3.0,
+        10.0,
         0.8,
       ),
     RouteXGlassVariant.dialog => (
