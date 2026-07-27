@@ -174,6 +174,7 @@ class _FocusableTap extends StatefulWidget {
 
 class _FocusableTapState extends State<_FocusableTap> {
   bool _focused = false;
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
@@ -184,6 +185,11 @@ class _FocusableTapState extends State<_FocusableTap> {
       onShowFocusHighlight: (value) {
         if (mounted && value != _focused) setState(() => _focused = value);
       },
+      onShowHoverHighlight: (value) {
+        if (mounted && value != _hovered) setState(() => _hovered = value);
+      },
+      mouseCursor:
+          enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
       // No explicit Map<Type, Action<Intent>> annotation: `Action` is ambiguous here
       // (flclashx models also export an `Action` class). Context inference from
       // FocusableActionDetector.actions gives the right type without naming it.
@@ -200,7 +206,8 @@ class _FocusableTapState extends State<_FocusableTap> {
       // desktop) spilled past the window edges once 1.5% of its width exceeded
       // the 16px side padding.
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: RouteXMotion.resolve(context, RouteXMotion.fast),
+        curve: RouteXMotion.curve,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(widget.borderRadius + 4),
           border: Border.all(
@@ -208,10 +215,22 @@ class _FocusableTapState extends State<_FocusableTap> {
             width: 2,
           ),
         ),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: widget.onTap,
-          child: widget.child,
+        // Hover lifts the control rather than outlining it: a pointer
+        // resting on glass should read as the material catching a little
+        // more light, not as a box being drawn around it.
+        child: AnimatedScale(
+          scale: _hovered && enabled ? 1.015 : 1,
+          duration: RouteXMotion.resolve(context, RouteXMotion.fast),
+          curve: RouteXMotion.curve,
+          child: AnimatedOpacity(
+            opacity: _hovered && enabled ? 1 : 0.88,
+            duration: RouteXMotion.resolve(context, RouteXMotion.fast),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onTap,
+              child: widget.child,
+            ),
+          ),
         ),
       ),
     );
@@ -300,50 +319,6 @@ class HeroConnect extends ConsumerWidget {
                             ],
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 11,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            color: (isRunning ? premiumMint : Colors.white)
-                                .withValues(alpha: isRunning ? 0.11 : 0.055),
-                            borderRadius: BorderRadius.circular(99),
-                            border: Border.all(
-                              color: (isRunning ? premiumMint : Colors.white)
-                                  .withValues(
-                                alpha: isRunning ? 0.2 : 0.08,
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  color: isRunning
-                                      ? premiumMint
-                                      : context.colorScheme.onSurfaceVariant,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 7),
-                              Text(
-                                isRunning
-                                    ? appLocalizations.running
-                                    : appLocalizations.stopped,
-                                style: context.textTheme.labelMedium?.copyWith(
-                                  color: isRunning
-                                      ? premiumMint
-                                      : context.colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                     if (subscription != null) ...[
@@ -353,29 +328,7 @@ class HeroConnect extends ConsumerWidget {
                         isRussian: isRussian,
                       ),
                     ],
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _RouteXQuickAction(
-                            icon: Icons.grid_view_rounded,
-                            label: appLocalizations.applications,
-                            onTap: () => globalState.appController
-                                .toPage(PageLabel.applications),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _RouteXQuickAction(
-                            icon: Icons.language_rounded,
-                            label: appLocalizations.locations,
-                            onTap: () => globalState.appController
-                                .toPage(PageLabel.proxies),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 22),
                     _ConnectButton(isReady: state.isInit),
                   ],
                 ),
@@ -1367,9 +1320,12 @@ class _ConnectButton extends ConsumerWidget {
       fg = colorScheme.onPrimary;
     }
 
+    const height = 56.0;
+    final duration = RouteXMotion.resolve(context, RouteXMotion.base);
+
     return _FocusableTap(
       autofocus: true,
-      borderRadius: 24,
+      borderRadius: height / 2,
       onTap: isReady
           ? () {
               if (Platform.isAndroid) {
@@ -1379,29 +1335,67 @@ class _ConnectButton extends ConsumerWidget {
             }
           : null,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
+        duration: duration,
+        curve: RouteXMotion.curve,
         width: double.infinity,
-        height: 54,
+        height: height,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(height / 2),
           color: bg,
           border: isStart
               ? Border.all(color: colorScheme.primary.withValues(alpha: 0.4))
               : null,
         ),
-        // Running: uptime only. Stopped: just a Play glyph (no "Start" label).
-        child: isStart
-            ? Text(
-                utils.getTimeText(runTime),
+        // The state change is the moment the product is about, so it gets
+        // a real transition: the two states cross-fade and slide rather
+        // than swapping a glyph.
+        child: AnimatedSwitcher(
+          duration: duration,
+          switchInCurve: RouteXMotion.curve,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.28),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          ),
+          child: Row(
+            key: ValueKey(isStart),
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                isStart ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                size: 24,
+                color: fg,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                isStart ? appLocalizations.stop : appLocalizations.start,
                 style: context.textTheme.titleSmall?.copyWith(
                   color: fg,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                  fontFamily: FontFamily.jetBrainsMono.value,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
                 ),
-              )
-            : Icon(Icons.play_arrow_rounded, size: 30, color: fg),
+              ),
+              if (isStart) ...[
+                const SizedBox(width: 12),
+                Text(
+                  utils.getTimeText(runTime),
+                  style: context.textTheme.labelLarge?.copyWith(
+                    color: fg.withValues(alpha: 0.72),
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.4,
+                    fontFamily: FontFamily.jetBrainsMono.value,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

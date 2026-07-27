@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flclashx/enum/enum.dart';
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
@@ -72,6 +74,27 @@ enum RouteXGlassVariant {
 }
 
 extension RouteXGlassVariantDefaults on RouteXGlassVariant {
+  /// Whether this variant may render as a real refracting lens.
+  ///
+  /// Only the chrome may. A lens works by sampling the ancestor
+  /// `LiquidGlassView`'s capture — so a lens that itself sits *inside*
+  /// that capture paints its output into the very image it will sample
+  /// next frame. The result compounds every frame until the surface
+  /// burns out to a flat colour. Since the page moved into the capture,
+  /// every content-plane surface is inside it, and only `navigation` and
+  /// `selection` — which live in the chrome layer above the capture —
+  /// can still refract.
+  ///
+  /// The content plane gets a frosted card instead: a real backdrop blur
+  /// plus tint, which composites normally and cannot feed back.
+  bool get refracts => switch (this) {
+        RouteXGlassVariant.navigation || RouteXGlassVariant.selection => true,
+        RouteXGlassVariant.panel ||
+        RouteXGlassVariant.dialog ||
+        RouteXGlassVariant.control =>
+          false,
+      };
+
   /// The radius this variant renders at when a call site doesn't pin one.
   double get defaultRadius => switch (this) {
         RouteXGlassVariant.navigation => RouteXRadius.navigation,
@@ -302,14 +325,61 @@ class RouteXGlassSurface extends StatelessWidget {
       // BackdropFilterLayer, which samples what sits behind it *within*
       // that layer — nothing. Forcing the boundary's antialiasing that
       // way costs the blur entirely.
-      child: LiquidGlassLens(
-        style: routeXGlassStyle(
-          context,
-          variant,
-          radius: effectiveRadius,
-          capsule: capsule,
-        ),
+      child: _RouteXSurfaceBody(
+        variant: variant,
+        radius: effectiveRadius,
+        capsule: capsule,
         child: expand ? SizedBox.expand(child: child) : child,
+      ),
+    );
+  }
+}
+
+/// Renders a surface as a lens when the variant may refract, and as a
+/// frosted card when it may not. See [RouteXGlassVariantDefaults.refracts].
+class _RouteXSurfaceBody extends StatelessWidget {
+  const _RouteXSurfaceBody({
+    required this.variant,
+    required this.radius,
+    required this.capsule,
+    required this.child,
+  });
+
+  final RouteXGlassVariant variant;
+  final double radius;
+  final bool capsule;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = routeXGlassStyle(
+      context,
+      variant,
+      radius: radius,
+      capsule: capsule,
+    );
+    if (variant.refracts) {
+      return LiquidGlassLens(style: style, child: child);
+    }
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final blur = style.appearance.blur.sigmaX;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: style.appearance.color,
+            borderRadius: BorderRadius.circular(radius),
+            // A hairline, not a rim: the content plane needs its edge
+            // stated because it has no refraction to state it with.
+            border: Border.all(
+              color: (dark ? Colors.white : Colors.black)
+                  .withValues(alpha: dark ? 0.07 : 0.06),
+            ),
+          ),
+          child: child,
+        ),
       ),
     );
   }
@@ -331,14 +401,11 @@ class RouteXSelectionGlass extends StatelessWidget {
   final bool capsule;
 
   @override
-  Widget build(BuildContext context) => LiquidGlassLens(
-        style: routeXGlassStyle(
-          context,
-          RouteXGlassVariant.selection,
-          radius: radius,
-          capsule: capsule,
-        ),
-        child: child,
+  Widget build(BuildContext context) => _RouteXSurfaceBody(
+        variant: RouteXGlassVariant.selection,
+        radius: radius,
+        capsule: capsule,
+        child: child ?? const SizedBox.shrink(),
       );
 }
 

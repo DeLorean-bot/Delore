@@ -760,7 +760,12 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
       // refracted background was being upscaled — the glass looked like
       // it was rendered at the wrong resolution because it was.
       pixelRatio: MediaQuery.devicePixelRatioOf(context).clamp(1.0, 2.0),
-      realTimeCapture: isDashboard &&
+      // Live, on every screen. Once the page moved into the capture this
+      // stopped being an optimisation: a single snapshot means the
+      // refraction shows the first frame of a list you are still
+      // scrolling, while the blur — a separate BackdropFilterLayer — stays
+      // live. The two sources drift apart and the glass looks broken.
+      realTimeCapture:
           !(MediaQuery.maybeOf(context)?.disableAnimations ?? false),
       refreshRate: LiquidGlassRefreshRate.high,
       useSync: true,
