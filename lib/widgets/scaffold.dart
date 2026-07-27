@@ -1,0 +1,845 @@
+import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui';
+
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flclashx/common/common.dart';
+import 'package:flclashx/enum/enum.dart';
+import 'package:flclashx/models/models.dart';
+import 'package:flclashx/providers/providers.dart';
+import 'package:flclashx/state.dart';
+import 'package:flclashx/widgets/fade_box.dart';
+import 'package:flclashx/widgets/pop_scope.dart';
+import 'package:flclashx/widgets/search_order_marker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+
+import 'chip.dart';
+
+class CommonScaffold extends ConsumerStatefulWidget {
+  const CommonScaffold({
+    super.key,
+    this.appBar,
+    required this.body,
+    this.sideNavigationBar,
+    this.backgroundColor,
+    this.bottomNavigationBar,
+    this.leading,
+    this.title,
+    this.actions,
+    this.automaticallyImplyLeading = true,
+    this.centerTitle,
+    this.appBarEditState,
+    this.floatingActionButton,
+    this.disableBackground = false,
+  });
+
+  CommonScaffold.open({
+    Key? key,
+    required Widget body,
+    required String title,
+    required Function onBack,
+    required List<Widget> actions,
+    bool disableBackground = false,
+  }) : this(
+          key: key,
+          body: body,
+          title: title,
+          automaticallyImplyLeading: false,
+          actions: actions,
+          disableBackground: disableBackground,
+          leading: IconButton(
+            icon: const BackButtonIcon(),
+            onPressed: () {
+              onBack();
+            },
+          ),
+        );
+  final AppBar? appBar;
+  final Widget body;
+  final Widget? bottomNavigationBar;
+  final Widget? sideNavigationBar;
+  final Color? backgroundColor;
+  final String? title;
+  final Widget? leading;
+  final List<Widget>? actions;
+  final bool automaticallyImplyLeading;
+  final bool? centerTitle;
+  final AppBarEditState? appBarEditState;
+  final FloatingActionButton? floatingActionButton;
+  final bool disableBackground;
+
+  @override
+  ConsumerState<CommonScaffold> createState() => CommonScaffoldState();
+}
+
+class CommonScaffoldState extends ConsumerState<CommonScaffold> {
+  late final ValueNotifier<AppBarState> _appBarState;
+  final ValueNotifier<Widget?> _floatingActionButton = ValueNotifier(null);
+  final ValueNotifier<List<String>> _keywordsNotifier = ValueNotifier([]);
+  final ValueNotifier<bool> _loading = ValueNotifier(false);
+
+  final _textController = TextEditingController();
+
+  Function(List<String>)? _onKeywordsUpdate;
+
+  Widget? get _sideNavigationBar => widget.sideNavigationBar;
+
+  set actions(List<Widget> actions) {
+    _appBarState.value = _appBarState.value.copyWith(actions: actions);
+  }
+
+  bool get _isSearch => _appBarState.value.searchState?.isSearch ?? false;
+
+  bool get _isEdit => _appBarState.value.editState?.isEdit ?? false;
+
+  set onKeywordsUpdate(Function(List<String>)? onKeywordsUpdate) {
+    _onKeywordsUpdate = onKeywordsUpdate;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _appBarState = ValueNotifier(
+      AppBarState(
+        editState: widget.appBarEditState,
+      ),
+    );
+  }
+
+  void updateSearchState(
+    AppBarSearchState? Function(AppBarSearchState? state) builder,
+  ) {
+    _appBarState.value = _appBarState.value.copyWith(
+      searchState: builder(
+        _appBarState.value.searchState,
+      ),
+    );
+  }
+
+  void updateEditState(
+    AppBarEditState? Function(AppBarEditState? state) builder,
+  ) {
+    _appBarState.value = _appBarState.value.copyWith(
+      editState: builder(
+        _appBarState.value.editState,
+      ),
+    );
+  }
+
+  set floatingActionButton(Widget? floatingActionButton) {
+    if (_floatingActionButton.value != floatingActionButton) {
+      _floatingActionButton.value = floatingActionButton;
+    }
+  }
+
+  Widget _buildSearchingAppBarTheme(Widget child) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Theme(
+      data: theme.copyWith(
+        appBarTheme: theme.appBarTheme.copyWith(
+          backgroundColor: colorScheme.brightness == Brightness.dark
+              ? Colors.grey[900]
+              : Colors.white,
+          iconTheme: theme.primaryIconTheme.copyWith(color: Colors.grey),
+          titleTextStyle: theme.textTheme.titleLarge,
+          toolbarTextStyle: theme.textTheme.bodyMedium,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          hintStyle: theme.inputDecorationTheme.hintStyle,
+          border: InputBorder.none,
+        ),
+      ),
+      child: child,
+    );
+  }
+
+  Future<T?> loadingRun<T>(
+    Future<T> Function() futureFunction, {
+    String? title,
+  }) async {
+    _loading.value = true;
+    try {
+      final res = await futureFunction();
+      _loading.value = false;
+      return res;
+    } catch (e) {
+      await globalState.showMessage(
+        title: title ?? appLocalizations.tip,
+        message: TextSpan(
+          text: e.toString(),
+        ),
+      );
+      _loading.value = false;
+      return null;
+    }
+  }
+
+  void _handleClearInput() {
+    _textController.text = "";
+
+    if (_appBarState.value.searchState != null) {
+      _appBarState.value.searchState!.onSearch("");
+    }
+  }
+
+  void _handleClear() {
+    if (_textController.text.isNotEmpty) {
+      _handleClearInput();
+      return;
+    }
+    updateSearchState(
+      (state) => state?.copyWith(
+        isSearch: false,
+      ),
+    );
+  }
+
+  void _handleExitSearching() {
+    _handleClearInput();
+    updateSearchState(
+      (state) => state?.copyWith(
+        isSearch: false,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _appBarState.dispose();
+    _textController.dispose();
+    _floatingActionButton.dispose();
+    _keywordsNotifier.dispose();
+    _loading.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(CommonScaffold oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.title != widget.title) {
+      _appBarState.value = const AppBarState();
+      _floatingActionButton.value = null;
+      _textController.text = "";
+      _keywordsNotifier.value = [];
+      _onKeywordsUpdate = null;
+    } else if (oldWidget.appBarEditState != widget.appBarEditState) {
+      _appBarState.value = _appBarState.value.copyWith(
+        editState: widget.appBarEditState,
+      );
+    }
+  }
+
+  void addKeyword(String keyword) {
+    final isContains = _keywordsNotifier.value.contains(keyword);
+    if (isContains) return;
+    final keywords = List<String>.from(_keywordsNotifier.value)..add(keyword);
+    _keywordsNotifier.value = keywords;
+  }
+
+  void _deleteKeyword(String keyword) {
+    final isContains = _keywordsNotifier.value.contains(keyword);
+    if (!isContains) return;
+    final keywords = List<String>.from(_keywordsNotifier.value)
+      ..remove(keyword);
+    _keywordsNotifier.value = keywords;
+  }
+
+  Widget? _buildLeading() {
+    if (_isEdit) {
+      return IconButton(
+        onPressed: _appBarState.value.editState?.onExit,
+        icon: const Icon(Icons.close),
+      );
+    }
+    return _isSearch
+        ? IconButton(
+            onPressed: _handleExitSearching,
+            icon: const Icon(Icons.arrow_back),
+          )
+        : widget.leading;
+  }
+
+  Widget _buildTitle(AppBarSearchState? startState) => _isSearch
+      ? TextField(
+          autofocus: true,
+          controller: _textController,
+          style: context.textTheme.titleLarge,
+          onChanged: (value) {
+            if (startState != null) {
+              startState.onSearch(value);
+            }
+          },
+          decoration: InputDecoration(
+            hintText: appLocalizations.search,
+          ),
+        )
+      : Text(
+          !_isEdit
+              ? widget.title!
+              : appLocalizations.selectedCountTitle(
+                  "${_appBarState.value.editState?.editCount ?? 0}",
+                ),
+        );
+
+  List<Widget> _buildActions(
+    AppBarSearchState? searchState,
+    List<Widget> actions,
+  ) {
+    if (_isSearch) {
+      return genActions([
+        IconButton(
+          onPressed: _handleClear,
+          icon: const Icon(Icons.close),
+        ),
+      ]);
+    }
+
+    final hasSearch = searchState != null;
+    final searchButton = IconButton(
+      onPressed: () {
+        updateSearchState(
+          (state) => state?.copyWith(
+            isSearch: true,
+          ),
+        );
+      },
+      icon: const Icon(Icons.search),
+    );
+
+    if (!hasSearch) {
+      return genActions([
+        ...actions,
+      ]);
+    }
+
+    // For Proxies page we want search at the end; for others keep default
+    // Check for explicit marker widget in actions to control search placement
+    final shouldPutSearchAtEnd = actions.any((w) => w is SearchOrderMarker);
+
+    if (shouldPutSearchAtEnd) {
+      return genActions([
+        ...actions,
+        searchButton,
+      ]);
+    }
+
+    return genActions([
+      searchButton,
+      ...actions,
+    ]);
+  }
+
+  Widget _buildAppBarWrap(Widget child) {
+    final appBar = _isSearch ? _buildSearchingAppBarTheme(child) : child;
+    if (_isEdit || _isSearch) {
+      return SystemBackBlock(
+        child: CommonPopScope(
+          onPop: () {
+            if (_isEdit || _isSearch) {
+              _handleExitSearching();
+              _appBarState.value.editState?.onExit();
+              return false;
+            }
+            return true;
+          },
+          child: appBar,
+        ),
+      );
+    }
+    return appBar;
+  }
+
+  PreferredSizeWidget _buildAppBar() => PreferredSize(
+        preferredSize: const Size.fromHeight(64),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 7, 8, 3),
+          child: RouteXGlassSurface(
+            radius: 18,
+            blur: 16,
+            shadowOffset: const Offset(0, 4),
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                appBarTheme: AppBarTheme(
+                  systemOverlayStyle: SystemUiOverlayStyle(
+                    statusBarColor: Colors.transparent,
+                    statusBarIconBrightness:
+                        Theme.of(context).brightness == Brightness.dark
+                            ? Brightness.light
+                            : Brightness.dark,
+                    systemNavigationBarIconBrightness:
+                        Theme.of(context).brightness == Brightness.dark
+                            ? Brightness.light
+                            : Brightness.dark,
+                    systemNavigationBarColor: widget.bottomNavigationBar != null
+                        ? context.colorScheme.surfaceContainer
+                        : context.colorScheme.surface,
+                    systemNavigationBarDividerColor: Colors.transparent,
+                  ),
+                ),
+              ),
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  widget.appBar ??
+                      ValueListenableBuilder<AppBarState>(
+                        valueListenable: _appBarState,
+                        builder: (_, state, __) => _buildAppBarWrap(
+                          AppBar(
+                            backgroundColor: Colors.transparent,
+                            elevation: 0,
+                            surfaceTintColor: Colors.transparent,
+                            centerTitle: widget.centerTitle ?? false,
+                            automaticallyImplyLeading:
+                                widget.automaticallyImplyLeading,
+                            leading: _buildLeading(),
+                            title: _buildTitle(state.searchState),
+                            actions: _buildActions(
+                              state.searchState,
+                              state.actions.isNotEmpty
+                                  ? state.actions
+                                  : widget.actions ?? [],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ValueListenableBuilder(
+                    valueListenable: _loading,
+                    builder: (_, value, __) =>
+                        value ? const LinearProgressIndicator() : Container(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+  Widget _buildPremiumBackdrop() {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final background = context.colorScheme.surfaceContainerLowest;
+    final topColor = dark ? const Color(0xFF0A1017) : const Color(0xFFF3FAFA);
+    final bottomColor =
+        dark ? const Color(0xFF070A10) : const Color(0xFFF5F7FC);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: background,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                topColor,
+                background,
+                bottomColor,
+              ],
+              stops: const [0, 0.48, 1],
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(-0.92, -0.86),
+                radius: 0.92,
+                colors: [
+                  premiumMint.withValues(alpha: dark ? 0.075 : 0.12),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0.72, -1.05),
+                radius: 0.8,
+                colors: [
+                  premiumBlue.withValues(alpha: dark ? 0.09 : 0.13),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0.38, 1.15),
+                radius: 1,
+                colors: [
+                  premiumBlue.withValues(alpha: dark ? 0.035 : 0.055),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBackground(String? backgroundUrl) {
+    if (backgroundUrl == null || backgroundUrl.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return CachedNetworkImage(
+      imageUrl: backgroundUrl,
+      fit: BoxFit.cover,
+      placeholder: (context, url) => const SizedBox.shrink(),
+      errorWidget: (context, url, error) => const SizedBox.shrink(),
+      fadeInDuration: const Duration(milliseconds: 300),
+      fadeOutDuration: const Duration(milliseconds: 300),
+    );
+  }
+
+  Widget _buildOverlay(BuildContext context, int? opacity) {
+    // Dimming overlay over the background image. `opacity` (1-100, from the optional
+    // `,<opacity>` suffix of flclashx-background) = how visible the image should be:
+    // higher opacity → lower overlay alpha → more visible image. Unset → keep the
+    // original hardcoded look (image ~10% visible).
+    final double topAlpha;
+    final double bottomAlpha;
+    if (opacity == null) {
+      topAlpha = 0.92;
+      bottomAlpha = 0.88;
+    } else {
+      final base = (1 - opacity / 100).clamp(0.0, 1.0);
+      topAlpha = base;
+      bottomAlpha = (base - 0.04).clamp(0.0, 1.0);
+    }
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            context.colorScheme.surface.withValues(alpha: topAlpha),
+            context.colorScheme.surface.withValues(alpha: bottomAlpha),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    assert(
+      widget.appBar != null || widget.title != null,
+      'CommonScaffold requires either appBar or title.',
+    );
+    final backgroundUrl =
+        widget.disableBackground ? null : ref.watch(backgroundUrlProvider);
+    final viewMode = ref.watch(viewModeProvider);
+    final isDashboard =
+        ref.watch(currentPageLabelProvider) == PageLabel.dashboard;
+    final pageBody = viewMode == ViewMode.desktop
+        ? Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1680),
+              child: widget.body,
+            ),
+          )
+        : widget.body;
+
+    final body = Stack(
+      fit: StackFit.expand,
+      children: [
+        _buildPremiumBackdrop(),
+        if (isDashboard) _RouteXAmbientBackdrop(active: isDashboard),
+        SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ValueListenableBuilder(
+                valueListenable: _keywordsNotifier,
+                builder: (_, keywords, __) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _onKeywordsUpdate?.call(keywords);
+                  });
+                  if (keywords.isEmpty) {
+                    return const SizedBox();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    child: Wrap(
+                      runSpacing: 8,
+                      spacing: 8,
+                      children: [
+                        for (final keyword in keywords)
+                          CommonChip(
+                            label: keyword,
+                            type: ChipType.delete,
+                            onPressed: () {
+                              _deleteKeyword(keyword);
+                            },
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              Expanded(
+                child: pageBody,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final scaffold = Scaffold(
+      appBar: _buildAppBar(),
+      body: body,
+      resizeToAvoidBottomInset: true,
+      backgroundColor: Colors.transparent,
+      floatingActionButton: widget.floatingActionButton ??
+          ValueListenableBuilder<Widget?>(
+            valueListenable: _floatingActionButton,
+            builder: (_, value, __) => IntrinsicWidth(
+              child: IntrinsicHeight(
+                child: FadeScaleBox(
+                  child: value ?? const SizedBox(),
+                ),
+              ),
+            ),
+          ),
+      bottomNavigationBar: widget.bottomNavigationBar,
+    );
+
+    final content = _sideNavigationBar != null
+        ? Row(
+            children: [
+              _sideNavigationBar!,
+              Expanded(
+                flex: 1,
+                child: scaffold,
+              ),
+            ],
+          )
+        : scaffold;
+
+    final scene = _RouteXSceneTransition(
+      active: isDashboard,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          _buildPremiumBackdrop(),
+          _RouteXAmbientBackdrop(active: isDashboard),
+          if (backgroundUrl != null) ...[
+            _buildBackground(backgroundUrl),
+            _buildOverlay(
+              context,
+              widget.disableBackground
+                  ? null
+                  : ref.watch(backgroundOpacityProvider),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    return LiquidGlassView(
+      backgroundWidget: scene,
+      pixelRatio: 1,
+      realTimeCapture: isDashboard &&
+          !(MediaQuery.maybeOf(context)?.disableAnimations ?? false),
+      refreshRate: LiquidGlassRefreshRate.high,
+      useSync: true,
+      child: content,
+    );
+  }
+}
+
+class _RouteXSceneTransition extends StatelessWidget {
+  const _RouteXSceneTransition({
+    required this.active,
+    required this.child,
+  });
+
+  final bool active;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: active ? 0 : 1),
+      duration: RouteXMotion.resolve(
+        context,
+        const Duration(milliseconds: 280),
+      ),
+      curve: RouteXMotion.curve,
+      builder: (context, progress, _) => Stack(
+        fit: StackFit.expand,
+        children: [
+          ImageFiltered(
+            imageFilter: ImageFilter.blur(
+              sigmaX: 4 * progress,
+              sigmaY: 4 * progress,
+            ),
+            child: child,
+          ),
+          IgnorePointer(
+            child: ColoredBox(
+              color: (dark ? const Color(0xFF050608) : Colors.white)
+                  .withValues(alpha: (dark ? 0.08 : 0.1) * progress),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RouteXAmbientBackdrop extends StatefulWidget {
+  const _RouteXAmbientBackdrop({required this.active});
+
+  final bool active;
+
+  @override
+  State<_RouteXAmbientBackdrop> createState() => _RouteXAmbientBackdropState();
+}
+
+class _RouteXAmbientBackdropState extends State<_RouteXAmbientBackdrop>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 16),
+  );
+
+  bool get _motionEnabled =>
+      widget.active &&
+      !(MediaQuery.maybeOf(context)?.disableAnimations ?? false);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncAnimation();
+  }
+
+  @override
+  void didUpdateWidget(covariant _RouteXAmbientBackdrop oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncAnimation();
+  }
+
+  void _syncAnimation() {
+    if (_motionEnabled) {
+      if (!_controller.isAnimating) {
+        unawaited(_controller.repeat(reverse: true));
+      }
+    } else {
+      _controller.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return RepaintBoundary(
+      child: ClipRect(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final phase = _controller.value * math.pi;
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                _AmbientOrb(
+                  alignment: Alignment(
+                    -0.78 + math.sin(phase) * 0.13,
+                    -0.68 + math.cos(phase) * 0.08,
+                  ),
+                  sizeFactor: 0.72,
+                  color: premiumMint.withValues(
+                    alpha: widget.active
+                        ? (dark ? 0.085 : 0.14)
+                        : (dark ? 0.025 : 0.05),
+                  ),
+                ),
+                _AmbientOrb(
+                  alignment: Alignment(
+                    0.84 - math.cos(phase) * 0.12,
+                    0.64 - math.sin(phase) * 0.10,
+                  ),
+                  sizeFactor: 0.82,
+                  color: premiumBlue.withValues(
+                    alpha: widget.active
+                        ? (dark ? 0.095 : 0.14)
+                        : (dark ? 0.03 : 0.05),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _AmbientOrb extends StatelessWidget {
+  const _AmbientOrb({
+    required this.alignment,
+    required this.sizeFactor,
+    required this.color,
+  });
+
+  final Alignment alignment;
+  final double sizeFactor;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Align(
+        alignment: alignment,
+        child: FractionallySizedBox(
+          widthFactor: sizeFactor,
+          heightFactor: sizeFactor,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                stops: const [0, 0.42, 1],
+                colors: [
+                  color,
+                  color.withValues(alpha: color.a * 0.42),
+                  color.withValues(alpha: 0),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+List<Widget> genActions(List<Widget> actions, {double? space}) => <Widget>[
+      ...actions.separated(
+        SizedBox(
+          width: space ?? 4,
+        ),
+      ),
+      const SizedBox(
+        width: 8,
+      )
+    ];
