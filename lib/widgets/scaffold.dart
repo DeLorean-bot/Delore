@@ -641,6 +641,13 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
           );
 
     final contentScaffold = Scaffold(
+      // The page runs edge to edge, under both bars, and the ghosts only
+      // report their size through MediaQuery so scrollables can pad for
+      // them. Without this the Scaffold pushes the page clear of the
+      // bars and there is nothing under the glass but backdrop — the
+      // whole point of putting the page in the capture.
+      extendBody: true,
+      extendBodyBehindAppBar: true,
       appBar: widget.showAppBar
           ? const PreferredSize(
               preferredSize: Size.fromHeight(_appBarHeight),
