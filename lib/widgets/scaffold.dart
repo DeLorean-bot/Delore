@@ -75,6 +75,10 @@ class CommonScaffold extends ConsumerStatefulWidget {
   ConsumerState<CommonScaffold> createState() => CommonScaffoldState();
 }
 
+/// Height of the floating glass app bar. Fixed, so the captured content
+/// layer can reserve exactly the same space without measuring it.
+const double _appBarHeight = 64;
+
 class CommonScaffoldState extends ConsumerState<CommonScaffold> {
   late final ValueNotifier<AppBarState> _appBarState;
   final ValueNotifier<Widget?> _floatingActionButton = ValueNotifier(null);
@@ -604,8 +608,36 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
       ],
     );
 
-    final scaffold = Scaffold(
-      appBar: _buildAppBar(),
+    // ── The split that makes the glass real ──────────────────
+    //
+    // On Skia a LiquidGlassLens can only refract what its ancestor
+    // LiquidGlassView captured — its `backgroundWidget`. Anything in
+    // `child` is painted over the capture and is never sampled. With the
+    // page in `child`, the bars were bending a decorative mesh while the
+    // actual interface slid past untouched, which is why the material
+    // read as a translucent panel rather than glass.
+    //
+    // So the page goes into the capture and only the glass chrome stays
+    // above it. Both layers are laid out by the same rules — a fixed
+    // 64 px app bar at the top, the bottom bar at the bottom, the side
+    // navigation on the left — so the content is inset exactly where the
+    // chrome sits. The chrome's slots in the content layer are ghosts:
+    // laid out at full size, never painted.
+    final navGhost = widget.bottomNavigationBar == null
+        ? null
+        : Visibility(
+            visible: false,
+            maintainSize: true,
+            maintainState: true,
+            maintainAnimation: true,
+            child: widget.bottomNavigationBar!,
+          );
+
+    final contentScaffold = Scaffold(
+      appBar: const PreferredSize(
+        preferredSize: Size.fromHeight(_appBarHeight),
+        child: SizedBox.shrink(),
+      ),
       body: body,
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.transparent,
@@ -620,20 +652,56 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
               ),
             ),
           ),
-      bottomNavigationBar: widget.bottomNavigationBar,
+      bottomNavigationBar: navGhost,
     );
 
-    final content = _sideNavigationBar != null
+    final contentLayer = _sideNavigationBar != null
+        ? Row(
+            children: [
+              Visibility(
+                visible: false,
+                maintainSize: true,
+                maintainState: true,
+                maintainAnimation: true,
+                child: _sideNavigationBar!,
+              ),
+              Expanded(child: contentScaffold),
+            ],
+          )
+        : contentScaffold;
+
+    // Chrome only. A Stack hit-tests its children and nothing else, so
+    // taps in the empty middle fall through to the page in the capture.
+    final chromeColumn = Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: SizedBox(
+            height: _appBarHeight,
+            child: _buildAppBar(),
+          ),
+        ),
+        if (widget.bottomNavigationBar != null)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: widget.bottomNavigationBar!,
+          ),
+      ],
+    );
+
+    final chromeLayer = _sideNavigationBar != null
         ? Row(
             children: [
               _sideNavigationBar!,
-              Expanded(
-                flex: 1,
-                child: scaffold,
-              ),
+              Expanded(child: chromeColumn),
             ],
           )
-        : scaffold;
+        : chromeColumn;
 
     final scene = _RouteXSceneTransition(
       active: isDashboard,
@@ -656,7 +724,13 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
     );
 
     return LiquidGlassView(
-      backgroundWidget: scene,
+      backgroundWidget: Stack(
+        fit: StackFit.expand,
+        children: [
+          scene,
+          contentLayer,
+        ],
+      ),
       // Capture at the display's own density. A fixed `1` is *below*
       // native on any scaled Windows desktop (125% / 150%), so the
       // refracted background was being upscaled — the glass looked like
@@ -666,7 +740,7 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
           !(MediaQuery.maybeOf(context)?.disableAnimations ?? false),
       refreshRate: LiquidGlassRefreshRate.high,
       useSync: true,
-      child: content,
+      child: chromeLayer,
     );
   }
 }
