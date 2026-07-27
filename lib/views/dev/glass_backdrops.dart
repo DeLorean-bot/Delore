@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flclashx/common/premium_theme.dart';
+import 'package:flclashx/widgets/routex_backdrop.dart';
 import 'package:flutter/material.dart';
 
 /// The backdrop variants a [RouteXBackdrop] can paint.
@@ -163,32 +164,6 @@ void _paintBase(Canvas canvas, Size size, {required bool dark}) {
   );
 }
 
-/// Draws one very soft radial blob. [radiusFactor] is relative to the
-/// shorter side, [center] is in unit coordinates.
-void _paintOrb(
-  Canvas canvas,
-  Size size, {
-  required Offset center,
-  required double radiusFactor,
-  required Color color,
-}) {
-  final origin = Offset(center.dx * size.width, center.dy * size.height);
-  final radius = math.min(size.width, size.height) * radiusFactor;
-  if (radius <= 0 || color.a == 0) {
-    return;
-  }
-  final paint = Paint()
-    ..shader = RadialGradient(
-      stops: const [0, 0.42, 1],
-      colors: [
-        color,
-        color.withValues(alpha: color.a * 0.42),
-        color.withValues(alpha: 0),
-      ],
-    ).createShader(Rect.fromCircle(center: origin, radius: radius));
-  canvas.drawCircle(origin, radius, paint);
-}
-
 class _FlatBackdropPainter extends CustomPainter {
   const _FlatBackdropPainter({required this.dark});
 
@@ -219,7 +194,7 @@ class _CurrentBackdropPainter extends CustomPainter {
     _paintBase(canvas, size, dark: dark);
     final angle = phase * math.pi;
     final gain = detail.clamp(0.0, 2.0);
-    _paintOrb(
+    routeXPaintOrb(
       canvas,
       size,
       center:
@@ -227,7 +202,7 @@ class _CurrentBackdropPainter extends CustomPainter {
       radiusFactor: 0.72,
       color: premiumMint.withValues(alpha: (dark ? 0.085 : 0.14) * gain),
     );
-    _paintOrb(
+    routeXPaintOrb(
       canvas,
       size,
       center:
@@ -242,9 +217,8 @@ class _CurrentBackdropPainter extends CustomPainter {
       old.phase != phase || old.dark != dark || old.detail != detail;
 }
 
-/// Candidate product backdrop: black base, a slow five-blob mesh, a
-/// faint grain and a vignette. Detail is concentrated toward the edges,
-/// where the navigation surfaces sit.
+/// The shipped product backdrop, rendered over the base fill so the
+/// playground tunes exactly what `RouteXBackdrop` paints in the app.
 class _MeshBackdropPainter extends CustomPainter {
   const _MeshBackdropPainter({
     required this.phase,
@@ -259,89 +233,13 @@ class _MeshBackdropPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     _paintBase(canvas, size, dark: dark);
-    final angle = phase * math.pi;
-    final gain = detail.clamp(0.0, 2.0) * (dark ? 1 : 1.4);
-    final blobs = <(Offset, double, Color, double)>[
-      (
-        Offset(0.08 + math.sin(angle) * 0.05, 0.12 + math.cos(angle) * 0.04),
-        0.62,
-        premiumMint,
-        0.10,
-      ),
-      (
-        Offset(0.94 - math.cos(angle) * 0.05, 0.78 - math.sin(angle) * 0.04),
-        0.70,
-        premiumBlue,
-        0.11,
-      ),
-      (
-        Offset(0.62 + math.cos(angle * 1.3) * 0.06, 0.06),
-        0.44,
-        premiumBlue,
-        0.055,
-      ),
-      (
-        Offset(0.04, 0.86 - math.sin(angle * 0.8) * 0.05),
-        0.50,
-        premiumMint,
-        0.06,
-      ),
-      (
-        Offset(0.48 + math.sin(angle * 0.6) * 0.08, 0.52),
-        0.58,
-        premiumAmber,
-        0.022,
-      ),
-    ];
-    for (final (center, radiusFactor, color, alpha) in blobs) {
-      _paintOrb(
-        canvas,
-        size,
-        center: center,
-        radiusFactor: radiusFactor,
-        color: color.withValues(alpha: alpha * gain),
-      );
-    }
-    _paintGrain(canvas, size, strength: 0.055 * detail.clamp(0.0, 2.0));
-    _paintVignette(canvas, size, dark: dark);
+    RouteXMeshPainter(phase: phase, dark: dark, detail: detail)
+        .paint(canvas, size);
   }
 
   @override
   bool shouldRepaint(_MeshBackdropPainter old) =>
       old.phase != phase || old.dark != dark || old.detail != detail;
-}
-
-/// A deterministic dot grain. Cheap, seeded, and identical every frame,
-/// so it never shimmers between captures.
-void _paintGrain(Canvas canvas, Size size, {required double strength}) {
-  if (strength <= 0) {
-    return;
-  }
-  final random = math.Random(2607);
-  final paint = Paint();
-  final count = (size.width * size.height / 900).clamp(200, 4000).toInt();
-  for (var i = 0; i < count; i++) {
-    final dx = random.nextDouble() * size.width;
-    final dy = random.nextDouble() * size.height;
-    final alpha = random.nextDouble() * strength;
-    paint.color = (random.nextBool() ? Colors.white : Colors.black)
-        .withValues(alpha: alpha);
-    canvas.drawRect(Rect.fromLTWH(dx, dy, 1.4, 1.4), paint);
-  }
-}
-
-void _paintVignette(Canvas canvas, Size size, {required bool dark}) {
-  final rect = Offset.zero & size;
-  final paint = Paint()
-    ..shader = RadialGradient(
-      radius: 0.86,
-      stops: const [0.55, 1],
-      colors: [
-        Colors.transparent,
-        Colors.black.withValues(alpha: dark ? 0.4 : 0.1),
-      ],
-    ).createShader(rect);
-  canvas.drawRect(rect, paint);
 }
 
 /// Diagnostic grid: straight lines are the clearest read on how far the

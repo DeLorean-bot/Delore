@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flclashx/common/common.dart';
 import 'package:flclashx/enum/enum.dart';
@@ -181,95 +180,40 @@ class _PremiumSideNavigation extends ConsumerWidget {
         right: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _SidebarUnderlay(
-                selectedIndex: selectedIndex,
-                expanded: expanded,
-              ),
-              RouteXGlassSurface(
-                radius: 26,
-                blur: 26,
-                shadowOffset: const Offset(5, 8),
-                ambientTint: true,
-                child: Padding(
-                  padding: const EdgeInsets.all(6),
-                  child: Column(
-                    children: [
-                      if (!Platform.isMacOS) _RouteXBrand(expanded: expanded),
-                      const SizedBox(height: 14),
-                      Expanded(
-                        child: _DesktopNavigationItems(
-                          items: items,
-                          selectedIndex: selectedIndex,
-                          expanded: expanded,
-                          onSelected: onSelected,
-                        ),
-                      ),
-                      if (expanded) ...[
-                        const SizedBox(height: 8),
-                        _RoutingStatus(isRunning: isRunning),
-                      ],
-                      const SizedBox(height: 8),
-                      _SidebarToggle(
-                        expanded: expanded,
-                        onPressed: onToggle,
-                      ),
-                    ],
+          // No underlay behind the glass: on Skia the lens draws an
+          // opaque refracted sample of the captured background over its
+          // whole rect, so anything painted beneath it in the tree is
+          // both un-refracted and invisible. Detail the sidebar can
+          // actually bend belongs in the backdrop — see RouteXBackdrop.
+          child: RouteXGlassSurface(
+            radius: 26,
+            blur: 26,
+            shadowOffset: const Offset(5, 8),
+            ambientTint: true,
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Column(
+                children: [
+                  if (!Platform.isMacOS) _RouteXBrand(expanded: expanded),
+                  const SizedBox(height: 14),
+                  Expanded(
+                    child: _DesktopNavigationItems(
+                      items: items,
+                      selectedIndex: selectedIndex,
+                      expanded: expanded,
+                      onSelected: onSelected,
+                    ),
                   ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SidebarUnderlay extends StatelessWidget {
-  const _SidebarUnderlay({
-    required this.selectedIndex,
-    required this.expanded,
-  });
-
-  final int selectedIndex;
-  final bool expanded;
-
-  @override
-  Widget build(BuildContext context) {
-    final duration = RouteXMotion.resolve(
-      context,
-      RouteXMotion.navigation,
-    );
-    final orbSize = expanded ? 188.0 : 116.0;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(end: selectedIndex.toDouble()),
-        duration: duration,
-        curve: RouteXMotion.curve,
-        builder: (context, position, _) => Transform.translate(
-          offset: Offset(0, 48 + position * 56),
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-              child: Container(
-                width: orbSize,
-                height: orbSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      premiumBlue.withValues(alpha: 0.18),
-                      premiumMint.withValues(alpha: 0.08),
-                      Colors.transparent,
-                    ],
-                    stops: const [0, 0.42, 1],
+                  if (expanded) ...[
+                    const SizedBox(height: 8),
+                    _RoutingStatus(isRunning: isRunning),
+                  ],
+                  const SizedBox(height: 8),
+                  _SidebarToggle(
+                    expanded: expanded,
+                    onPressed: onToggle,
                   ),
-                ),
+                ],
               ),
             ),
           ),

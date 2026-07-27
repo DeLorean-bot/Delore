@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -10,6 +9,7 @@ import 'package:flclashx/providers/providers.dart';
 import 'package:flclashx/state.dart';
 import 'package:flclashx/widgets/fade_box.dart';
 import 'package:flclashx/widgets/pop_scope.dart';
+import 'package:flclashx/widgets/routex_backdrop.dart';
 import 'package:flclashx/widgets/search_order_marker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -553,11 +553,13 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
           )
         : widget.body;
 
+    // No backdrop here on purpose: the scene below is the single copy,
+    // and it is what the glass refracts. Painting it again above the
+    // capture would hide the scene, double the full-screen paint cost
+    // and leave the lenses bending a background nobody sees.
     final body = Stack(
       fit: StackFit.expand,
       children: [
-        _buildPremiumBackdrop(),
-        if (isDashboard) _RouteXAmbientBackdrop(active: isDashboard),
         SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -639,7 +641,7 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
         fit: StackFit.expand,
         children: [
           _buildPremiumBackdrop(),
-          _RouteXAmbientBackdrop(active: isDashboard),
+          RouteXBackdrop(active: isDashboard),
           if (backgroundUrl != null) ...[
             _buildBackground(backgroundUrl),
             _buildOverlay(
@@ -704,133 +706,6 @@ class _RouteXSceneTransition extends StatelessWidget {
       ),
     );
   }
-}
-
-class _RouteXAmbientBackdrop extends StatefulWidget {
-  const _RouteXAmbientBackdrop({required this.active});
-
-  final bool active;
-
-  @override
-  State<_RouteXAmbientBackdrop> createState() => _RouteXAmbientBackdropState();
-}
-
-class _RouteXAmbientBackdropState extends State<_RouteXAmbientBackdrop>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 16),
-  );
-
-  bool get _motionEnabled =>
-      widget.active &&
-      !(MediaQuery.maybeOf(context)?.disableAnimations ?? false);
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _syncAnimation();
-  }
-
-  @override
-  void didUpdateWidget(covariant _RouteXAmbientBackdrop oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _syncAnimation();
-  }
-
-  void _syncAnimation() {
-    if (_motionEnabled) {
-      if (!_controller.isAnimating) {
-        unawaited(_controller.repeat(reverse: true));
-      }
-    } else {
-      _controller.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return RepaintBoundary(
-      child: ClipRect(
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, _) {
-            final phase = _controller.value * math.pi;
-            return Stack(
-              fit: StackFit.expand,
-              children: [
-                _AmbientOrb(
-                  alignment: Alignment(
-                    -0.78 + math.sin(phase) * 0.13,
-                    -0.68 + math.cos(phase) * 0.08,
-                  ),
-                  sizeFactor: 0.72,
-                  color: premiumMint.withValues(
-                    alpha: widget.active
-                        ? (dark ? 0.085 : 0.14)
-                        : (dark ? 0.025 : 0.05),
-                  ),
-                ),
-                _AmbientOrb(
-                  alignment: Alignment(
-                    0.84 - math.cos(phase) * 0.12,
-                    0.64 - math.sin(phase) * 0.10,
-                  ),
-                  sizeFactor: 0.82,
-                  color: premiumBlue.withValues(
-                    alpha: widget.active
-                        ? (dark ? 0.095 : 0.14)
-                        : (dark ? 0.03 : 0.05),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _AmbientOrb extends StatelessWidget {
-  const _AmbientOrb({
-    required this.alignment,
-    required this.sizeFactor,
-    required this.color,
-  });
-
-  final Alignment alignment;
-  final double sizeFactor;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Align(
-        alignment: alignment,
-        child: FractionallySizedBox(
-          widthFactor: sizeFactor,
-          heightFactor: sizeFactor,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                stops: const [0, 0.42, 1],
-                colors: [
-                  color,
-                  color.withValues(alpha: color.a * 0.42),
-                  color.withValues(alpha: 0),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
 }
 
 List<Widget> genActions(List<Widget> actions, {double? space}) => <Widget>[
