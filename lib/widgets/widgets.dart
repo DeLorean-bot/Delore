@@ -12,6 +12,7 @@ export 'effect.dart';
 export 'fade_box.dart';
 export 'flag.dart';
 export 'float_layout.dart';
+export 'focusable_tap.dart';
 export 'grid.dart';
 export 'icon.dart';
 export 'input.dart';

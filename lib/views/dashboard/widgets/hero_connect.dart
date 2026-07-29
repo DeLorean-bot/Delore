@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -155,87 +156,11 @@ String? _decodeBase64(String? value) {
 // couldn't focus or activate them. This adds a focus node, a primary-colour ring
 // + subtle scale while focused, and activates onTap on both tap and Enter/Select.
 // ----------------------------------------------------------------------------
-class _FocusableTap extends StatefulWidget {
-  const _FocusableTap({
-    required this.onTap,
-    required this.child,
-    this.autofocus = false,
-    this.borderRadius = 18,
-  });
-
-  final VoidCallback? onTap;
-  final Widget child;
-  final bool autofocus;
-  final double borderRadius;
-
-  @override
-  State<_FocusableTap> createState() => _FocusableTapState();
-}
-
-class _FocusableTapState extends State<_FocusableTap> {
-  bool _focused = false;
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = widget.onTap != null;
-    return FocusableActionDetector(
-      enabled: enabled,
-      autofocus: widget.autofocus && enabled,
-      onShowFocusHighlight: (value) {
-        if (mounted && value != _focused) setState(() => _focused = value);
-      },
-      onShowHoverHighlight: (value) {
-        if (mounted && value != _hovered) setState(() => _hovered = value);
-      },
-      mouseCursor:
-          enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      // No explicit Map<Type, Action<Intent>> annotation: `Action` is ambiguous here
-      // (flclashx models also export an `Action` class). Context inference from
-      // FocusableActionDetector.actions gives the right type without naming it.
-      actions: {
-        ActivateIntent: CallbackAction<ActivateIntent>(
-          onInvoke: (_) {
-            widget.onTap?.call();
-            return null;
-          },
-        ),
-      },
-      // Focus ring only — no scale-up. AnimatedScale painted outside the layout
-      // bounds, so a full-width autofocused control (the connect button on
-      // desktop) spilled past the window edges once 1.5% of its width exceeded
-      // the 16px side padding.
-      child: AnimatedContainer(
-        duration: RouteXMotion.resolve(context, RouteXMotion.fast),
-        curve: RouteXMotion.curve,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(widget.borderRadius + 4),
-          border: Border.all(
-            color: _focused ? context.colorScheme.primary : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        // Hover lifts the control rather than outlining it: a pointer
-        // resting on glass should read as the material catching a little
-        // more light, not as a box being drawn around it.
-        child: AnimatedScale(
-          scale: _hovered && enabled ? 1.015 : 1,
-          duration: RouteXMotion.resolve(context, RouteXMotion.fast),
-          curve: RouteXMotion.curve,
-          child: AnimatedOpacity(
-            opacity: _hovered && enabled ? 1 : 0.88,
-            duration: RouteXMotion.resolve(context, RouteXMotion.fast),
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: widget.onTap,
-              child: widget.child,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+// Promoted to widgets/focusable_tap.dart as RouteXFocusableTap once
+// _RoutingModeToggle (lib/pages/home.dart) needed the same hover/focus
+// wrapper — a private class can't cross files. Aliased locally so the many
+// call sites in this file didn't all need renaming.
+typedef _FocusableTap = RouteXFocusableTap;
 
 // ----------------------------------------------------------------------------
 // Hero
@@ -253,82 +178,51 @@ class HeroConnect extends ConsumerWidget {
     final isRunning = runTime != null;
     final subscription = profile?.subscriptionInfo;
     final isRussian = Localizations.localeOf(context).languageCode == 'ru';
-    final serviceName =
-        _decodeBase64(profile?.providerHeaders['flclashx-servicename']) ??
-            appName;
+    final headers = profile?.providerHeaders ?? const {};
+    // Only a real provider-branded name earns a headline — falling back to
+    // the app's own name here just repeats what the window title already
+    // says, which is the exact "why is this written twice" complaint.
+    final brandName = _decodeBase64(headers['flclashx-servicename']);
+    final supportUrl = headers['support-url'];
 
     return LayoutBuilder(
       builder: (context, constraints) => Center(
         child: SingleChildScrollView(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
+            constraints: const BoxConstraints(maxWidth: 640),
             child: RouteXGlassSurface(
               expand: false,
               radius: 32,
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
-                  constraints.maxWidth < 520 ? 24 : 38,
-                  30,
-                  constraints.maxWidth < 520 ? 24 : 38,
-                  32,
+                  constraints.maxWidth < 520 ? 22 : 32,
+                  20,
+                  constraints.maxWidth < 520 ? 22 : 32,
+                  28,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            gradient: const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [premiumMint, premiumBlue],
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.route_rounded,
-                            color: Color(0xFF07110E),
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                serviceName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: context.textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                profile?.label ?? appLocalizations.profile,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: context.textTheme.bodyMedium?.copyWith(
-                                  color: context.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    _HeroUtilityRow(
+                      brandName: brandName,
+                      isUpdating: profile?.isUpdating ?? false,
+                      onUpdate: profile == null
+                          ? null
+                          : () =>
+                              globalState.appController.updateProfile(profile),
+                      onImport: () => _openImportSheet(context),
+                      supportUrl: supportUrl,
                     ),
+                    const SizedBox(height: 18),
+                    _HeroStatusBadge(isRunning: isRunning),
                     if (subscription != null) ...[
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 22),
                       _RouteXSubscriptionSummary(
                         subscription: subscription,
                         isRussian: isRussian,
                       ),
                     ],
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 20),
                     _ConnectButton(isReady: state.isInit),
                   ],
                 ),
@@ -337,6 +231,195 @@ class HeroConnect extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _openImportSheet(BuildContext context) {
+    unawaited(
+      showExtend(
+        globalState.navigatorKey.currentState!.context,
+        builder: (_, type) => AdaptiveSheetScaffold(
+          type: type,
+          body: AddProfileView(
+            context: globalState.navigatorKey.currentState!.context,
+          ),
+          title: "${appLocalizations.add}${appLocalizations.profile}",
+        ),
+      ),
+    );
+  }
+}
+
+/// Replaces the old logo + name header. A brand name from the provider (when
+/// there is one) sits on the left; the rest of the row is small icon
+/// utilities — refresh this subscription, import another, reach support —
+/// instead of a second restatement of the app's own name.
+class _HeroUtilityRow extends StatelessWidget {
+  const _HeroUtilityRow({
+    required this.brandName,
+    required this.isUpdating,
+    required this.onUpdate,
+    required this.onImport,
+    this.supportUrl,
+  });
+
+  final String? brandName;
+  final bool isUpdating;
+  final VoidCallback? onUpdate;
+  final VoidCallback onImport;
+  final String? supportUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasSupport = supportUrl != null && supportUrl!.isNotEmpty;
+    return Row(
+      children: [
+        if (brandName != null && brandName!.isNotEmpty)
+          Expanded(
+            child: Text(
+              brandName!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          )
+        else
+          const Spacer(),
+        _HeroIconAction(
+          icon: Icons.refresh_rounded,
+          tooltip: appLocalizations.update,
+          busy: isUpdating,
+          onTap: onUpdate,
+        ),
+        const SizedBox(width: 6),
+        _HeroIconAction(
+          icon: Icons.add_rounded,
+          tooltip: '${appLocalizations.add}${appLocalizations.profile}',
+          onTap: onImport,
+        ),
+        if (hasSupport) ...[
+          const SizedBox(width: 6),
+          _HeroIconAction(
+            icon: Icons.support_agent_rounded,
+            tooltip: appLocalizations.support,
+            onTap: () => globalState.openUrl(supportUrl!),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _HeroIconAction extends StatelessWidget {
+  const _HeroIconAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.busy = false,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onTap;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+        message: tooltip,
+        child: _FocusableTap(
+          borderRadius: 18,
+          onTap: busy ? null : onTap,
+          child: Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.045),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.08),
+              ),
+            ),
+            child: busy
+                ? SizedBox(
+                    width: 15,
+                    height: 15,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: context.colorScheme.onSurfaceVariant,
+                    ),
+                  )
+                : Icon(
+                    icon,
+                    size: 17,
+                    color: context.colorScheme.onSurfaceVariant,
+                  ),
+          ),
+        ),
+      );
+}
+
+/// The primary visual: a state carried by a glowing badge instead of a small
+/// text chip. Purely informational — the Старт/Стоп button below is the one
+/// and only tap target for the same action, so the two never compete.
+class _HeroStatusBadge extends StatelessWidget {
+  const _HeroStatusBadge({required this.isRunning});
+
+  final bool isRunning;
+
+  @override
+  Widget build(BuildContext context) {
+    final duration = RouteXMotion.resolve(context, RouteXMotion.base);
+    final color =
+        isRunning ? premiumMint : context.colorScheme.onSurfaceVariant;
+    return Column(
+      children: [
+        AnimatedContainer(
+          duration: duration,
+          curve: RouteXMotion.curve,
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color.withValues(alpha: isRunning ? 0.12 : 0.06),
+            border: Border.all(
+              color: color.withValues(alpha: isRunning ? 0.4 : 0.14),
+              width: 1.4,
+            ),
+            boxShadow: isRunning
+                ? [
+                    BoxShadow(
+                      color: premiumMint.withValues(alpha: 0.22),
+                      blurRadius: 28,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : null,
+          ),
+          child: AnimatedSwitcher(
+            duration: duration,
+            child: Icon(
+              isRunning ? Icons.shield_rounded : Icons.shield_outlined,
+              key: ValueKey(isRunning),
+              size: 30,
+              color: color,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        AnimatedDefaultTextStyle(
+          duration: duration,
+          style: context.textTheme.titleSmall!.copyWith(
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+          child: Text(
+            isRunning ? appLocalizations.running : appLocalizations.stopped,
+          ),
+        ),
+      ],
     );
   }
 }

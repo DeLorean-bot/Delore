@@ -417,10 +417,41 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
                           ),
                         ),
                       ),
-                  ValueListenableBuilder(
-                    valueListenable: _loading,
-                    builder: (_, value, __) =>
-                        value ? const LinearProgressIndicator() : Container(),
+                  // A slim inset mint strip, not the stock full-width
+                  // square-cornered Material bar: that one's hard corners
+                  // poked out past the glass bar's own rounded edge, which
+                  // read as a broken stripe slapped onto a soft card.
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      left: 22,
+                      right: 22,
+                      bottom: 9,
+                    ),
+                    child: ValueListenableBuilder(
+                      valueListenable: _loading,
+                      builder: (_, value, __) => AnimatedOpacity(
+                        opacity: value ? 1 : 0,
+                        duration: RouteXMotion.resolve(
+                          context,
+                          RouteXMotion.fast,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(99),
+                          child: SizedBox(
+                            height: 2.5,
+                            child: value
+                                ? const LinearProgressIndicator(
+                                    minHeight: 2.5,
+                                    backgroundColor: Colors.transparent,
+                                    valueColor: AlwaysStoppedAnimation(
+                                      premiumMint,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),

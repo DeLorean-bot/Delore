@@ -211,6 +211,8 @@ class _PremiumSideNavigation extends ConsumerWidget {
                     _RoutingStatus(isRunning: isRunning),
                   ],
                   const SizedBox(height: 8),
+                  _RoutingModeToggle(expanded: expanded),
+                  const SizedBox(height: 8),
                   _SidebarToggle(
                     expanded: expanded,
                     onPressed: onToggle,
@@ -505,6 +507,131 @@ class _RoutingStatus extends StatelessWidget {
           ),
         ),
       );
+}
+
+/// Routing-mode switcher pinned above the collapse button — a persistent,
+/// one-tap Rules/Global control instead of burying it behind a popup menu.
+/// `Mode.direct` exists in the enum but has no seat here: it's a debug
+/// escape hatch, not a mode a user picks from the sidebar.
+class _RoutingModeToggle extends ConsumerWidget {
+  const _RoutingModeToggle({required this.expanded});
+
+  final bool expanded;
+
+  static const _modes = [Mode.rule, Mode.global];
+
+  IconData _icon(Mode mode) =>
+      mode == Mode.rule ? Icons.rule_rounded : Icons.public_rounded;
+
+  // appLocalizations.rule is "По правилам" — reads fine as a standalone
+  // sentence elsewhere, but doesn't fit next to a second segment in a
+  // 244px sidebar. A shorter label for this one tight spot only.
+  String _label(BuildContext context, Mode mode) {
+    if (mode == Mode.global) return appLocalizations.global;
+    final isRussian = Localizations.localeOf(context).languageCode == 'ru';
+    return isRussian ? 'Правила' : appLocalizations.rule;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(
+      patchClashConfigProvider.select((state) => state.mode),
+    );
+    final active = _modes.contains(mode) ? mode : Mode.rule;
+    final duration = RouteXMotion.resolve(context, RouteXMotion.fast);
+
+    if (!expanded) {
+      // One slot only when collapsed: tapping cycles rule <-> global,
+      // which is the whole point of a 2-state control.
+      return Tooltip(
+        message: _label(context, active),
+        child: RouteXFocusableTap(
+          borderRadius: 14,
+          onTap: () => globalState.appController.changeMode(
+            active == Mode.rule ? Mode.global : Mode.rule,
+          ),
+          child: Container(
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: context.colorScheme.surfaceContainerHigh
+                  .withValues(alpha: 0.48),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color:
+                    context.colorScheme.outlineVariant.withValues(alpha: 0.48),
+                width: 0.8,
+              ),
+            ),
+            child: Icon(_icon(active), size: 18, color: premiumMint),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHigh.withValues(alpha: 0.48),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: context.colorScheme.outlineVariant.withValues(alpha: 0.48),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        children: [
+          for (final mode in _modes)
+            Expanded(
+              child: RouteXFocusableTap(
+                borderRadius: 11,
+                onTap: () => globalState.appController.changeMode(mode),
+                child: AnimatedContainer(
+                  duration: duration,
+                  curve: RouteXMotion.curve,
+                  height: 38,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: mode == active
+                        ? premiumMint.withValues(alpha: 0.16)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _icon(mode),
+                        size: 15,
+                        color: mode == active
+                            ? premiumMint
+                            : context.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          _label(context, mode),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.textTheme.labelMedium?.copyWith(
+                            color: mode == active
+                                ? premiumMint
+                                : context.colorScheme.onSurfaceVariant,
+                            fontWeight: mode == active
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _SidebarToggle extends StatelessWidget {

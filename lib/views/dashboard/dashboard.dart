@@ -59,10 +59,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> with PageMixin {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _DashboardHeading(
-                      isRussian: isRussian,
-                      isRunning: isRunning,
-                    ),
+                    _DashboardHeading(isRussian: isRussian),
                     const SizedBox(height: 26),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,78 +102,32 @@ class _DashboardViewState extends ConsumerState<DashboardView> with PageMixin {
 }
 
 class _DashboardHeading extends StatelessWidget {
-  const _DashboardHeading({
-    required this.isRussian,
-    required this.isRunning,
-  });
+  const _DashboardHeading({required this.isRussian});
 
   final bool isRussian;
-  final bool isRunning;
 
+  // No status pill here: the window's own title bar already states
+  // running/stopped, and the Старт/Стоп button restates it a second time
+  // where it is actually actionable. A third, inert copy in the heading
+  // was the exact kind of repetition being complained about.
   @override
-  Widget build(BuildContext context) => Row(
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isRussian
-                      ? 'Маршрутизация без рутины'
-                      : 'Routing without busywork',
-                  style: context.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.8,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  isRussian
-                      ? 'Приложения, локации и правила — в одном понятном пространстве.'
-                      : 'Applications, locations, and rules in one clear workspace.',
-                  style: context.textTheme.bodyMedium?.copyWith(
-                    color: context.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+          Text(
+            isRussian ? 'Маршрутизация без рутины' : 'Routing without busywork',
+            style: context.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.8,
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: (isRunning ? premiumMint : Colors.white)
-                  .withValues(alpha: isRunning ? 0.1 : 0.045),
-              borderRadius: BorderRadius.circular(99),
-              border: Border.all(
-                color: (isRunning ? premiumMint : Colors.white)
-                    .withValues(alpha: isRunning ? 0.22 : 0.08),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: isRunning
-                        ? premiumMint
-                        : context.colorScheme.onSurfaceVariant,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  isRunning
-                      ? (isRussian ? 'Защита активна' : 'Protection active')
-                      : (isRussian ? 'Остановлено' : 'Stopped'),
-                  style: context.textTheme.labelMedium?.copyWith(
-                    color: isRunning
-                        ? premiumMint
-                        : context.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 5),
+          Text(
+            isRussian
+                ? 'Приложения, локации и правила — в одном понятном пространстве.'
+                : 'Applications, locations, and rules in one clear workspace.',
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: context.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -220,18 +171,13 @@ class _ConnectionOverview extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 20),
+              // "Ядро: Работает/Остановлено" used to repeat exactly what
+              // the Старт/Стоп button already says — dropped, the shield
+              // icon's tint above still carries the state visually.
               _OverviewLine(
                 label: isRussian ? 'Профиль' : 'Profile',
                 value:
                     profileName ?? (isRussian ? 'Не выбран' : 'Not selected'),
-              ),
-              const SizedBox(height: 14),
-              _OverviewLine(
-                label: isRussian ? 'Ядро' : 'Core',
-                value: isRunning
-                    ? (isRussian ? 'Работает' : 'Running')
-                    : (isRussian ? 'Остановлено' : 'Stopped'),
-                active: isRunning,
               ),
               const SizedBox(height: 14),
               _OverviewLine(
@@ -248,12 +194,10 @@ class _OverviewLine extends StatelessWidget {
   const _OverviewLine({
     required this.label,
     required this.value,
-    this.active = false,
   });
 
   final String label;
   final String value;
-  final bool active;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -273,7 +217,6 @@ class _OverviewLine extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.end,
               style: context.textTheme.bodyMedium?.copyWith(
-                color: active ? premiumMint : null,
                 fontWeight: FontWeight.w500,
               ),
             ),

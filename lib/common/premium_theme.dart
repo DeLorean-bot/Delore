@@ -164,16 +164,17 @@ LiquidGlassStyle routeXGlassStyle(
   // Light theme needs a denser fill: the same alpha over a bright
   // backdrop reads as no material at all.
   final (Color tint, double blur, double borderWidth) = switch (variant) {
-    // Barely tinted: on iOS the bar is see-through enough to read the
-    // content sliding under it. Milkiness is what makes glass look
-    // painted on.
+    // On iOS the bar is see-through enough to read content sliding under
+    // it, but that content is a couple of lines of a chat list scrolling
+    // smoothly. Ours can be a Logs page appending dense multi-line error
+    // text every few milliseconds — at the original near-zero tint
+    // (0x0D, ~5%) plus heavy blur, that turns into unreadable smeared
+    // mush that reads as a broken oversized banner, not glass. A denser
+    // tint knocks the noise back; less blur is then needed to read as
+    // calm frosted material rather than mush.
     RouteXGlassVariant.navigation => (
-        dark ? const Color(0x0DFFFFFF) : const Color(0x26FFFFFF),
-        // Heavy, now that real UI passes underneath. Refraction alone
-        // turns dense list text into a legible smear dragged along the
-        // rim; the blur is what makes it read as frosted material. This
-        // only became necessary once the page entered the capture.
-        16.0,
+        dark ? const Color(0x24FFFFFF) : const Color(0x38FFFFFF),
+        12.0,
         0.35,
       ),
     // The selection reads as a lift in brightness, not as an outlined
