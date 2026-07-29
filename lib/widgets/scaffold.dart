@@ -84,7 +84,11 @@ class CommonScaffold extends ConsumerStatefulWidget {
 
 /// Height of the floating glass app bar. Fixed, so the captured content
 /// layer can reserve exactly the same space without measuring it.
-const double _appBarHeight = 64;
+///
+/// Was 64 — a big glass slab with a shadow for what is a title and a row
+/// of small icon buttons. Trimmed to read as a slim floating strip
+/// instead of a heavy bar eating the top of the page.
+const double _appBarHeight = 52;
 
 class CommonScaffoldState extends ConsumerState<CommonScaffold> {
   late final ValueNotifier<AppBarState> _appBarState;
@@ -365,9 +369,9 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
   }
 
   PreferredSizeWidget _buildAppBar() => PreferredSize(
-        preferredSize: const Size.fromHeight(64),
+        preferredSize: const Size.fromHeight(_appBarHeight),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 7, 8, 3),
+          padding: const EdgeInsets.fromLTRB(8, 5, 8, 2),
           child: RouteXGlassSurface(
             variant: RouteXGlassVariant.navigation,
             radius: 18,
@@ -403,6 +407,11 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
                             backgroundColor: Colors.transparent,
                             elevation: 0,
                             surfaceTintColor: Colors.transparent,
+                            // Material's default toolbarHeight (56) no
+                            // longer fits inside the trimmed glass card;
+                            // match the space _appBarHeight's padding
+                            // actually leaves it.
+                            toolbarHeight: _appBarHeight - 7,
                             centerTitle: widget.centerTitle ?? false,
                             automaticallyImplyLeading:
                                 widget.automaticallyImplyLeading,

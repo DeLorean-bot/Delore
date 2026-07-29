@@ -213,8 +213,8 @@ class HeroConnect extends ConsumerWidget {
                       onImport: () => _openImportSheet(context),
                       supportUrl: supportUrl,
                     ),
-                    const SizedBox(height: 18),
-                    _HeroStatusBadge(isRunning: isRunning),
+                    const SizedBox(height: 8),
+                    _ConnectCircle(isReady: state.isInit, isRunning: isRunning),
                     if (subscription != null) ...[
                       const SizedBox(height: 22),
                       _RouteXSubscriptionSummary(
@@ -222,8 +222,6 @@ class HeroConnect extends ConsumerWidget {
                         isRussian: isRussian,
                       ),
                     ],
-                    const SizedBox(height: 20),
-                    _ConnectButton(isReady: state.isInit),
                   ],
                 ),
               ),
@@ -361,64 +359,151 @@ class _HeroIconAction extends StatelessWidget {
       );
 }
 
-/// The primary visual: a state carried by a glowing badge instead of a small
-/// text chip. Purely informational — the Старт/Стоп button below is the one
-/// and only tap target for the same action, so the two never compete.
-class _HeroStatusBadge extends StatelessWidget {
-  const _HeroStatusBadge({required this.isRunning});
+/// The actual connect control: one big circle that both shows the state and
+/// is the tap target for it, replacing the old pair of a decorative status
+/// badge plus a separate pill button below it — two elements for what is
+/// one fact, and neither of them the clear "press this" the page needs.
+///
+/// Stopped-but-ready: a mint ring around a dark disc — an invitation, not
+/// yet committed. Running: the disc fills solid mint with a soft glow, the
+/// glyph switches to stop, and the live uptime/traffic sit under it. Not
+/// ready (no active proxy group yet): flat and muted, no ring, disabled.
+class _ConnectCircle extends ConsumerWidget {
+  const _ConnectCircle({required this.isReady, required this.isRunning});
 
+  final bool isReady;
   final bool isRunning;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final runTime = ref.watch(runTimeProvider);
     final duration = RouteXMotion.resolve(context, RouteXMotion.base);
-    final color =
-        isRunning ? premiumMint : context.colorScheme.onSurfaceVariant;
+    final colorScheme = context.colorScheme;
+
+    final Color ring;
+    final Color fill;
+    final Color glyph;
+    if (!isReady) {
+      ring = Colors.transparent;
+      fill = colorScheme.surfaceContainerHighest.withValues(alpha: 0.4);
+      glyph = colorScheme.onSurface.withValues(alpha: 0.3);
+    } else if (isRunning) {
+      ring = Colors.transparent;
+      fill = premiumMint;
+      glyph = const Color(0xFF07110E);
+    } else {
+      ring = premiumMint.withValues(alpha: 0.55);
+      fill = premiumMint.withValues(alpha: 0.08);
+      glyph = premiumMint;
+    }
+
     return Column(
       children: [
-        AnimatedContainer(
-          duration: duration,
-          curve: RouteXMotion.curve,
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: color.withValues(alpha: isRunning ? 0.12 : 0.06),
-            border: Border.all(
-              color: color.withValues(alpha: isRunning ? 0.4 : 0.14),
-              width: 1.4,
-            ),
-            boxShadow: isRunning
-                ? [
-                    BoxShadow(
-                      color: premiumMint.withValues(alpha: 0.22),
-                      blurRadius: 28,
-                      spreadRadius: 2,
-                    ),
-                  ]
-                : null,
-          ),
-          child: AnimatedSwitcher(
+        RouteXFocusableTap(
+          autofocus: true,
+          borderRadius: 66,
+          onTap: isReady
+              ? () {
+                  if (Platform.isAndroid) {
+                    unawaited(HapticFeedback.mediumImpact());
+                  }
+                  unawaited(
+                    globalState.appController.updateStatus(!isRunning),
+                  );
+                }
+              : null,
+          child: AnimatedContainer(
             duration: duration,
-            child: Icon(
-              isRunning ? Icons.shield_rounded : Icons.shield_outlined,
-              key: ValueKey(isRunning),
-              size: 30,
-              color: color,
+            curve: RouteXMotion.curve,
+            width: 124,
+            height: 124,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: fill,
+              border: Border.all(color: ring, width: 2.5),
+              boxShadow: isRunning
+                  ? [
+                      BoxShadow(
+                        color: premiumMint.withValues(alpha: 0.32),
+                        blurRadius: 36,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: AnimatedSwitcher(
+              duration: duration,
+              transitionBuilder: (child, animation) => ScaleTransition(
+                scale: animation,
+                child: FadeTransition(opacity: animation, child: child),
+              ),
+              child: Icon(
+                isRunning ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                key: ValueKey(isRunning),
+                size: 44,
+                color: glyph,
+              ),
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         AnimatedDefaultTextStyle(
           duration: duration,
-          style: context.textTheme.titleSmall!.copyWith(
-            color: color,
+          style: context.textTheme.titleMedium!.copyWith(
+            color: isRunning ? premiumMint : colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w600,
           ),
           child: Text(
             isRunning ? appLocalizations.running : appLocalizations.stopped,
           ),
         ),
+        if (isRunning && runTime != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            utils.getTimeText(runTime),
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontFamily: FontFamily.jetBrainsMono.value,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const _LiveTrafficRow(),
+        ],
+      ],
+    );
+  }
+}
+
+class _LiveTrafficRow extends ConsumerWidget {
+  const _LiveTrafficRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final traffic = ref.watch(totalTrafficProvider);
+    final style = context.textTheme.labelMedium?.copyWith(
+      color: context.colorScheme.onSurfaceVariant,
+      fontFamily: FontFamily.jetBrainsMono.value,
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.arrow_upward_rounded,
+          size: 13,
+          color: context.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 3),
+        Text(traffic.up.show, style: style),
+        const SizedBox(width: 12),
+        Icon(
+          Icons.arrow_downward_rounded,
+          size: 13,
+          color: context.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 3),
+        Text(traffic.down.show, style: style),
       ],
     );
   }

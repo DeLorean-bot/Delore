@@ -541,30 +541,53 @@ class _RoutingModeToggle extends ConsumerWidget {
     final duration = RouteXMotion.resolve(context, RouteXMotion.fast);
 
     if (!expanded) {
-      // One slot only when collapsed: tapping cycles rule <-> global,
-      // which is the whole point of a 2-state control.
-      return Tooltip(
-        message: _label(context, active),
-        child: RouteXFocusableTap(
-          borderRadius: 14,
-          onTap: () => globalState.appController.changeMode(
-            active == Mode.rule ? Mode.global : Mode.rule,
+      // Two slots, not one that cycles: every other collapsed rail item
+      // is its own icon for its own destination, and a single button
+      // standing in for two modes broke that pattern — you couldn't see
+      // the mode you'd land on without tapping first.
+      return Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color:
+              context.colorScheme.surfaceContainerHigh.withValues(alpha: 0.48),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: context.colorScheme.outlineVariant.withValues(alpha: 0.48),
+            width: 0.8,
           ),
-          child: Container(
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: context.colorScheme.surfaceContainerHigh
-                  .withValues(alpha: 0.48),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color:
-                    context.colorScheme.outlineVariant.withValues(alpha: 0.48),
-                width: 0.8,
+        ),
+        child: Column(
+          children: [
+            for (final mode in _modes)
+              Tooltip(
+                message: _label(context, mode),
+                child: RouteXFocusableTap(
+                  borderRadius: 11,
+                  onTap: () => globalState.appController.changeMode(mode),
+                  child: AnimatedContainer(
+                    duration: duration,
+                    curve: RouteXMotion.curve,
+                    width: 38,
+                    height: 34,
+                    margin: const EdgeInsets.symmetric(vertical: 1.5),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: mode == active
+                          ? premiumMint.withValues(alpha: 0.16)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(
+                      _icon(mode),
+                      size: 16,
+                      color: mode == active
+                          ? premiumMint
+                          : context.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
               ),
-            ),
-            child: Icon(_icon(active), size: 18, color: premiumMint),
-          ),
+          ],
         ),
       );
     }
