@@ -161,42 +161,52 @@ LiquidGlassStyle routeXGlassStyle(
   bool capsule = false,
 }) {
   final dark = Theme.of(context).brightness == Brightness.dark;
-  // Light theme needs a denser fill: the same alpha over a bright
-  // backdrop reads as no material at all.
+  // Every dark-mode tint below was a white overlay at low alpha — the
+  // material equivalent of breathing frost onto the glass. That reads as
+  // grey wash no matter how low the alpha goes, because white-over-dark
+  // always lightens toward grey. iOS dark glass is the opposite move: a
+  // BLACK overlay that smokes/darkens whatever it refracts, so the glass
+  // itself stays a rich near-black and the only bright thing in the
+  // whole surface is the rim catching light — which is what actually
+  // reads as "glass", not "frost". Light theme is untouched: white haze
+  // is the correct move there.
   final (Color tint, double blur, double borderWidth) = switch (variant) {
     // On iOS the bar is see-through enough to read content sliding under
     // it, but that content is a couple of lines of a chat list scrolling
     // smoothly. Ours can be a Logs page appending dense multi-line error
     // text every few milliseconds — at the original near-zero tint
-    // (0x0D, ~5%) plus heavy blur, that turns into unreadable smeared
-    // mush that reads as a broken oversized banner, not glass. A denser
-    // tint knocks the noise back; less blur is then needed to read as
-    // calm frosted material rather than mush.
+    // plus heavy blur, that turns into unreadable smeared mush that
+    // reads as a broken oversized banner, not glass. A denser tint
+    // knocks the noise back; less blur is then needed to read as calm
+    // frosted material rather than mush.
     RouteXGlassVariant.navigation => (
-        dark ? const Color(0x24FFFFFF) : const Color(0x38FFFFFF),
+        dark ? const Color(0x40000000) : const Color(0x38FFFFFF),
         12.0,
         0.35,
       ),
     // The selection reads as a lift in brightness, not as an outlined
     // chip: slightly more fill than the bar it sits in, no blur of its
-    // own.
+    // own. This is the one surface that is supposed to look lighter
+    // than its surroundings, so it keeps a (reduced) white lift even in
+    // dark mode — a black tint here would make the "selected" pill
+    // recede instead of stand out.
     RouteXGlassVariant.selection => (
-        dark ? const Color(0x1AFFFFFF) : const Color(0x33FFFFFF),
+        dark ? const Color(0x14FFFFFF) : const Color(0x33FFFFFF),
         0.0,
         0.3,
       ),
     RouteXGlassVariant.panel => (
-        dark ? const Color(0x14FFFFFF) : const Color(0x2EFFFFFF),
+        dark ? const Color(0x30000000) : const Color(0x2EFFFFFF),
         10.0,
         0.4,
       ),
     RouteXGlassVariant.dialog => (
-        dark ? const Color(0x22FFFFFF) : const Color(0x3DFFFFFF),
+        dark ? const Color(0x50000000) : const Color(0x3DFFFFFF),
         6.0,
         0.5,
       ),
     RouteXGlassVariant.control => (
-        dark ? const Color(0x16FFFFFF) : const Color(0x30FFFFFF),
+        dark ? const Color(0x38000000) : const Color(0x30FFFFFF),
         2.0,
         0.35,
       ),
