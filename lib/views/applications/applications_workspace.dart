@@ -2,8 +2,10 @@ import 'package:app_discovery/app_discovery.dart';
 import 'package:flclashx/common/common.dart';
 import 'package:flclashx/common/process_icon.dart';
 import 'package:flclashx/models/models.dart';
+import 'package:flclashx/providers/providers.dart';
 import 'package:flclashx/widgets/widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import 'applications_scene.dart';
@@ -22,6 +24,7 @@ class ApplicationsWorkspace extends StatefulWidget {
     required this.onRefresh,
     required this.onQueryChanged,
     required this.onRouteChanged,
+    required this.onPickLocation,
     required this.onBypass,
   });
 
@@ -39,6 +42,12 @@ class ApplicationsWorkspace extends StatefulWidget {
     DiscoveredApplication application,
     ApplicationRoute route,
   ) onRouteChanged;
+  // Routes an application through a specific proxy group/location instead
+  // of the default one — the experimental per-app location picker.
+  final Future<void> Function(
+    DiscoveredApplication application,
+    String target,
+  ) onPickLocation;
   final VoidCallback onBypass;
 
   @override
@@ -97,6 +106,7 @@ class _ApplicationsWorkspaceState extends State<ApplicationsWorkspace> {
               traffic: widget.traffic,
               onRetry: widget.onRefresh,
               onRouteChanged: widget.onRouteChanged,
+              onPickLocation: widget.onPickLocation,
               onBypass: widget.onBypass,
             ),
           ),
@@ -442,6 +452,7 @@ class _ProcessList extends StatelessWidget {
     required this.traffic,
     required this.onRetry,
     required this.onRouteChanged,
+    required this.onPickLocation,
     required this.onBypass,
   });
 
@@ -456,6 +467,10 @@ class _ProcessList extends StatelessWidget {
     DiscoveredApplication application,
     ApplicationRoute route,
   ) onRouteChanged;
+  final Future<void> Function(
+    DiscoveredApplication application,
+    String target,
+  ) onPickLocation;
   final VoidCallback onBypass;
 
   @override
@@ -500,6 +515,7 @@ class _ProcessList extends StatelessWidget {
           routeTarget: routes[key]?.target,
           traffic: traffic[key] ?? const ApplicationTrafficData(),
           onRouteChanged: (route) => onRouteChanged(application, route),
+          onPickLocation: (target) => onPickLocation(application, target),
           onBypass: onBypass,
         );
       },
@@ -515,6 +531,7 @@ class _ProcessRow extends StatefulWidget {
     required this.routeTarget,
     required this.traffic,
     required this.onRouteChanged,
+    required this.onPickLocation,
     required this.onBypass,
   });
 
@@ -523,6 +540,7 @@ class _ProcessRow extends StatefulWidget {
   final String? routeTarget;
   final ApplicationTrafficData traffic;
   final ValueChanged<ApplicationRoute> onRouteChanged;
+  final ValueChanged<String> onPickLocation;
   final VoidCallback onBypass;
 
   @override
@@ -581,6 +599,7 @@ class _ProcessRowState extends State<_ProcessRow> {
                       route: widget.route,
                       routeTarget: widget.routeTarget,
                       onChanged: widget.onRouteChanged,
+                      onPickLocation: widget.onPickLocation,
                     );
                     if (narrow) {
                       return Column(
@@ -600,6 +619,7 @@ class _ProcessRowState extends State<_ProcessRow> {
                                   route: widget.route,
                                   routeTarget: widget.routeTarget,
                                   onChanged: widget.onRouteChanged,
+                                  onPickLocation: widget.onPickLocation,
                                 ),
                               ),
                               const SizedBox(width: 3),
@@ -844,11 +864,18 @@ class _RouteControl extends StatelessWidget {
     required this.route,
     required this.routeTarget,
     required this.onChanged,
+    required this.onPickLocation,
   });
 
   final ApplicationRoute route;
   final String? routeTarget;
   final ValueChanged<ApplicationRoute> onChanged;
+  // Experimental: routes this one application through a specific proxy
+  // group instead of whichever one is the default — e.g. a browser on
+  // one location, a game on another. Tapping the already-selected Proxy
+  // slot a second time opens the picker instead of re-selecting it, so
+  // no extra control is squeezed into an already tight 44px bar.
+  final ValueChanged<String> onPickLocation;
   final double width;
 
   @override
@@ -867,11 +894,28 @@ class _RouteControl extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: _RouteOption(
-                label: routeTarget ?? 'Proxy',
-                selected: route == ApplicationRoute.proxy,
-                color: premiumMint,
-                onPressed: () => onChanged(ApplicationRoute.proxy),
+              child: CommonPopupBox(
+                targetBuilder: (open) => Tooltip(
+                  message: route == ApplicationRoute.proxy
+                      ? 'Нажмите ещё раз, чтобы выбрать локацию'
+                      : '',
+                  child: _RouteOption(
+                    label: routeTarget ?? 'Proxy',
+                    selected: route == ApplicationRoute.proxy,
+                    color: premiumMint,
+                    onPressed: () {
+                      if (route == ApplicationRoute.proxy) {
+                        open(offset: const Offset(0, 8));
+                      } else {
+                        onChanged(ApplicationRoute.proxy);
+                      }
+                    },
+                  ),
+                ),
+                popup: _LocationPickerPanel(
+                  currentTarget: routeTarget,
+                  onPicked: onPickLocation,
+                ),
               ),
             ),
             Expanded(
@@ -891,6 +935,136 @@ class _RouteControl extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      );
+}
+
+/// The per-app location picker's popup body — opened from the Proxy slot
+/// of an already-proxied app. Lists every non-hidden proxy group the
+/// active profile exposes (the same "locations" the Локации tab lets you
+/// switch between), plus an Auto row that clears the explicit pick and
+/// falls back to whatever the default proxy group resolves to.
+class _LocationPickerPanel extends ConsumerWidget {
+  const _LocationPickerPanel({
+    required this.currentTarget,
+    required this.onPicked,
+  });
+
+  final String? currentTarget;
+  final ValueChanged<String> onPicked;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final groups = ref
+        .watch(currentGroupsStateProvider)
+        .value
+        .where((group) => group.hidden != true)
+        .toList(growable: false);
+
+    return Material(
+      color: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 300, maxHeight: 360),
+        child: RouteXGlassSurface(
+          variant: RouteXGlassVariant.panel,
+          radius: 16,
+          expand: false,
+          child: groups.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text(
+                    'Нет доступных локаций в этом профиле',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                )
+              : ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.all(6),
+                  children: [
+                    for (final group in groups)
+                      _LocationOption(
+                        label: group.name,
+                        subtitle: group.now,
+                        icon: group.icon,
+                        selected: group.name == currentTarget,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          onPicked(group.name);
+                        },
+                      ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LocationOption extends StatelessWidget {
+  const _LocationOption({
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String? subtitle;
+  final String icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        borderRadius: BorderRadius.circular(11),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          margin: const EdgeInsets.only(bottom: 2),
+          decoration: BoxDecoration(
+            color: selected
+                ? premiumMint.withValues(alpha: 0.14)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Row(
+            children: [
+              CommonTargetIcon(src: icon, size: 24),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: selected
+                            ? premiumMint
+                            : context.colorScheme.onSurface,
+                      ),
+                    ),
+                    if (subtitle != null && subtitle!.isNotEmpty)
+                      Text(
+                        subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: context.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (selected)
+                const Icon(Icons.check_rounded, size: 16, color: premiumMint),
+            ],
+          ),
         ),
       );
 }

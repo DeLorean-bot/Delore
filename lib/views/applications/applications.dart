@@ -157,10 +157,19 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
     return names.firstOrNull;
   }
 
+  /// Routes [application] through a specific location instead of the
+  /// default proxy group — the per-app location picker's entry point.
+  Future<void> _setLocation(
+    DiscoveredApplication application,
+    String target,
+  ) =>
+      _setRoute(application, ApplicationRoute.proxy, explicitTarget: target);
+
   Future<void> _setRoute(
     DiscoveredApplication application,
-    ApplicationRoute route,
-  ) async {
+    ApplicationRoute route, {
+    String? explicitTarget,
+  }) async {
     final profileId = ref.read(currentProfileIdProvider);
     if (profileId == null) {
       _message('Add or select a profile first');
@@ -168,7 +177,7 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
     }
     String? target;
     if (route == ApplicationRoute.proxy) {
-      target = _defaultProxyTarget();
+      target = explicitTarget ?? _defaultProxyTarget();
       if (target == null) {
         _message('No proxy group is available in the active profile');
         return;
@@ -328,6 +337,7 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
         setState(() => _query = value.trim().toLowerCase());
       },
       onRouteChanged: _setRoute,
+      onPickLocation: _setLocation,
       onBypass: () => _message(
         'True TUN bypass needs a Windows WFP split-tunnel layer. '
         'Use Direct for a Clash DIRECT rule.',

@@ -241,7 +241,7 @@ class HeroConnect extends ConsumerWidget {
           body: AddProfileView(
             context: globalState.navigatorKey.currentState!.context,
           ),
-          title: "${appLocalizations.add}${appLocalizations.profile}",
+          title: "${appLocalizations.addProfile}",
         ),
       ),
     );
@@ -294,7 +294,7 @@ class _HeroUtilityRow extends StatelessWidget {
         const SizedBox(width: 6),
         _HeroIconAction(
           icon: Icons.add_rounded,
-          tooltip: '${appLocalizations.add}${appLocalizations.profile}',
+          tooltip: '${appLocalizations.addProfile}',
           onTap: onImport,
         ),
         if (hasSupport) ...[

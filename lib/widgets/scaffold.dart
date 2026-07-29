@@ -82,16 +82,32 @@ class CommonScaffold extends ConsumerStatefulWidget {
   ConsumerState<CommonScaffold> createState() => CommonScaffoldState();
 }
 
-/// Height of the floating glass app bar. Fixed, so the captured content
-/// layer can reserve exactly the same space without measuring it.
-///
-/// Was 64 — a big glass slab with a shadow for what is a title and a row
-/// of small icon buttons. Trimmed to read as a slim floating strip
-/// instead of a heavy bar eating the top of the page.
+/// Height of the floating glass app bar when it wraps our own default
+/// `AppBar` (i.e. `widget.appBar` is null). Was 64 — a big glass slab
+/// with a shadow for what is a title and a row of small icon buttons.
+/// Trimmed to read as a slim floating strip instead of a heavy bar
+/// eating the top of the page.
 const double _appBarHeight = 52;
+
+/// Padding the glass card adds around whatever `AppBar` it wraps
+/// (top + bottom from `_buildAppBar`'s `Padding`).
+const double _appBarCardPadding = 7;
 
 class CommonScaffoldState extends ConsumerState<CommonScaffold> {
   late final ValueNotifier<AppBarState> _appBarState;
+
+  /// The glass card's total height. A caller-supplied `widget.appBar`
+  /// (e.g. `AdaptiveSheetScaffold`'s own `AppBar`, default 56px) carries
+  /// its own `preferredSize` — sizing the card to `_appBarHeight`
+  /// regardless, as a previous pass did, squeezed anything taller than
+  /// our trimmed 52px and forced it to overflow onto the content below.
+  /// The content layer's ghost and the chrome layer must agree on this
+  /// exact value, or the page is inset for one height while the glass
+  /// card actually occupies another.
+  double get _appBarCardHeight =>
+      (widget.appBar?.preferredSize.height ??
+          (_appBarHeight - _appBarCardPadding)) +
+      _appBarCardPadding;
   final ValueNotifier<Widget?> _floatingActionButton = ValueNotifier(null);
   final ValueNotifier<List<String>> _keywordsNotifier = ValueNotifier([]);
   final ValueNotifier<bool> _loading = ValueNotifier(false);
@@ -369,7 +385,7 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
   }
 
   PreferredSizeWidget _buildAppBar() => PreferredSize(
-        preferredSize: const Size.fromHeight(_appBarHeight),
+        preferredSize: Size.fromHeight(_appBarCardHeight),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 5, 8, 2),
           child: RouteXGlassSurface(
@@ -612,6 +628,17 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
       fit: StackFit.expand,
       children: [
         SafeArea(
+          // Scaffold already insets `padding.top` by the app bar's real
+          // height (see _BodyBuilder in the Flutter SDK — it injects
+          // max(systemPadding, appBarHeight) via MediaQuery), so content
+          // does not *overlap* the bar. But a Gaussian blur samples a
+          // region wider than its own bounds to blur pixels at its own
+          // edge — sigma 12 bleeds roughly 2-3x that past the bar's
+          // bottom edge — so text starting flush against that edge (zero
+          // gap) gets dragged up into the bar and reads as ghosted,
+          // doubled text. `minimum` adds real breathing room on top of
+          // Scaffold's own inset for the blur to fall off in.
+          minimum: const EdgeInsets.only(top: 18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -689,9 +716,9 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
       extendBody: true,
       extendBodyBehindAppBar: true,
       appBar: widget.showAppBar
-          ? const PreferredSize(
-              preferredSize: Size.fromHeight(_appBarHeight),
-              child: SizedBox.shrink(),
+          ? PreferredSize(
+              preferredSize: Size.fromHeight(_appBarCardHeight),
+              child: const SizedBox.shrink(),
             )
           : null,
       body: body,
@@ -743,7 +770,7 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
             left: 0,
             right: 0,
             child: SizedBox(
-              height: _appBarHeight,
+              height: _appBarCardHeight,
               child: _buildAppBar(),
             ),
           ),

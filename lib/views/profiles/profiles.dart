@@ -33,7 +33,7 @@ class _ProfilesViewState extends State<ProfilesView> with PageMixin {
         body: AddProfileView(
           context: globalState.navigatorKey.currentState!.context,
         ),
-        title: "${appLocalizations.add}${appLocalizations.profile}",
+        title: "${appLocalizations.addProfile}",
       ),
     );
   }
