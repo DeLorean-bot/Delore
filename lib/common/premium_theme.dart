@@ -76,24 +76,32 @@ enum RouteXGlassVariant {
 extension RouteXGlassVariantDefaults on RouteXGlassVariant {
   /// Whether this variant may render as a real refracting lens.
   ///
-  /// Only the chrome may. A lens works by sampling the ancestor
-  /// `LiquidGlassView`'s capture — so a lens that itself sits *inside*
-  /// that capture paints its output into the very image it will sample
-  /// next frame. The result compounds every frame until the surface
-  /// burns out to a flat colour. Since the page moved into the capture,
-  /// every content-plane surface is inside it, and only `navigation` and
-  /// `selection` — which live in the chrome layer above the capture —
-  /// can still refract.
+  /// Depends on the renderer, because the two work in opposite ways.
   ///
-  /// The content plane gets a frosted card instead: a real backdrop blur
-  /// plus tint, which composites normally and cannot feed back.
-  bool get refracts => switch (this) {
-        RouteXGlassVariant.navigation || RouteXGlassVariant.selection => true,
-        RouteXGlassVariant.panel ||
-        RouteXGlassVariant.dialog ||
-        RouteXGlassVariant.control =>
-          false,
-      };
+  /// On **Impeller** a lens samples the live backdrop through
+  /// `ImageFilter.shader`: there is no captured image, so a lens can sit
+  /// anywhere — including on a card in the middle of the page — and every
+  /// variant refracts.
+  ///
+  /// On **Skia** a lens samples the ancestor `LiquidGlassView`'s capture.
+  /// Since the page moved into that capture, a content-plane lens would
+  /// paint its output into the very image it samples next frame, and the
+  /// surface compounds until it burns out to a flat colour. There only
+  /// the chrome — `navigation` and `selection`, which live above the
+  /// capture — can refract; the content plane falls back to a frosted
+  /// card, which composites normally and cannot feed back.
+  bool get refracts {
+    if (ImageFilter.isShaderFilterSupported) {
+      return true;
+    }
+    return switch (this) {
+      RouteXGlassVariant.navigation || RouteXGlassVariant.selection => true,
+      RouteXGlassVariant.panel ||
+      RouteXGlassVariant.dialog ||
+      RouteXGlassVariant.control =>
+        false,
+    };
+  }
 
   /// The radius this variant renders at when a call site doesn't pin one.
   double get defaultRadius => switch (this) {

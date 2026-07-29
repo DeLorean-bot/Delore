@@ -22,6 +22,16 @@ import 'pages/editor_window.dart';
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Which renderer we got decides how the glass can work at all: on
+  // Impeller a lens samples the live backdrop and can sit anywhere,
+  // while on Skia it needs a captured background and cannot sit inside
+  // that capture. Worth stating plainly in the log rather than inferring
+  // it from artefacts.
+  commonPrint.log(
+    'renderer: shader backdrop '
+    '${ImageFilter.isShaderFilterSupported ? "supported (Impeller)" : "unsupported (Skia)"}',
+  );
+
   // desktop_multi_window re-launches this binary for each sub-window with
   // ['multi_window', <id>, <jsonArgs>]. On macOS we use one for the roomy
   // config editor — boot only it, none of the normal app (core/state/UI).
