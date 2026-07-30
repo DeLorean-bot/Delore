@@ -14,11 +14,11 @@ on:
       aur:
         description: "Publish to AUR"
         type: boolean
-        default: true
+        default: false
       telegram:
         description: "Send Telegram announcement"
         type: boolean
-        default: true
+        default: false
 
 jobs:
   aur-publish:
@@ -70,16 +70,16 @@ jobs:
           mkdir -p /tmp/aur-assets
 
           gh release download "$TAG" \
-            -p "FlClashX-linux-amd64.deb" \
+            -p "Delore-linux-amd64.deb" \
             -D /tmp/aur-assets \
             -R "$GITHUB_REPOSITORY"
-          echo "sha_x86=$(sha256sum /tmp/aur-assets/FlClashX-linux-amd64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "sha_x86=$(sha256sum /tmp/aur-assets/Delore-linux-amd64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
           if gh release download "$TAG" \
-            -p "FlClashX-linux-arm64.deb" \
+            -p "Delore-linux-arm64.deb" \
             -D /tmp/aur-assets \
             -R "$GITHUB_REPOSITORY" 2>/dev/null; then
-            echo "sha_arm=$(sha256sum /tmp/aur-assets/FlClashX-linux-arm64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+            echo "sha_arm=$(sha256sum /tmp/aur-assets/Delore-linux-arm64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
             echo "has_arm=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_arm=false" >> "$GITHUB_OUTPUT"

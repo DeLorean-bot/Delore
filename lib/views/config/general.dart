@@ -406,6 +406,70 @@ class _SendHeadersToggleState extends State<SendHeadersToggle> {
     );
 }
 
+/// Routes profile/subscription update requests through the currently
+/// active proxy (if one is running) instead of always fetching direct —
+/// useful when the subscription host itself is only reachable once
+/// already tunneled through a working connection. Falls back to a direct
+/// request automatically whenever no proxy is actually up (same fallback
+/// [FlClashHttpOverrides.handleFindProxy] already uses elsewhere), so it's
+/// safe to leave on even between profiles.
+class UpdateViaProxyToggle extends StatefulWidget {
+  const UpdateViaProxyToggle({super.key});
+
+  @override
+  State<UpdateViaProxyToggle> createState() => _UpdateViaProxyToggleState();
+}
+
+class _UpdateViaProxyToggleState extends State<UpdateViaProxyToggle> {
+  static const _preferenceKey = 'updateViaProxy';
+  bool _updateViaProxy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreference();
+  }
+
+  Future<void> _loadPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _updateViaProxy = prefs.getBool(_preferenceKey) ?? false;
+      });
+    }
+  }
+
+  Future<void> _updatePreference(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_preferenceKey, value);
+    setState(() {
+      _updateViaProxy = value;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isRussian = Localizations.localeOf(context).languageCode == 'ru';
+    return ListItem.switchItem(
+      leading: const Icon(Icons.alt_route_outlined),
+      title: Text(
+        isRussian
+            ? 'Обновлять подписку через прокси'
+            : 'Update subscription via proxy',
+      ),
+      subtitle: Text(
+        isRussian
+            ? 'Скачивать URL подписки через уже активный прокси-сервер вместо прямого подключения'
+            : 'Fetch the subscription URL through the currently active proxy instead of a direct connection',
+      ),
+      delegate: SwitchDelegate(
+        value: _updateViaProxy,
+        onChanged: _updatePreference,
+      ),
+    );
+  }
+}
+
 class Ipv6Item extends ConsumerWidget {
   const Ipv6Item({super.key});
 
@@ -702,6 +766,7 @@ final generalItems = <Widget>[
   const PortItem(),
   const HostsItem(),
   const SendHeadersToggle(),
+  const UpdateViaProxyToggle(),
   const Ipv6Item(),
   const AllowLanItem(),
   const UnifiedDelayItem(),

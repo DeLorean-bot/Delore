@@ -164,6 +164,10 @@ class AboutView extends StatelessWidget {
   List<Widget> _buildContributorsSection() {
     const contributors = [
       Contributor(
+        name: "DeLorean-bot",
+        link: "https://github.com/DeLorean-bot",
+      ),
+      Contributor(
         avatar: "assets/images/avatars/pluralplay.jpg",
         name: "pluralplay",
         link: "https://github.com/pluralplay",

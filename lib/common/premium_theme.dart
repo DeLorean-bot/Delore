@@ -4,9 +4,13 @@ import 'package:flclashx/enum/enum.dart';
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
-const premiumMint = Color(0xFF62E6C5);
-const premiumBlue = Color(0xFF7D9DFF);
-const premiumAmber = Color(0xFFFFB45C);
+// Monochrome accents only — black/grey/white, no brand color, per explicit
+// direction: this is a black liquid-glass app, not a colorful one. Names
+// kept as-is (used in 50+ call sites as "primary/secondary/tertiary accent"
+// slots) so this is the single place that controls the whole palette.
+const premiumMint = Color(0xFFF2F3F5);
+const premiumBlue = Color(0xFFB9BFC8);
+const premiumAmber = Color(0xFF888E96);
 
 abstract final class RouteXMotion {
   static const press = Duration(milliseconds: 120);

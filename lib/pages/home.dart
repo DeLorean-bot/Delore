@@ -239,28 +239,12 @@ class _RouteXBrand extends StatelessWidget {
           mainAxisAlignment:
               expanded ? MainAxisAlignment.start : MainAxisAlignment.center,
           children: [
-            Container(
+            SizedBox(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    premiumMint.withValues(alpha: 0.92),
-                    premiumBlue.withValues(alpha: 0.88),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(13),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  width: 0.8,
-                ),
-              ),
-              child: const Icon(
-                Icons.route_rounded,
-                color: Color(0xFF07110E),
-                size: 21,
+              child: Image.asset(
+                'assets/images/logo.png',
+                fit: BoxFit.contain,
               ),
             ),
             if (expanded) ...[
@@ -683,16 +667,6 @@ class _SidebarToggle extends StatelessWidget {
             child: Container(
               height: 44,
               alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: context.colorScheme.surfaceContainerHigh
-                    .withValues(alpha: 0.42),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: context.colorScheme.outlineVariant
-                      .withValues(alpha: 0.45),
-                  width: 0.8,
-                ),
-              ),
               child: Icon(
                 expanded
                     ? Icons.chevron_left_rounded

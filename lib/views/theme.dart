@@ -42,8 +42,6 @@ class ThemeView extends StatelessWidget {
         child: Column(
           spacing: 24,
           children: [
-            _ThemeModeItem(),
-            _PrimaryColorItem(),
             _PrueBlackItem(),
             _TextScaleFactorItem(),
             SizedBox(

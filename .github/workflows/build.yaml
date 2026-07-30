@@ -53,7 +53,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup macOS Signing Certificate
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && vars.ENABLE_MACOS_SIGNING == 'true'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -93,7 +93,7 @@ jobs:
           echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> $GITHUB_ENV
 
       - name: Setup Android Signing
-        if: startsWith(matrix.platform,'android')
+        if: startsWith(matrix.platform,'android') && vars.ENABLE_ANDROID_SIGNING == 'true'
         run: |
           echo "${{ secrets.KEYSTORE }}" | base64 --decode > android/app/keystore.jks
           echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/local.properties
@@ -136,7 +136,7 @@ jobs:
         run: flutter pub get
 
       - name: Setup Xcode Signing Configuration
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && vars.ENABLE_MACOS_SIGNING == 'true'
         env:
           APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -165,7 +165,7 @@ jobs:
           overwrite: true
 
       - name: Cleanup macOS Keychain
-        if: always() && matrix.platform == 'macos'
+        if: always() && matrix.platform == 'macos' && vars.ENABLE_MACOS_SIGNING == 'true'
         run: |
           if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
             echo "🧹 Cleaning up keychain..."
@@ -180,7 +180,7 @@ jobs:
 
   sign-macos:
     needs: [build]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') && vars.ENABLE_MACOS_SIGNING == 'true'
     strategy:
       matrix:
         include:
@@ -265,7 +265,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   upload:
-    permissions: write-all
+    permissions:
+      contents: write
+      actions: read
     needs: [build, sign-macos]
     if: always() && (needs.build.result == 'success')
     runs-on: ubuntu-latest
@@ -283,12 +285,20 @@ jobs:
           merge-multiple: true
 
       - name: Download signed macOS artifacts
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: needs.sign-macos.result == 'success'
         uses: actions/download-artifact@v6
         with:
           path: ./dist/
           pattern: artifact-macos-*-signed
           merge-multiple: true
+
+      - name: Brand release assets
+        shell: bash
+        run: |
+          find ./dist -maxdepth 1 -type f -name 'FlClashX-*' -print0 |
+            while IFS= read -r -d '' file; do
+              mv "$file" "${file/FlClashX-/Delore-}"
+            done
 
       - name: Generate release.md
         run: |
@@ -297,7 +307,7 @@ jobs:
           # Determine previous tag based on release type
           if [ "${{ env.IS_STABLE }}" == "true" ]; then
             # For stable: get latest stable release from API
-            preTag=$(curl --silent "https://api.github.com/repos/pluralplay/FlClashX/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")' || echo "")
+            preTag=$(curl --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")' || echo "")
           else
             # For pre-release: get the latest pre-release tag (last tag with '-' in name before current)
             preTag=""
@@ -309,7 +319,7 @@ jobs:
             done
             # If no previous pre-release found, use latest stable
             if [ -z "$preTag" ]; then
-              preTag=$(curl --silent "https://api.github.com/repos/pluralplay/FlClashX/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")' || echo "")
+              preTag=$(curl --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")' || echo "")
             fi
           fi
           
@@ -378,7 +388,7 @@ jobs:
 
   aur-publish:
     needs: [upload]
-    if: always() && needs.upload.result == 'success'
+    if: always() && needs.upload.result == 'success' && vars.ENABLE_AUR == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -423,16 +433,16 @@ jobs:
           mkdir -p /tmp/aur-assets
 
           gh release download "$GITHUB_REF_NAME" \
-            -p "FlClashX-linux-amd64.deb" \
+            -p "Delore-linux-amd64.deb" \
             -D /tmp/aur-assets \
             -R "$GITHUB_REPOSITORY"
-          echo "sha_x86=$(sha256sum /tmp/aur-assets/FlClashX-linux-amd64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "sha_x86=$(sha256sum /tmp/aur-assets/Delore-linux-amd64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
           if gh release download "$GITHUB_REF_NAME" \
-            -p "FlClashX-linux-arm64.deb" \
+            -p "Delore-linux-arm64.deb" \
             -D /tmp/aur-assets \
             -R "$GITHUB_REPOSITORY" 2>/dev/null; then
-            echo "sha_arm=$(sha256sum /tmp/aur-assets/FlClashX-linux-arm64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+            echo "sha_arm=$(sha256sum /tmp/aur-assets/Delore-linux-arm64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
             echo "has_arm=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_arm=false" >> "$GITHUB_OUTPUT"
@@ -482,7 +492,7 @@ jobs:
     needs: [upload, aur-publish]
     # Runs after AUR publish; posts as long as the GitHub release succeeded,
     # regardless of the AUR result.
-    if: always() && needs.upload.result == 'success'
+    if: always() && needs.upload.result == 'success' && vars.ENABLE_TELEGRAM == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

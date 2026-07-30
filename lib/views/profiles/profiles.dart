@@ -146,24 +146,13 @@ class _ProfilesViewState extends State<ProfilesView> with PageMixin {
               label: appLocalizations.nullProfileDesc,
             );
           }
-          final isRussian =
-              Localizations.localeOf(context).languageCode == 'ru';
           return Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1320),
               child: CustomScrollView(
                 slivers: [
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(28, 24, 28, 18),
-                    sliver: SliverToBoxAdapter(
-                      child: _ProfilesHeading(
-                        count: profilesSelectorState.profiles.length,
-                        isRussian: isRussian,
-                      ),
-                    ),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(28, 0, 28, 100),
+                    padding: const EdgeInsets.fromLTRB(28, 20, 28, 100),
                     sliver: SliverGrid(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
@@ -195,78 +184,6 @@ class _ProfilesViewState extends State<ProfilesView> with PageMixin {
             ),
           );
         },
-      );
-}
-
-class _ProfilesHeading extends StatelessWidget {
-  const _ProfilesHeading({
-    required this.count,
-    required this.isRussian,
-  });
-
-  final int count;
-  final bool isRussian;
-
-  @override
-  Widget build(BuildContext context) => Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  premiumMint.withValues(alpha: 0.22),
-                  premiumBlue.withValues(alpha: 0.16),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.09),
-              ),
-            ),
-            child: const Icon(Icons.layers_outlined, color: premiumMint),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isRussian ? 'Ваши профили' : 'Your profiles',
-                  style: context.textTheme.titleLarge,
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  isRussian
-                      ? 'Подписки и локальные конфигурации в одном месте'
-                      : 'Subscriptions and local configurations in one place',
-                  style: context.textTheme.bodySmall?.copyWith(
-                    color: context.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.045),
-              borderRadius: BorderRadius.circular(99),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.075),
-              ),
-            ),
-            child: Text(
-              isRussian ? '$count проф.' : '$count profiles',
-              style: context.textTheme.labelMedium?.copyWith(
-                color: context.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
       );
 }
 

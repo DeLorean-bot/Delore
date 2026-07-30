@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flclashx/common/premium_theme.dart';
 import 'package:flutter/material.dart';
 
 /// The detail layer of the RouteX backdrop: a slow multi-blob mesh, a
@@ -124,36 +123,40 @@ class RouteXMeshPainter extends CustomPainter {
     // Spread across the frame, not only into the corners: a panel in the
     // middle of the screen has to have something under it, or its glass
     // has nothing to bend and degrades to a flat translucent rectangle.
+    // Monochrome only — white/grey specular highlights on black, like the
+    // real iOS Liquid Glass material. No brand color (mint/blue/amber)
+    // leaks into the backdrop; it stays reserved for actual UI accents
+    // (selected pills, icons), never the page behind them.
     final blobs = <(Offset, double, Color, double)>[
       (
         Offset(0.08 + math.sin(angle) * 0.05, 0.10 + math.cos(angle) * 0.04),
-        0.68,
-        premiumMint,
-        0.20,
+        0.60,
+        Colors.white,
+        0.020,
       ),
       (
         Offset(0.94 - math.cos(angle) * 0.05, 0.80 - math.sin(angle) * 0.04),
-        0.76,
-        premiumBlue,
-        0.22,
+        0.68,
+        Colors.white,
+        0.028,
       ),
       (
         Offset(0.70 + math.cos(angle * 1.3) * 0.06, 0.30),
-        0.52,
-        premiumBlue,
-        0.12,
+        0.46,
+        Colors.white,
+        0.016,
       ),
       (
         Offset(0.16, 0.62 - math.sin(angle * 0.8) * 0.05),
-        0.56,
-        premiumMint,
-        0.13,
+        0.50,
+        Colors.white,
+        0.012,
       ),
       (
         Offset(0.46 + math.sin(angle * 0.6) * 0.08, 0.46),
-        0.62,
-        premiumAmber,
-        0.06,
+        0.55,
+        Colors.white,
+        0.008,
       ),
     ];
     for (final (center, radiusFactor, color, alpha) in blobs) {

@@ -168,7 +168,10 @@ extension ProfileExtension on Profile {
     return (await file.lastModified()).microsecondsSinceEpoch;
   }
 
-  Future<Profile> update({bool shouldSendHeaders = true}) async {
+  Future<Profile> update({
+    bool shouldSendHeaders = true,
+    bool useProxy = false,
+  }) async {
     final headers = <String, dynamic>{};
 
     if (shouldSendHeaders) {
@@ -184,6 +187,7 @@ extension ProfileExtension on Profile {
     final response = await request.getFileResponseForUrl(
       url,
       headers: headers.isNotEmpty ? headers : null,
+      useProxy: useProxy,
     );
 
     final disposition = response.headers.value("content-disposition");

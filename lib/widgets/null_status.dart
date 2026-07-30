@@ -65,17 +65,6 @@ class NullStatus extends StatelessWidget {
                         ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 10),
-                  Container(
-                    width: 36,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(99),
-                      gradient: const LinearGradient(
-                        colors: [premiumMint, premiumBlue],
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),

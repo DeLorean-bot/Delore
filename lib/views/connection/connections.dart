@@ -90,7 +90,7 @@ class _ConnectionsViewState extends ConsumerState<ConnectionsView>
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Center(
             child: CommonTabBar<_ConnTab>(
               groupValue: _tab,

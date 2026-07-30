@@ -1,62 +1,26 @@
-<div align=center>
+<div align="center">
 
-[![Release Downloads](https://img.shields.io/github/downloads/pluralplay/FlClashX/vVERSION/total?style=flat-square&logo=github)](https://img.shields.io/github/downloads/pluralplay/FlClashX/vVERSION/)
+<img alt="Delore" src="https://raw.githubusercontent.com/DeLorean-bot/Delore/main/assets/images/icon.png" width="88">
 
-</div>
+## Delore VERSION
 
-**Download based on your OS:**
+[![Downloads](https://img.shields.io/github/downloads/DeLorean-bot/Delore/vVERSION/total?style=flat-square&logo=github)](https://github.com/DeLorean-bot/Delore/releases/tag/vVERSION)
 
-<div align=left>
-<table>
-    <thead align=left>
-        <tr>
-            <th>OS</th>
-            <th>Download</th>
-        </tr>
-    </thead>
-    <tbody align=left>
-        <tr>
-        <td>Android</td>
-            <td>
-                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-android-universal.apk"><img src="https://img.shields.io/badge/APK-universal-96ed89.svg?logo=android"></a><br>
-                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-android-arm64-v8a.apk"><img src="https://img.shields.io/badge/APK-ARMv8-168039.svg?logo=android"></a><br>
-                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-android-armeabi-v7a.apk"><img src="https://img.shields.io/badge/APK-ARMv7-45bf55.svg?logo=android"></a><br>
-                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-android-x86_64.apk"><img src="https://img.shields.io/badge/APK-x64-96ed89.svg?logo=android"></a>
-            </td>
-        </tr>
-        <tr>
-            <td>Windows</td>
-            <td>
-                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-windows-amd64-setup.exe"><img src="https://img.shields.io/badge/Setup-x64-2d7d9a.svg?logo=windows"></a><br>
-                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-windows-arm-setup.exe"><img src="https://img.shields.io/badge/Setup-arm-2d7d9a.svg?logo=windows"></a><br>
-                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-windows-amd64.zip"><img src="https://img.shields.io/badge/Portable-x64-67b7d1.svg?logo=windows"></a><br>
-                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-windows-arm.zip"><img src="https://img.shields.io/badge/Portable-arm-67b7d1.svg?logo=windows"></a>
-            </td>
-        </tr>
-        <tr>
-            <td>macOS</td>
-            <td>
-                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-macos-arm64.dmg"><img src="https://img.shields.io/badge/DMG-Apple%20Silicon-%23000000.svg?logo=apple"></a><br>
-                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-macos-amd64.dmg"><img src="https://img.shields.io/badge/DMG-Intel%20X64-%2300A9E0.svg?logo=apple"></a><br>
-            </td>
-        </tr>
-        <tr>
-            <td>Linux</td>
-            <td>
-                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-linux-amd64.AppImage"><img src="https://img.shields.io/badge/AppImage-x64-f84e29.svg?logo=linux"></a><br>
-                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-linux-amd64.deb"><img src="https://img.shields.io/badge/DebPackage-x64-FF9966.svg?logo=debian"></a><br>
-                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-linux-amd64.rpm"><img src="https://img.shields.io/badge/RpmPackage-x64-F1B42F.svg?logo=redhat"></a><br>
-                <a href="https://aur.archlinux.org/packages/flclashx-bin"><img src="https://img.shields.io/aur/version/flclashx-bin"></a>
-            </td>
-        </tr>
-    </tbody>
-</table>
-
+**Стабильный релиз · Stable release**
 
 </div>
 
-<div dir="ltr">
+### Скачать · Download
 
-**List of all changes:** [ChangeLog](https://github.com/pluralplay/FlClashX/blob/main/CHANGELOG.md)
+| Система · OS | Установочные файлы · Packages |
+|---|---|
+| **Android** | [Universal APK](https://github.com/DeLorean-bot/Delore/releases/download/vVERSION/Delore-android-universal.apk) · [ARM64](https://github.com/DeLorean-bot/Delore/releases/download/vVERSION/Delore-android-arm64-v8a.apk) · [ARMv7](https://github.com/DeLorean-bot/Delore/releases/download/vVERSION/Delore-android-armeabi-v7a.apk) · [x86_64](https://github.com/DeLorean-bot/Delore/releases/download/vVERSION/Delore-android-x86_64.apk) |
+| **Windows** | [Setup x64](https://github.com/DeLorean-bot/Delore/releases/download/vVERSION/Delore-windows-amd64-setup.exe) · [Portable x64](https://github.com/DeLorean-bot/Delore/releases/download/vVERSION/Delore-windows-amd64.zip) · [Setup ARM64](https://github.com/DeLorean-bot/Delore/releases/download/vVERSION/Delore-windows-arm64-setup.exe) · [Portable ARM64](https://github.com/DeLorean-bot/Delore/releases/download/vVERSION/Delore-windows-arm64.zip) |
+| **macOS** | [Apple Silicon](https://github.com/DeLorean-bot/Delore/releases/download/vVERSION/Delore-macos-arm64.dmg) · [Intel](https://github.com/DeLorean-bot/Delore/releases/download/vVERSION/Delore-macos-amd64.dmg) |
+| **Linux** | [AppImage x64](https://github.com/DeLorean-bot/Delore/releases/download/vVERSION/Delore-linux-amd64.AppImage) · [DEB x64](https://github.com/DeLorean-bot/Delore/releases/download/vVERSION/Delore-linux-amd64.deb) · [RPM x64](https://github.com/DeLorean-bot/Delore/releases/download/vVERSION/Delore-linux-amd64.rpm) · [DEB ARM64](https://github.com/DeLorean-bot/Delore/releases/download/vVERSION/Delore-linux-arm64.deb) · [RPM ARM64](https://github.com/DeLorean-bot/Delore/releases/download/vVERSION/Delore-linux-arm64.rpm) |
+| **iOS / iPadOS** | Пока не публикуется: в проекте ещё нет готовой iOS-платформы и Apple-подписи. · Not published yet: the iOS target and Apple signing are not ready. |
 
-</div>
+> Файлы `.sha256` приложены к каждому стабильному артефакту.<br>
+> A matching `.sha256` file is attached for every stable artifact.
+
+**Полный список изменений · Full changelog:** [CHANGELOG.md](https://github.com/DeLorean-bot/Delore/blob/main/CHANGELOG.md)

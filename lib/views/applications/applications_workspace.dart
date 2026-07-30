@@ -1,4 +1,5 @@
 import 'package:app_discovery/app_discovery.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flclashx/common/common.dart';
 import 'package:flclashx/common/process_icon.dart';
 import 'package:flclashx/models/models.dart';
@@ -9,6 +10,51 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import 'applications_scene.dart';
+
+// Windows' Segoe UI Emoji renders regional-indicator flag emoji as bare
+// two-letter text instead of a flag glyph, so a raw "🇨🇭 Switzerland" proxy
+// name shows as "CH Switzerland" — these mirror hero_connect.dart's helpers
+// to parse the ISO code out and render a real flag image instead.
+String? _locationFlagCode(String text) {
+  final runes = text.runes.toList();
+  for (var i = 0; i < runes.length - 1; i++) {
+    final a = runes[i];
+    final b = runes[i + 1];
+    if (a >= 0x1F1E6 && a <= 0x1F1FF && b >= 0x1F1E6 && b <= 0x1F1FF) {
+      final c1 = a - 0x1F1E6 + 0x41;
+      final c2 = b - 0x1F1E6 + 0x41;
+      return String.fromCharCodes([c1, c2]);
+    }
+  }
+  return null;
+}
+
+String _stripLocationFlagPrefix(String text) {
+  bool isEmojiRune(int r) {
+    final isFlag = r >= 0x1F1E6 && r <= 0x1F1FF;
+    final isModifier =
+        r == 0x200D || r == 0xFE0F || (r >= 0x1F3FB && r <= 0x1F3FF);
+    final isPictograph = (r >= 0x1F000 && r <= 0x1FAFF) ||
+        (r >= 0x2600 && r <= 0x27BF) ||
+        (r >= 0x2190 && r <= 0x21FF) ||
+        (r >= 0x2B00 && r <= 0x2BFF) ||
+        (r >= 0x2300 && r <= 0x23FF);
+    return isFlag || isModifier || isPictograph;
+  }
+
+  bool isSpace(int r) =>
+      r == 0x20 || r == 0x09 || r == 0xA0 || r == 0x0A || r == 0x0D;
+
+  final runes = text.runes.toList();
+  var start = 0;
+  while (start < runes.length &&
+      (isEmojiRune(runes[start]) || isSpace(runes[start]))) {
+    start++;
+  }
+  return String.fromCharCodes(runes.sublist(start))
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+}
 
 class ApplicationsWorkspace extends StatefulWidget {
   const ApplicationsWorkspace({
@@ -59,9 +105,6 @@ enum _ProcessFilter { all, online }
 class _ApplicationsWorkspaceState extends State<ApplicationsWorkspace> {
   _ProcessFilter _filter = _ProcessFilter.all;
 
-  int get _onlineCount =>
-      widget.traffic.values.where((traffic) => traffic.connections > 0).length;
-
   @override
   Widget build(BuildContext context) {
     final visibleApplications = _filter == _ProcessFilter.all
@@ -70,28 +113,14 @@ class _ApplicationsWorkspaceState extends State<ApplicationsWorkspace> {
             final key = application.executablePath.toLowerCase();
             return (widget.traffic[key]?.connections ?? 0) > 0;
           }).toList(growable: false);
-    final routes = widget.routes.values;
-    final proxyCount =
-        routes.where((item) => item.route == ApplicationRoute.proxy).length;
-    final directCount =
-        routes.where((item) => item.route == ApplicationRoute.direct).length;
-
     return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 16, 22, 20),
+      padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _WorkspaceHeader(
-            openCount: widget.allApplicationsCount,
-            onlineCount: _onlineCount,
-            refreshing: widget.refreshing,
-          ),
-          const SizedBox(height: 18),
           _Toolbar(
             filter: _filter,
             applicationsCount: widget.applications.length,
-            proxyCount: proxyCount,
-            directCount: directCount,
             onFilterChanged: (value) => setState(() => _filter = value),
             onQueryChanged: widget.onQueryChanged,
           ),
@@ -116,177 +145,16 @@ class _ApplicationsWorkspaceState extends State<ApplicationsWorkspace> {
   }
 }
 
-class _WorkspaceHeader extends StatelessWidget {
-  const _WorkspaceHeader({
-    required this.openCount,
-    required this.onlineCount,
-    required this.refreshing,
-  });
-
-  final int openCount;
-  final int onlineCount;
-  final bool refreshing;
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) {
-          final isRussian =
-              Localizations.localeOf(context).languageCode == 'ru';
-          final compact = constraints.maxWidth < 620;
-          final identity = Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: context.colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(13),
-                  border: Border.all(
-                    color: context.colorScheme.outlineVariant
-                        .withValues(alpha: 0.65),
-                  ),
-                ),
-                child: const Icon(Icons.apps_rounded, size: 21),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      appLocalizations.routeMode,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style:
-                          context.textTheme.titleLarge?.copyWith(fontSize: 18),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      appLocalizations.applications,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.textTheme.bodySmall?.copyWith(
-                        color: context.colorScheme.onSurfaceVariant,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-          final activity = refreshing
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: SizedBox.square(
-                    dimension: 16,
-                    child: CircularProgressIndicator(strokeWidth: 1.6),
-                  ),
-                )
-              : const SizedBox();
-          final stats = <Widget>[
-            _HeaderStat(
-              value: '$openCount',
-              label: isRussian ? 'открыто' : 'open',
-            ),
-            const SizedBox(width: 8),
-            _HeaderStat(
-              value: '$onlineCount',
-              label: isRussian ? 'в сети' : 'online',
-              active: onlineCount > 0,
-            ),
-          ];
-          if (compact) {
-            return Column(
-              children: [
-                Row(children: [Expanded(child: identity), activity]),
-                const SizedBox(height: 10),
-                Row(children: stats),
-              ],
-            );
-          }
-          return Row(
-            children: [
-              Expanded(child: identity),
-              ...stats,
-              const SizedBox(width: 10),
-              activity,
-            ],
-          );
-        },
-      );
-}
-
-class _HeaderStat extends StatelessWidget {
-  const _HeaderStat({
-    required this.value,
-    required this.label,
-    this.active = false,
-  });
-
-  final String value;
-  final String label;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-        decoration: BoxDecoration(
-          color: context.colorScheme.surfaceContainerLow.withValues(alpha: 0.7),
-          borderRadius: BorderRadius.circular(11),
-          border: Border.all(
-            color: context.colorScheme.outlineVariant.withValues(alpha: 0.52),
-          ),
-        ),
-        child: Row(
-          children: [
-            if (active) ...[
-              Container(
-                width: 6,
-                height: 6,
-                decoration: const BoxDecoration(
-                  color: premiumMint,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 7),
-            ],
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: TextStyle(
-                color: context.colorScheme.onSurfaceVariant,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.1,
-              ),
-            ),
-          ],
-        ),
-      );
-}
-
 class _Toolbar extends StatelessWidget {
   const _Toolbar({
     required this.filter,
     required this.applicationsCount,
-    required this.proxyCount,
-    required this.directCount,
     required this.onFilterChanged,
     required this.onQueryChanged,
   });
 
   final _ProcessFilter filter;
   final int applicationsCount;
-  final int proxyCount;
-  final int directCount;
   final ValueChanged<_ProcessFilter> onFilterChanged;
   final ValueChanged<String> onQueryChanged;
 
@@ -325,18 +193,6 @@ class _Toolbar extends StatelessWidget {
                 label: isRussian ? 'В сети' : 'Online',
                 selected: filter == _ProcessFilter.online,
                 onPressed: () => onFilterChanged(_ProcessFilter.online),
-              ),
-              const Spacer(),
-              _RouteSummary(
-                color: premiumMint,
-                label: 'Proxy',
-                value: proxyCount,
-              ),
-              const SizedBox(width: 9),
-              _RouteSummary(
-                color: premiumBlue,
-                label: 'Direct',
-                value: directCount,
               ),
             ],
           );
@@ -407,38 +263,6 @@ class _FilterButton extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
-      );
-}
-
-class _RouteSummary extends StatelessWidget {
-  const _RouteSummary({
-    required this.color,
-    required this.label,
-    required this.value,
-  });
-
-  final Color color;
-  final String label;
-  final int value;
-
-  @override
-  Widget build(BuildContext context) => Row(
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '$label $value',
-            style: TextStyle(
-              color: context.colorScheme.onSurfaceVariant,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
       );
 }
 
@@ -896,15 +720,17 @@ class _RouteControl extends StatelessWidget {
             Expanded(
               child: CommonPopupBox(
                 targetBuilder: (open) => Tooltip(
-                  message: route == ApplicationRoute.proxy
+                  message: route != ApplicationRoute.direct
                       ? 'Нажмите ещё раз, чтобы выбрать локацию'
                       : '',
                   child: _RouteOption(
-                    label: routeTarget ?? 'Proxy',
-                    selected: route == ApplicationRoute.proxy,
+                    label: routeTarget == null
+                        ? 'Proxy'
+                        : _stripLocationFlagPrefix(routeTarget!),
+                    selected: route != ApplicationRoute.direct,
                     color: premiumMint,
                     onPressed: () {
-                      if (route == ApplicationRoute.proxy) {
+                      if (route != ApplicationRoute.direct) {
                         open(offset: const Offset(0, 8));
                       } else {
                         onChanged(ApplicationRoute.proxy);
@@ -914,7 +740,9 @@ class _RouteControl extends StatelessWidget {
                 ),
                 popup: _LocationPickerPanel(
                   currentTarget: routeTarget,
+                  isDefault: route == ApplicationRoute.rule,
                   onPicked: onPickLocation,
+                  onClear: () => onChanged(ApplicationRoute.rule),
                 ),
               ),
             ),
@@ -926,32 +754,32 @@ class _RouteControl extends StatelessWidget {
                 onPressed: () => onChanged(ApplicationRoute.direct),
               ),
             ),
-            Expanded(
-              child: _RouteOption(
-                label: 'Rules',
-                selected: route == ApplicationRoute.rule,
-                color: premiumAmber,
-                onPressed: () => onChanged(ApplicationRoute.rule),
-              ),
-            ),
           ],
         ),
       );
 }
 
 /// The per-app location picker's popup body — opened from the Proxy slot
-/// of an already-proxied app. Lists every non-hidden proxy group the
-/// active profile exposes (the same "locations" the Локации tab lets you
-/// switch between), plus an Auto row that clears the explicit pick and
-/// falls back to whatever the default proxy group resolves to.
+/// of an already-proxied app. Two levels: each non-hidden proxy group the
+/// active profile exposes as a header, and — because Clash's
+/// PROCESS-PATH rule target accepts a leaf server name exactly as well
+/// as a group name — every member of that group listed underneath as
+/// its own selectable location. A profile with one selector group and
+/// eight countries inside it shows all eight, not just the one selector.
 class _LocationPickerPanel extends ConsumerWidget {
   const _LocationPickerPanel({
     required this.currentTarget,
+    required this.isDefault,
     required this.onPicked,
+    required this.onClear,
   });
 
   final String? currentTarget;
+  // True when the app currently has no pinned location (plain "follow the
+  // profile's rules" state) — highlights the "По умолчанию" row instead.
+  final bool isDefault;
   final ValueChanged<String> onPicked;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -961,10 +789,20 @@ class _LocationPickerPanel extends ConsumerWidget {
         .where((group) => group.hidden != true)
         .toList(growable: false);
 
+    void pick(String target) {
+      Navigator.of(context).pop();
+      onPicked(target);
+    }
+
+    void clear() {
+      Navigator.of(context).pop();
+      onClear();
+    }
+
     return Material(
       color: Colors.transparent,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 300, maxHeight: 360),
+        constraints: const BoxConstraints(maxWidth: 320, maxHeight: 420),
         child: RouteXGlassSurface(
           variant: RouteXGlassVariant.panel,
           radius: 16,
@@ -981,17 +819,50 @@ class _LocationPickerPanel extends ConsumerWidget {
                   shrinkWrap: true,
                   padding: const EdgeInsets.all(6),
                   children: [
-                    for (final group in groups)
+                    _LocationOption(
+                      label: 'По умолчанию',
+                      subtitle: 'Следовать правилам профиля',
+                      icon: '',
+                      selected: isDefault,
+                      onTap: clear,
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 4),
+                      child: Divider(height: 1),
+                    ),
+                    for (final group in groups) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 10, 8, 4),
+                        child: Text(
+                          group.name,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.6,
+                            color: context.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      // The group itself, selectable as "let this group
+                      // auto-pick" rather than pinning one member of it.
                       _LocationOption(
-                        label: group.name,
+                        label: _stripLocationFlagPrefix(group.name),
                         subtitle: group.now,
                         icon: group.icon,
                         selected: group.name == currentTarget,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          onPicked(group.name);
-                        },
+                        onTap: () => pick(group.name),
                       ),
+                      for (final proxy in group.all)
+                        _LocationOption(
+                          label: _stripLocationFlagPrefix(proxy.name),
+                          subtitle: null,
+                          icon: '',
+                          flagCode: _locationFlagCode(proxy.name),
+                          indent: true,
+                          selected: proxy.name == currentTarget,
+                          onTap: () => pick(proxy.name),
+                        ),
+                    ],
                   ],
                 ),
         ),
@@ -1007,6 +878,8 @@ class _LocationOption extends StatelessWidget {
     required this.icon,
     required this.selected,
     required this.onTap,
+    this.indent = false,
+    this.flagCode,
   });
 
   final String label;
@@ -1014,13 +887,18 @@ class _LocationOption extends StatelessWidget {
   final String icon;
   final bool selected;
   final VoidCallback onTap;
+  // Leaf proxies nested under a group header: pushed in and given a small
+  // flag (or a plain dot when no flag could be parsed) instead of the
+  // group's own icon, so the hierarchy reads at a glance.
+  final bool indent;
+  final String? flagCode;
 
   @override
   Widget build(BuildContext context) => InkWell(
         borderRadius: BorderRadius.circular(11),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: EdgeInsets.fromLTRB(indent ? 22 : 8, 8, 8, 8),
           margin: const EdgeInsets.only(bottom: 2),
           decoration: BoxDecoration(
             color: selected
@@ -1030,7 +908,9 @@ class _LocationOption extends StatelessWidget {
           ),
           child: Row(
             children: [
-              CommonTargetIcon(src: icon, size: 24),
+              indent
+                  ? _LocationFlag(code: flagCode, selected: selected)
+                  : CommonTargetIcon(src: icon, size: 24),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -1067,6 +947,42 @@ class _LocationOption extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _LocationFlag extends StatelessWidget {
+  const _LocationFlag({required this.code, required this.selected});
+
+  final String? code;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 20.0;
+    final cc = code?.trim().toLowerCase();
+    Widget dot() => Container(
+          width: 6,
+          height: 6,
+          margin: const EdgeInsets.symmetric(horizontal: 7),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: selected
+                ? premiumMint
+                : context.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+          ),
+        );
+    if (cc == null || cc.length != 2) return dot();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: CachedNetworkImage(
+        imageUrl: 'https://flagcdn.com/w40/$cc.png',
+        width: size,
+        height: size * 0.75,
+        fit: BoxFit.cover,
+        placeholder: (_, __) => SizedBox(width: size, height: size * 0.75),
+        errorWidget: (_, __, ___) => dot(),
+      ),
+    );
+  }
 }
 
 class _RouteOption extends StatelessWidget {
@@ -1140,9 +1056,10 @@ class _ConnectionDetails extends StatelessWidget {
   final String? routeTarget;
 
   String get _routeName => switch (route) {
-        ApplicationRoute.proxy => routeTarget ?? 'Proxy',
+        ApplicationRoute.proxy =>
+          routeTarget == null ? 'Proxy' : _stripLocationFlagPrefix(routeTarget!),
         ApplicationRoute.direct => 'Direct',
-        ApplicationRoute.rule => 'Profile rules',
+        ApplicationRoute.rule => 'По умолчанию',
       };
 
   @override

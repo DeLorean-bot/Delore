@@ -27,6 +27,12 @@ class ApplicationsView extends ConsumerStatefulWidget {
 class _ApplicationsViewState extends ConsumerState<ApplicationsView>
     with PageMixin, WidgetsBindingObserver {
   Timer? _timer;
+  // The stock SnackBar timer doesn't reliably fire while this page keeps
+  // polling every 2s in the background, so the route-change toast is force-
+  // dismissed by hand instead of trusting SnackBar.duration. Each call bumps
+  // this so a stale delayed dismiss from an earlier tap can't hide a toast
+  // that a later tap already replaced.
+  int _snackbarGeneration = 0;
   bool _visible = false;
   bool _loading = true;
   bool _refreshing = false;
@@ -210,27 +216,29 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
         final routeLabel = switch (route) {
           ApplicationRoute.proxy => 'Proxy',
           ApplicationRoute.direct => appLocalizations.direct,
-          ApplicationRoute.rule => appLocalizations.rule,
+          ApplicationRoute.rule => 'По умолчанию',
         };
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text('${application.name} → $routeLabel'),
-              action: SnackBarAction(
-                label: appLocalizations.undo,
-                onPressed: () {
-                  unawaited(
-                    _restoreRoute(
-                      profileId: profileId,
-                      application: application,
-                      previous: previous,
-                    ),
-                  );
-                },
-              ),
-            ),
-          );
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        context.showSnackBar(
+          '${application.name} → $routeLabel',
+          action: SnackBarAction(
+            label: appLocalizations.undo,
+            onPressed: () {
+              unawaited(
+                _restoreRoute(
+                  profileId: profileId,
+                  application: application,
+                  previous: previous,
+                ),
+              );
+            },
+          ),
+        );
+        final generation = ++_snackbarGeneration;
+        Future.delayed(const Duration(seconds: 2), () {
+          if (!mounted || generation != _snackbarGeneration) return;
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        });
       }
     } catch (error) {
       final rollback = previous ??
@@ -285,9 +293,7 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
 
   void _message(String value) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(value)),
-    );
+    context.showSnackBar(value);
   }
 
   @override

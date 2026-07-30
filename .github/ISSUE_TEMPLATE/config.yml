@@ -1,4 +1,5 @@
+blank_issues_enabled: false
 contact_links:
-  - name: Общение / Communication
-    url: https://t.me/flclashx
-    about: Общение между другими пользователиями в группе Телеграмма / Communicate with other users in the Telegram group
+  - name: Обсуждения · Discussions
+    url: https://github.com/DeLorean-bot/Delore/discussions
+    about: Вопросы, идеи и помощь сообщества · Questions, ideas, and community support

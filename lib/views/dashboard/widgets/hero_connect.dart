@@ -185,44 +185,64 @@ class HeroConnect extends ConsumerWidget {
     final brandName = _decodeBase64(headers['flclashx-servicename']);
     final supportUrl = headers['support-url'];
 
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
     return LayoutBuilder(
       builder: (context, constraints) => Center(
         child: SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: RouteXGlassSurface(
-              expand: false,
-              radius: 32,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  constraints.maxWidth < 520 ? 22 : 32,
-                  20,
-                  constraints.maxWidth < 520 ? 22 : 32,
-                  28,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _HeroUtilityRow(
-                      brandName: brandName,
-                      isUpdating: profile?.isUpdating ?? false,
-                      onUpdate: profile == null
-                          ? null
-                          : () =>
-                              globalState.appController.updateProfile(profile),
-                      onImport: () => _openImportSheet(context),
-                      supportUrl: supportUrl,
-                    ),
-                    const SizedBox(height: 8),
-                    _ConnectCircle(isReady: state.isInit, isRunning: isRunning),
-                    if (subscription != null) ...[
-                      const SizedBox(height: 22),
-                      _RouteXSubscriptionSummary(
-                        subscription: subscription,
-                        isRussian: isRussian,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 420),
+            curve: RouteXMotion.curve,
+            builder: (context, value, child) => Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, 14 * (1 - value)),
+                child: child,
+              ),
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: RouteXGlassSurface(
+                expand: false,
+                radius: 32,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    constraints.maxWidth < 520 ? 22 : 32,
+                    20,
+                    constraints.maxWidth < 520 ? 22 : 32,
+                    28,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _HeroUtilityRow(
+                        brandName: brandName,
+                        isUpdating: profile?.isUpdating ?? false,
+                        onUpdate: profile == null
+                            ? null
+                            : () => globalState.appController
+                                .updateProfile(profile),
+                        onImport: () => _openImportSheet(context),
+                        supportUrl: supportUrl,
                       ),
+                      const SizedBox(height: 8),
+                      _ConnectCircle(
+                        isReady: state.isInit,
+                        isRunning: isRunning,
+                      ),
+                      if (subscription != null) ...[
+                        const SizedBox(height: 22),
+                        _RouteXSubscriptionSummary(
+                          subscription: subscription,
+                          isRussian: isRussian,
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -368,17 +388,76 @@ class _HeroIconAction extends StatelessWidget {
 /// yet committed. Running: the disc fills solid mint with a soft glow, the
 /// glyph switches to stop, and the live uptime/traffic sit under it. Not
 /// ready (no active proxy group yet): flat and muted, no ring, disabled.
-class _ConnectCircle extends ConsumerWidget {
+class _ConnectCircle extends ConsumerStatefulWidget {
   const _ConnectCircle({required this.isReady, required this.isRunning});
 
   final bool isReady;
   final bool isRunning;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ConnectCircle> createState() => _ConnectCircleState();
+}
+
+class _ConnectCircleState extends ConsumerState<_ConnectCircle>
+    with SingleTickerProviderStateMixin {
+  bool _hovered = false;
+  bool _pressed = false;
+  bool _focused = false;
+
+  // Fires once — a ring that expands out from the disc and fades — the
+  // instant the connection actually toggles. Confirmation feedback for a
+  // real state change, not an idle loop: it only ever plays on a genuine
+  // on/off transition, never while just sitting there.
+  late final AnimationController _burstController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 550),
+  );
+
+  @override
+  void didUpdateWidget(covariant _ConnectCircle oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isRunning != widget.isRunning) {
+      final reduceMotion =
+          MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+      if (!reduceMotion) {
+        unawaited(_burstController.forward(from: 0));
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _burstController.dispose();
+    super.dispose();
+  }
+
+  void _setHovered(bool value) {
+    if (value != _hovered) setState(() => _hovered = value);
+  }
+
+  void _setPressed(bool value) {
+    if (value != _pressed) setState(() => _pressed = value);
+  }
+
+  void _setFocused(bool value) {
+    if (value != _focused) setState(() => _focused = value);
+  }
+
+  void _toggle() {
+    if (Platform.isAndroid) {
+      unawaited(HapticFeedback.mediumImpact());
+    }
+    unawaited(globalState.appController.updateStatus(!widget.isRunning));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final runTime = ref.watch(runTimeProvider);
     final duration = RouteXMotion.resolve(context, RouteXMotion.base);
+    final hoverDuration = RouteXMotion.resolve(context, RouteXMotion.fast);
     final colorScheme = context.colorScheme;
+    final isReady = widget.isReady;
+    final isRunning = widget.isRunning;
 
     final Color ring;
     final Color fill;
@@ -396,53 +475,146 @@ class _ConnectCircle extends ConsumerWidget {
       fill = premiumMint.withValues(alpha: 0.08);
       glyph = premiumMint;
     }
+    final borderColor = _focused ? colorScheme.primary : ring;
+
+    // Hover lifts the disc and brightens its glow; a press eases it back
+    // down slightly — the button reacts to the pointer instead of just
+    // sitting there animating on its own. A single FocusableActionDetector
+    // owns hover/focus/activation — no nested hover trackers fighting each
+    // other (that was the flicker: two independent hover states each
+    // driving their own scale on the same element).
+    final hoverActive = isReady && _hovered;
+    final scale = !isReady
+        ? 1.0
+        : _pressed
+            ? 0.97
+            : _hovered
+                ? 1.07
+                : 1.0;
+    final glowAlpha = isRunning
+        ? (hoverActive ? 0.48 : 0.32)
+        : (hoverActive ? 0.22 : 0.0);
+    final glowBlur = isRunning ? (hoverActive ? 44.0 : 36.0) : 28.0;
 
     return Column(
       children: [
-        RouteXFocusableTap(
-          autofocus: true,
-          borderRadius: 66,
-          onTap: isReady
-              ? () {
-                  if (Platform.isAndroid) {
-                    unawaited(HapticFeedback.mediumImpact());
+        Focus(
+          autofocus: isReady,
+          onFocusChange: _setFocused,
+          onKeyEvent: isReady
+              ? (node, event) {
+                  if (event is KeyDownEvent &&
+                      (event.logicalKey == LogicalKeyboardKey.enter ||
+                          event.logicalKey == LogicalKeyboardKey.select ||
+                          event.logicalKey == LogicalKeyboardKey.space)) {
+                    _toggle();
+                    return KeyEventResult.handled;
                   }
-                  unawaited(
-                    globalState.appController.updateStatus(!isRunning),
-                  );
+                  return KeyEventResult.ignored;
                 }
               : null,
-          child: AnimatedContainer(
-            duration: duration,
-            curve: RouteXMotion.curve,
-            width: 124,
-            height: 124,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: fill,
-              border: Border.all(color: ring, width: 2.5),
-              boxShadow: isRunning
-                  ? [
-                      BoxShadow(
-                        color: premiumMint.withValues(alpha: 0.32),
-                        blurRadius: 36,
-                        spreadRadius: 2,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: AnimatedSwitcher(
-              duration: duration,
-              transitionBuilder: (child, animation) => ScaleTransition(
-                scale: animation,
-                child: FadeTransition(opacity: animation, child: child),
-              ),
-              child: Icon(
-                isRunning ? Icons.stop_rounded : Icons.play_arrow_rounded,
-                key: ValueKey(isRunning),
-                size: 44,
-                color: glyph,
+          // Plain MouseRegion, not FocusableActionDetector's hover
+          // highlight — that one goes through Flutter's global
+          // touch/mouse "highlight mode" tracking and could lag several
+          // seconds behind the real cursor on exit. This reacts the
+          // instant the pointer actually leaves.
+          child: MouseRegion(
+            onEnter: isReady ? (_) => _setHovered(true) : null,
+            onExit: (_) => _setHovered(false),
+            cursor:
+                isReady ? SystemMouseCursors.click : SystemMouseCursors.basic,
+            child: Listener(
+              onPointerDown: isReady ? (_) => _setPressed(true) : null,
+              onPointerUp: isReady ? (_) => _setPressed(false) : null,
+              onPointerCancel: isReady ? (_) => _setPressed(false) : null,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: isReady ? _toggle : null,
+                child: AnimatedScale(
+                  scale: scale,
+                  duration: hoverDuration,
+                  curve: RouteXMotion.curve,
+                  child: SizedBox(
+                    width: 124,
+                    height: 124,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      clipBehavior: Clip.none,
+                      children: [
+                        AnimatedBuilder(
+                          animation: _burstController,
+                          builder: (context, _) {
+                            final t = _burstController.value;
+                            if (t <= 0 || t >= 1) {
+                              return const SizedBox.shrink();
+                            }
+                            return IgnorePointer(
+                              child: Opacity(
+                                opacity: (1 - t) * 0.5,
+                                child: Transform.scale(
+                                  scale: 1.0 + t * 0.5,
+                                  child: Container(
+                                    width: 124,
+                                    height: 124,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: premiumMint,
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        AnimatedContainer(
+                          duration: duration,
+                          curve: RouteXMotion.curve,
+                          width: 124,
+                          height: 124,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: fill,
+                            border:
+                                Border.all(color: borderColor, width: 2.5),
+                            boxShadow: glowAlpha <= 0
+                                ? null
+                                : [
+                                    BoxShadow(
+                                      color: premiumMint
+                                          .withValues(alpha: glowAlpha),
+                                      blurRadius: glowBlur,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                          ),
+                          child: AnimatedSwitcher(
+                            duration: duration,
+                            transitionBuilder: (child, animation) =>
+                                ScaleTransition(
+                              scale: animation,
+                              child: FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              ),
+                            ),
+                            child: Icon(
+                              isRunning
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                              key: ValueKey(isRunning),
+                              size: 44,
+                              color: glyph,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -575,11 +747,22 @@ class _RouteXSubscriptionSummary extends StatelessWidget {
             const SizedBox(height: 14),
             ClipRRect(
               borderRadius: BorderRadius.circular(99),
-              child: LinearProgressIndicator(
-                minHeight: 5,
-                value: progress,
-                backgroundColor: Colors.white.withValues(alpha: 0.06),
-                valueColor: const AlwaysStoppedAnimation(premiumMint),
+              child: SizedBox(
+                height: 5,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: progress),
+                  duration: RouteXMotion.resolve(
+                    context,
+                    const Duration(milliseconds: 900),
+                  ),
+                  curve: RouteXMotion.curve,
+                  builder: (context, value, _) => LinearProgressIndicator(
+                    minHeight: 5,
+                    value: value,
+                    backgroundColor: Colors.white.withValues(alpha: 0.06),
+                    valueColor: const AlwaysStoppedAnimation(premiumMint),
+                  ),
+                ),
               ),
             ),
           ],
@@ -1637,7 +1820,7 @@ class _EmptyHero extends ConsumerWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'ROUTEX  ·  SMART ROUTING',
+                          '${appName.toUpperCase()}  ·  SMART ROUTING',
                           style: context.textTheme.labelSmall?.copyWith(
                             color: premiumMint,
                             fontWeight: FontWeight.w600,
@@ -1700,17 +1883,11 @@ class _EmptyHero extends ConsumerWidget {
                       height: 52,
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(18),
-                        gradient: const LinearGradient(
-                          colors: [premiumMint, Color(0xFF71D8F2)],
+                        border: Border.all(
+                          color: premiumMint.withValues(alpha: 0.32),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: premiumMint.withValues(alpha: 0.18),
-                            blurRadius: 24,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1719,13 +1896,13 @@ class _EmptyHero extends ConsumerWidget {
                           const Icon(
                             Icons.add_rounded,
                             size: 20,
-                            color: Color(0xFF06110E),
+                            color: premiumMint,
                           ),
                           const SizedBox(width: 9),
                           Text(
                             appLocalizations.addProfile,
                             style: context.textTheme.titleSmall?.copyWith(
-                              color: const Color(0xFF06110E),
+                              color: premiumMint,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

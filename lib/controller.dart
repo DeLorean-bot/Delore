@@ -429,8 +429,10 @@ class AppController {
     try {
     final prefs = await SharedPreferences.getInstance();
     final shouldSend = prefs.getBool('sendDeviceHeaders') ?? true;
+    final updateViaProxy = prefs.getBool('updateViaProxy') ?? false;
     final newProfile = await profile.update(
       shouldSendHeaders: shouldSend,
+      useProxy: updateViaProxy,
     );
 
     final mergedHeaders = Map<String, String>.from(profile.providerHeaders)

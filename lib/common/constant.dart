@@ -8,7 +8,7 @@ import 'package:flclashx/enum/enum.dart';
 import 'package:flclashx/models/models.dart';
 import 'package:flutter/material.dart';
 
-const appName = "RouteX";
+const appName = "Delore";
 const appHelperService = "FlClashHelperService";
 const coreName = "clashx.meta";
 const browserUa =

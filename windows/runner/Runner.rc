@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.follow" "\0"
-            VALUE "FileDescription", "RouteX" "\0"
+            VALUE "FileDescription", "Delore" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "routex" "\0"
+            VALUE "InternalName", "delore" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2023 com.follow. All rights reserved." "\0"
             VALUE "OriginalFilename", "FlClashX.exe" "\0"
-            VALUE "ProductName", "RouteX" "\0"
+            VALUE "ProductName", "Delore" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

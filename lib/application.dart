@@ -175,7 +175,11 @@ class ApplicationState extends ConsumerState<Application> {
                 title: appName,
                 locale: utils.getLocaleForString(locale),
                 supportedLocales: AppLocalizations.delegate.supportedLocales,
-                themeMode: themeProps.themeMode,
+                // Delore is designed as one fixed black liquid-glass look —
+                // the light theme was never tuned for it, so the mode picker
+                // is removed from settings and this always wins regardless
+                // of any themeMode value still stored from an older build.
+                themeMode: ThemeMode.dark,
                 theme: buildPremiumTheme(
                   brightness: Brightness.light,
                   seed: themeProps.primaryColor == null

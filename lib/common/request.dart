@@ -50,12 +50,16 @@ class Request {
   Future<Response<Uint8List>> getFileResponseForUrl(
     String rawUrl, {
     Map<String, dynamic>? headers,
+    bool useProxy = false,
   }) async {
     final url = rawUrl.normalizeUrlCredentials;
     final requestHeaders = headers ?? {};
     requestHeaders['User-Agent'] = globalState.ua;
 
-    final dio = _dio;
+    // _clashDio's findProxy already falls back to DIRECT whenever no proxy
+    // is actually up (core stopped, TUN handling traffic, mixed-port off),
+    // so routing through it when requested is safe even with nothing running.
+    final dio = useProxy ? _clashDio : _dio;
 
     final firstResponse = await dio.get<Uint8List>(
       url,
