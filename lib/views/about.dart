@@ -161,21 +161,13 @@ class AboutView extends StatelessWidget {
         ],
       );
 
+  // Real commit authors on this repo's own history (`git shortlog -sne`) —
+  // currently just the one account every commit here was made under.
   List<Widget> _buildContributorsSection() {
     const contributors = [
       Contributor(
         name: "DeLorean-bot",
         link: "https://github.com/DeLorean-bot",
-      ),
-      Contributor(
-        avatar: "assets/images/avatars/pluralplay.jpg",
-        name: "pluralplay",
-        link: "https://github.com/pluralplay",
-      ),
-      Contributor(
-        avatar: "assets/images/avatars/kastov.jpg",
-        name: "kastov",
-        link: "https://github.com/kastov",
       ),
     ];
     return generateSection(
@@ -194,6 +186,89 @@ class AboutView extends StatelessWidget {
             ],
           ),
         )
+      ],
+    );
+  }
+
+  // The upstream projects this app is built on/from, and the authors behind
+  // them — kept separate from Contributors, which is only people who
+  // committed to *this* repo.
+  List<Widget> _buildCreditsSection() {
+    const credits = [
+      Contributor(
+        name: "FlClash",
+        link: "https://github.com/chen08209/FlClash",
+      ),
+      Contributor(
+        avatar: "assets/images/avatars/pluralplay.jpg",
+        name: "pluralplay",
+        link: "https://github.com/pluralplay",
+      ),
+      Contributor(
+        avatar: "assets/images/avatars/kastov.jpg",
+        name: "kastov",
+        link: "https://github.com/kastov",
+      ),
+      Contributor(
+        name: "mihomo",
+        link: "https://github.com/MetaCubeX/mihomo",
+      ),
+    ];
+    return generateSection(
+      separated: false,
+      title: "Credits",
+      items: [
+        ListItem(
+          title: Wrap(
+            spacing: 16,
+            runSpacing: 12,
+            children: [
+              for (final credit in credits)
+                Avatar(
+                  contributor: credit,
+                ),
+            ],
+          ),
+        ),
+        ListItem(
+          title: const Text(
+            "Built with Flutter and the open-source packages listed in "
+            "pubspec.yaml.",
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Deliberately not styled or placed as Contributors/Credits: these are
+  // tools, not GitHub accounts, and mixing them in would misrepresent who
+  // actually authored the project.
+  List<Widget> _buildDevelopmentAssistanceSection() {
+    const assistants = [
+      ThanksPerson(name: "Claude (Anthropic)"),
+      ThanksPerson(name: "OpenAI Codex"),
+    ];
+    return generateSection(
+      separated: false,
+      title: "Development assistance",
+      items: [
+        ListItem(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              for (final assistant in assistants)
+                SizedBox(
+                  width: 90,
+                  child: ThanksAvatar(person: assistant),
+                ),
+            ],
+          ),
+        ),
+        ListItem(
+          title: const Text(
+            "AI tools used during development — not GitHub contributors.",
+          ),
+        ),
       ],
     );
   }
@@ -300,6 +375,8 @@ class AboutView extends StatelessWidget {
         height: 12,
       ),
       ..._buildContributorsSection(),
+      ..._buildCreditsSection(),
+      ..._buildDevelopmentAssistanceSection(),
       ..._buildThanksForContributionSection(context),
       ..._buildGratitudeSection(context),
       ..._buildMoreSection(context),

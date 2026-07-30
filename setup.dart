@@ -547,6 +547,13 @@ class BuildCommand extends Command {
 
     print("Creating DMG with create-dmg...");
 
+    final identityCheck = await Process.run(
+      "security",
+      ["find-identity", "-v", "-p", "codesigning"],
+    );
+    final hasSigningIdentity =
+        (identityCheck.stdout as String).contains("1)");
+
     await Build.exec(
       name: "create-dmg",
       [
@@ -554,6 +561,7 @@ class BuildCommand extends Command {
         "--overwrite",
         "--dmg-title",
         appName,
+        if (!hasSigningIdentity) "--no-code-sign",
         appPath,
         Build.distPath,
       ],
@@ -585,10 +593,15 @@ class BuildCommand extends Command {
     required String token,
     bool msix = false,
   }) async {
+    // -v: a bare CI failure here only ever showed MSBuild's own generic
+    // "exited with code 1" wrapper, never the underlying cmake_install.cmake
+    // error — verbose is the only way to see what actually failed.
+    final isCi = Platform.environment["CI"] == "true";
     await Build.exec(
       name: "flutter build windows",
       [
         "flutter", "build", "windows", "--release",
+        if (isCi) "-v",
         "--dart-define=APP_ENV=$env",
         "--dart-define=CORE_SHA256=$token",
         "--dart-define=CORE_VERSION=$coreVersion",

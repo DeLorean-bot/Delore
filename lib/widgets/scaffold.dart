@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -825,8 +826,17 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
       // Capture at the display's own density. A fixed `1` is *below*
       // native on any scaled Windows desktop (125% / 150%), so the
       // refracted background was being upscaled — the glass looked like
-      // it was rendered at the wrong resolution because it was.
-      pixelRatio: MediaQuery.devicePixelRatioOf(context).clamp(1.0, 2.0),
+      // it was rendered at the wrong resolution because it was. The upper
+      // bound was 2.0 across the board, which is generous for desktop
+      // scaling but well *below* native on real phones — most Android
+      // devices report 2.6-4.0, so the app bar's glass (a live capture)
+      // was upscaled from a blurry, under-resolved source on exactly the
+      // platform most likely to run this. Desktop keeps the tighter cap;
+      // mobile gets a ceiling that actually covers real device density.
+      pixelRatio: MediaQuery.devicePixelRatioOf(context).clamp(
+        1.0,
+        Platform.isAndroid || Platform.isIOS ? 4.0 : 2.0,
+      ),
       // Live, on every screen. Once the page moved into the capture this
       // stopped being an optimisation: a single snapshot means the
       // refraction shows the first frame of a list you are still

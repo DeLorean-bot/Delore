@@ -148,6 +148,10 @@ jobs:
 
           echo "✅ Created Local.xcconfig for signing"
 
+      - name: Disable Windows Defender real-time scanning
+        if: matrix.platform == 'windows'
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+
       - name: Setup Inno Setup
         if: matrix.platform == 'windows'
         run: |
