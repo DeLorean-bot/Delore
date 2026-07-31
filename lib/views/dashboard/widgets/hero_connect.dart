@@ -1052,13 +1052,26 @@ class _WorldMapPainter extends CustomPainter {
       canvas.drawCircle(projectLatLon(latLon, size), 1.8, dotPaint);
     }
 
+    // A visible hub, not a point off-canvas. An earlier version put the
+    // origin below the bottom edge on the theory that "you" needn't be
+    // pinpointed, but with no dot to look at it just read as a line
+    // trailing off into nothing. Dead centre would sit under the hero
+    // card, so this sits low instead — below where the card ends,
+    // still inside the visible map.
+    final origin = Offset(size.width / 2, size.height * 0.88);
+    canvas.drawCircle(origin, 3.5, Paint()..color = premiumMint);
+    canvas.drawCircle(
+      origin,
+      8,
+      Paint()
+        ..color = premiumMint.withValues(alpha: 0.28)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    );
+
     if (activeLatLon == null) return;
     final target = projectLatLon(activeLatLon!, size);
-    // The pulse departs from the bottom-centre of the panel — an abstract
-    // "you", not a guess at the user's real location — and arcs up to the
-    // active server. A quadratic control point above the midpoint gives the
-    // arc a lift instead of a flat, mechanical straight line.
-    final origin = Offset(size.width / 2, size.height + 20);
+    // A quadratic control point above the midpoint gives the arc a lift
+    // instead of a flat, mechanical straight line.
     final control = Offset(
       (origin.dx + target.dx) / 2,
       math.min(origin.dy, target.dy) - size.height * 0.35,
