@@ -1,3 +1,10 @@
+## v0.4.8
+
+- Add a world map to the dashboard, fix mouse-wheel scroll jerkiness, and make the liquid glass actually visible
+- Add a profile switcher to the dashboard, reorder the sidebar logically, and smooth out scroll/state-change animations
+- Include the scaffold.dart Android performance revert in this commit
+- Rewrite CHANGELOG.md as readable release notes, fix the auto-changelog script, and undo the Android capture-resolution regression
+
 ## v0.4.7
 
 ### Rebrand: Delore
