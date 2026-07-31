@@ -292,19 +292,7 @@ class _HeroUtilityRow extends StatelessWidget {
     final hasSupport = supportUrl != null && supportUrl!.isNotEmpty;
     return Row(
       children: [
-        if (brandName != null && brandName!.isNotEmpty)
-          Expanded(
-            child: Text(
-              brandName!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          )
-        else
-          const Spacer(),
+        Expanded(child: _ProfileSwitcher(brandName: brandName)),
         _HeroIconAction(
           icon: Icons.refresh_rounded,
           tooltip: appLocalizations.update,
@@ -326,6 +314,80 @@ class _HeroUtilityRow extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// The provider brand name (when there is one) with a chevron, tapping into
+/// a popup listing every saved profile — the same switch the Profiles page
+/// does via [currentProfileIdProvider], just reachable without leaving the
+/// dashboard. With a single profile there's nothing to switch *to*, so it
+/// falls back to plain, non-interactive text exactly like before.
+class _ProfileSwitcher extends ConsumerWidget {
+  const _ProfileSwitcher({required this.brandName});
+
+  final String? brandName;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectorState = ref.watch(profilesSelectorStateProvider);
+    final profiles = selectorState.profiles;
+    final current = profiles
+        .where((p) => p.id == selectorState.currentProfileId)
+        .firstOrNull;
+    final title = (brandName != null && brandName!.isNotEmpty)
+        ? brandName!
+        : current?.label ?? current?.id ?? '';
+    final textStyle = context.textTheme.titleMedium?.copyWith(
+      fontWeight: FontWeight.w600,
+    );
+
+    if (profiles.length <= 1) {
+      return title.isEmpty
+          ? const SizedBox.shrink()
+          : Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: textStyle);
+    }
+
+    return CommonPopupBox(
+      targetBuilder: (open) => _FocusableTap(
+        borderRadius: 12,
+        onTap: () => open(offset: const Offset(0, 32)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textStyle,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.expand_more_rounded,
+              size: 20,
+              color: context.colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
+      popup: CommonPopupMenu(
+        items: [
+          for (final profile in profiles)
+            PopupMenuItemData(
+              icon: profile.id == selectorState.currentProfileId
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              label: profile.label ?? profile.id,
+              onPressed: profile.id == selectorState.currentProfileId
+                  ? null
+                  : () => ref
+                      .read(currentProfileIdProvider.notifier)
+                      .value = profile.id,
+            ),
+        ],
+      ),
     );
   }
 }
@@ -630,19 +692,39 @@ class _ConnectCircleState extends ConsumerState<_ConnectCircle>
             isRunning ? appLocalizations.running : appLocalizations.stopped,
           ),
         ),
-        if (isRunning && runTime != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            utils.getTimeText(runTime),
-            style: context.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-              fontFamily: FontFamily.jetBrainsMono.value,
-              letterSpacing: 0.4,
-            ),
+        // The uptime/traffic block used to just appear/disappear as the
+        // Column's children changed — an instant pop, not a transition.
+        // AnimatedSize eases the height change; AnimatedOpacity crossfades
+        // the content inside it, so connecting/disconnecting reads as one
+        // continuous motion instead of a layout jump.
+        AnimatedSize(
+          duration: duration,
+          curve: RouteXMotion.curve,
+          alignment: Alignment.topCenter,
+          child: AnimatedOpacity(
+            duration: duration,
+            curve: RouteXMotion.curve,
+            opacity: (isRunning && runTime != null) ? 1 : 0,
+            child: (isRunning && runTime != null)
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text(
+                        utils.getTimeText(runTime),
+                        style: context.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontFamily: FontFamily.jetBrainsMono.value,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const _LiveTrafficRow(),
+                    ],
+                  )
+                : const SizedBox.shrink(),
           ),
-          const SizedBox(height: 6),
-          const _LiveTrafficRow(),
-        ],
+        ),
       ],
     );
   }

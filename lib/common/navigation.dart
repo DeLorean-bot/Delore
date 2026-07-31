@@ -27,14 +27,6 @@ class Navigation {
             key: GlobalObjectKey(PageLabel.dashboard),
           ),
         ),
-        if (Platform.isWindows)
-          const NavigationItem(
-            icon: Icon(Icons.apps_rounded),
-            label: PageLabel.applications,
-            view: ApplicationsView(
-              key: GlobalObjectKey(PageLabel.applications),
-            ),
-          ),
         NavigationItem(
           icon: const Icon(Icons.travel_explore_rounded),
           label: PageLabel.proxies,
@@ -56,6 +48,14 @@ class Navigation {
             ),
           ),
         ),
+        if (Platform.isWindows)
+          const NavigationItem(
+            icon: Icon(Icons.apps_rounded),
+            label: PageLabel.applications,
+            view: ApplicationsView(
+              key: GlobalObjectKey(PageLabel.applications),
+            ),
+          ),
         const NavigationItem(
           icon: Icon(Icons.swap_horiz_rounded),
           label: PageLabel.connections,

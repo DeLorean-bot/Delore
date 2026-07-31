@@ -15,6 +15,27 @@ class BaseScrollBehavior extends MaterialScrollBehavior {
         if (system.isDesktop) PointerDeviceKind.mouse,
         PointerDeviceKind.unknown,
       };
+
+  // The platform default on Windows/Linux/Android is plain
+  // ClampingScrollPhysics — a hard, instant stop at each end with no
+  // settle. NextClampingScrollPhysics (below) was already written and
+  // proven out in the logs and requests views; applying it as the app's
+  // actual default physics is what makes every list — proxies, settings,
+  // applications, connections — decelerate with a soft spring instead of
+  // just stopping, instead of only those two screens having it.
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    switch (getPlatform(context)) {
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+        return const BouncingScrollPhysics();
+      case TargetPlatform.android:
+      case TargetPlatform.fuchsia:
+      case TargetPlatform.linux:
+      case TargetPlatform.windows:
+        return const NextClampingScrollPhysics();
+    }
+  }
 }
 
 class HiddenBarScrollBehavior extends BaseScrollBehavior {
