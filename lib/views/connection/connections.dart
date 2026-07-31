@@ -188,7 +188,7 @@ class _ActiveConnectionsBodyState extends ConsumerState<ActiveConnectionsBody>
   final _connectionsStateNotifier = ValueNotifier<ConnectionsState>(
     const ConnectionsState(),
   );
-  final ScrollController _scrollController = ScrollController(
+  final ScrollController _scrollController = SmoothScrollController(
     keepScrollOffset: false,
   );
 

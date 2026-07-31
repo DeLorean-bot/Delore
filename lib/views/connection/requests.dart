@@ -38,7 +38,7 @@ class _LogConnectionsBodyState extends ConsumerState<LogConnectionsBody> {
   void initState() {
     super.initState();
     final preOffset = globalState.cacheScrollPosition[_tag] ?? -1;
-    _scrollController = ScrollController(
+    _scrollController = SmoothScrollController(
       initialScrollOffset: preOffset > 0 ? preOffset : double.maxFinite,
     );
     _requests = globalState.appState.requests.list;

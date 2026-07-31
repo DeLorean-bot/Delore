@@ -185,6 +185,32 @@ class HeroConnect extends ConsumerWidget {
     final brandName = _decodeBase64(headers['flclashx-servicename']);
     final supportUrl = headers['support-url'];
 
+    // Same resolution _LegacyHeroConnect used: the group named in the
+    // `flclashx-serverinfo` header if the provider sends one, else the
+    // first group with a real (non-DIRECT/REJECT) live selection. Only
+    // needed here for its flag emoji, to plot the active dot on the map.
+    final groups = ref.watch(currentGroupsStateProvider).value;
+    var activeServerName = '';
+    final serverInfoHeader = headers['flclashx-serverinfo'];
+    if (serverInfoHeader != null && serverInfoHeader.isNotEmpty) {
+      final groupName =
+          _decodeBase64(serverInfoHeader) ?? serverInfoHeader.trim();
+      final group = groups.getGroup(groupName);
+      if (group != null) {
+        activeServerName = groups.resolveToDisplayName(group.name);
+      }
+    }
+    if (activeServerName.isEmpty) {
+      for (final g in groups) {
+        final now = g.realNow;
+        if (now.isNotEmpty && now != 'DIRECT' && now != 'REJECT') {
+          activeServerName = groups.resolveToDisplayName(g.name);
+          break;
+        }
+      }
+    }
+    final activeCountryCode = _flagToCountryCode(activeServerName);
+
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
@@ -229,7 +255,18 @@ class HeroConnect extends ConsumerWidget {
                         onImport: () => _openImportSheet(context),
                         supportUrl: supportUrl,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 14),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: SizedBox(
+                          height: 160,
+                          width: double.infinity,
+                          child: _WorldMapBackdrop(
+                            activeCode: activeCountryCode,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
                       _ConnectCircle(
                         isReady: state.isInit,
                         isRunning: isRunning,
@@ -319,24 +356,116 @@ class _HeroUtilityRow extends StatelessWidget {
 }
 
 /// The provider brand name (when there is one) with a chevron, tapping into
-/// a popup listing every saved profile — the same switch the Profiles page
-/// does via [currentProfileIdProvider], just reachable without leaving the
-/// dashboard. With a single profile there's nothing to switch *to*, so it
+/// a dropdown listing every saved profile — the same switch the Profiles
+/// page does via [currentProfileIdProvider], just reachable without leaving
+/// the dashboard. With a single profile there's nothing to switch to, so it
 /// falls back to plain, non-interactive text exactly like before.
-class _ProfileSwitcher extends ConsumerWidget {
+///
+/// Deliberately not [CommonPopupBox]: that positions relative to the
+/// screen's top-right corner (tuned for an icon sitting near it, like the
+/// mode chip elsewhere in this file), so anchored to a left-aligned text
+/// trigger it opened well off to the side instead of under it. This centers
+/// directly below the trigger via [CompositedTransformFollower] and only
+/// ever fades/scales in place from there — nothing jumps.
+class _ProfileSwitcher extends ConsumerStatefulWidget {
   const _ProfileSwitcher({required this.brandName});
 
   final String? brandName;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ProfileSwitcher> createState() => _ProfileSwitcherState();
+}
+
+class _ProfileSwitcherState extends ConsumerState<_ProfileSwitcher> {
+  final _layerLink = LayerLink();
+  final _triggerKey = GlobalKey();
+  OverlayEntry? _overlayEntry;
+
+  @override
+  void dispose() {
+    _overlayEntry?.remove();
+    super.dispose();
+  }
+
+  void _close() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _open(List<Profile> profiles, String? currentId) {
+    final box = _triggerKey.currentContext?.findRenderObject() as RenderBox?;
+    final triggerWidth = box?.size.width ?? 160;
+    final duration = RouteXMotion.resolve(context, RouteXMotion.fast);
+
+    _overlayEntry = OverlayEntry(
+      builder: (overlayContext) => Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(_close),
+            ),
+          ),
+          CompositedTransformFollower(
+            link: _layerLink,
+            targetAnchor: Alignment.bottomCenter,
+            followerAnchor: Alignment.topCenter,
+            offset: const Offset(0, 8),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: triggerWidth),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: 1),
+                  duration: duration,
+                  curve: RouteXMotion.curve,
+                  builder: (_, value, child) => Opacity(
+                    opacity: value,
+                    child: Transform.scale(
+                      scale: 0.92 + 0.08 * value,
+                      alignment: Alignment.topCenter,
+                      child: child,
+                    ),
+                  ),
+                  child: CommonPopupMenu(
+                    minWidth: triggerWidth,
+                    items: [
+                      for (final profile in profiles)
+                        PopupMenuItemData(
+                          icon: profile.id == currentId
+                              ? Icons.radio_button_checked_rounded
+                              : Icons.radio_button_unchecked_rounded,
+                          label: profile.label ?? profile.id,
+                          onPressed: profile.id == currentId
+                              ? null
+                              : () {
+                                  setState(_close);
+                                  ref
+                                      .read(currentProfileIdProvider.notifier)
+                                      .value = profile.id;
+                                },
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final selectorState = ref.watch(profilesSelectorStateProvider);
     final profiles = selectorState.profiles;
     final current = profiles
         .where((p) => p.id == selectorState.currentProfileId)
         .firstOrNull;
-    final title = (brandName != null && brandName!.isNotEmpty)
-        ? brandName!
+    final title = (widget.brandName != null && widget.brandName!.isNotEmpty)
+        ? widget.brandName!
         : current?.label ?? current?.id ?? '';
     final textStyle = context.textTheme.titleMedium?.copyWith(
       fontWeight: FontWeight.w600,
@@ -345,13 +474,20 @@ class _ProfileSwitcher extends ConsumerWidget {
     if (profiles.length <= 1) {
       return title.isEmpty
           ? const SizedBox.shrink()
-          : Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: textStyle);
+          : Text(title,
+              maxLines: 1, overflow: TextOverflow.ellipsis, style: textStyle);
     }
 
-    return CommonPopupBox(
-      targetBuilder: (open) => _FocusableTap(
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: _FocusableTap(
+        key: _triggerKey,
         borderRadius: 12,
-        onTap: () => open(offset: const Offset(0, 32)),
+        onTap: () => setState(
+          () => _overlayEntry == null
+              ? _open(profiles, selectorState.currentProfileId)
+              : _close(),
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -371,22 +507,6 @@ class _ProfileSwitcher extends ConsumerWidget {
             ),
           ],
         ),
-      ),
-      popup: CommonPopupMenu(
-        items: [
-          for (final profile in profiles)
-            PopupMenuItemData(
-              icon: profile.id == selectorState.currentProfileId
-                  ? Icons.radio_button_checked_rounded
-                  : Icons.radio_button_unchecked_rounded,
-              label: profile.label ?? profile.id,
-              onPressed: profile.id == selectorState.currentProfileId
-                  ? null
-                  : () => ref
-                      .read(currentProfileIdProvider.notifier)
-                      .value = profile.id,
-            ),
-        ],
       ),
     );
   }
@@ -852,6 +972,141 @@ class _RouteXSubscriptionSummary extends StatelessWidget {
       ),
     );
   }
+}
+
+// ----------------------------------------------------------------------------
+// World map backdrop — a graticule, every location this app is known to
+// reach as a faint dot, and one bright pulse arcing out to whichever one is
+// currently active. Deliberately not real coastlines: a geographically
+// accurate world map is a large, license-sensitive asset this app doesn't
+// have, and a wrong-looking one would read far worse than an abstract one.
+// A dotted graticule + node graph is its own honest visual language (the
+// one most "global network" dashboards actually use) rather than a fake
+// looking landmass.
+// ----------------------------------------------------------------------------
+class _WorldMapBackdrop extends StatefulWidget {
+  const _WorldMapBackdrop({this.activeCode});
+
+  final String? activeCode;
+
+  @override
+  State<_WorldMapBackdrop> createState() => _WorldMapBackdropState();
+}
+
+class _WorldMapBackdropState extends State<_WorldMapBackdrop>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 2400),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final activeLatLon = widget.activeCode == null
+        ? null
+        : countryCentroids[widget.activeCode!.toUpperCase()];
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) => CustomPaint(
+          painter: _WorldMapPainter(
+            t: reduceMotion ? 0 : _controller.value,
+            activeLatLon: activeLatLon,
+          ),
+          size: Size.infinite,
+        ),
+      ),
+    );
+  }
+}
+
+class _WorldMapPainter extends CustomPainter {
+  _WorldMapPainter({required this.t, required this.activeLatLon});
+
+  final double t;
+  final Offset? activeLatLon;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.035)
+      ..strokeWidth = 1;
+    for (var lat = -60; lat <= 60; lat += 30) {
+      final y = projectLatLon(Offset(lat.toDouble(), 0), size).dy;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+    for (var lon = -150; lon <= 150; lon += 30) {
+      final x = projectLatLon(Offset(0, lon.toDouble()), size).dx;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+    }
+
+    final dotPaint = Paint()..color = Colors.white.withValues(alpha: 0.16);
+    for (final latLon in countryCentroids.values) {
+      canvas.drawCircle(projectLatLon(latLon, size), 1.6, dotPaint);
+    }
+
+    if (activeLatLon == null) return;
+    final target = projectLatLon(activeLatLon!, size);
+    // The pulse departs from the bottom-centre of the panel — an abstract
+    // "you", not a guess at the user's real location — and arcs up to the
+    // active server. A quadratic control point above the midpoint gives the
+    // arc a lift instead of a flat, mechanical straight line.
+    final origin = Offset(size.width / 2, size.height + 20);
+    final control = Offset(
+      (origin.dx + target.dx) / 2,
+      math.min(origin.dy, target.dy) - size.height * 0.35,
+    );
+    final path = Path()
+      ..moveTo(origin.dx, origin.dy)
+      ..quadraticBezierTo(control.dx, control.dy, target.dx, target.dy);
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = premiumMint.withValues(alpha: 0.22)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
+    );
+
+    final metric = path.computeMetrics().first;
+    final pulseT = (t * 3) % 1;
+    final pulsePos = metric.getTangentForOffset(metric.length * pulseT);
+    if (pulsePos != null) {
+      canvas.drawCircle(
+        pulsePos.position,
+        2.6,
+        Paint()..color = premiumMint.withValues(alpha: 0.9),
+      );
+      canvas.drawCircle(
+        pulsePos.position,
+        7,
+        Paint()
+          ..color = premiumMint.withValues(alpha: 0.18)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
+    }
+
+    canvas.drawCircle(target, 4, Paint()..color = premiumMint);
+    canvas.drawCircle(
+      target,
+      9,
+      Paint()
+        ..color = premiumMint.withValues(alpha: 0.25)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _WorldMapPainter oldDelegate) =>
+      oldDelegate.t != t || oldDelegate.activeLatLon != activeLatLon;
 }
 
 class _RouteXMetric extends StatelessWidget {

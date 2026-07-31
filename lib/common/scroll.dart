@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
 
@@ -100,6 +101,66 @@ class NextClampingScrollPhysics extends ClampingScrollPhysics {
       velocity: velocity,
       tolerance: tolerance,
     );
+  }
+}
+
+// Flutter's own mouse-wheel handling (ScrollPositionWithSingleContext.
+// pointerScroll) calls forcePixels on every tick — an instant jump, not an
+// animation. There's no ScrollBehavior/ScrollPhysics hook for this (it's
+// hardcoded on ScrollPosition), so the only way to change it is a custom
+// ScrollPosition, the same pattern ReverseScrollPosition below already
+// uses for a different purpose. Wire a SmoothScrollController into a
+// list's `controller:` to make its wheel scroll ease instead of step —
+// chained ticks retarget the in-flight animation rather than queuing, so
+// fast scrolling still feels continuous rather than laggy.
+class SmoothScrollController extends ScrollController {
+  SmoothScrollController({
+    super.initialScrollOffset,
+    super.keepScrollOffset,
+    super.debugLabel,
+  });
+
+  @override
+  ScrollPosition createScrollPosition(
+    ScrollPhysics physics,
+    ScrollContext context,
+    ScrollPosition? oldPosition,
+  ) => SmoothScrollPosition(
+      physics: physics,
+      context: context,
+      initialPixels: initialScrollOffset,
+      keepScrollOffset: keepScrollOffset,
+      oldPosition: oldPosition,
+      debugLabel: debugLabel,
+    );
+}
+
+class SmoothScrollPosition extends ScrollPositionWithSingleContext {
+  SmoothScrollPosition({
+    required super.physics,
+    required super.context,
+    super.initialPixels = 0.0,
+    super.keepScrollOffset,
+    super.oldPosition,
+    super.debugLabel,
+  });
+
+  @override
+  void pointerScroll(double delta) {
+    if (delta == 0.0) {
+      goBallistic(0.0);
+      return;
+    }
+    final targetPixels = min(
+      max(pixels + delta, minScrollExtent),
+      maxScrollExtent,
+    );
+    if (targetPixels == pixels) return;
+    unawaited(animateTo(
+      targetPixels,
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+    ));
   }
 }
 

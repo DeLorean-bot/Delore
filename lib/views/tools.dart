@@ -36,6 +36,14 @@ class ToolsView extends ConsumerStatefulWidget {
 }
 
 class _ToolboxViewState extends ConsumerState<ToolsView> {
+  final _scrollController = SmoothScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   ListItem<dynamic> _buildNavigationMenuItem(NavigationItem navigationItem) =>
       ListItem.open(
         leading: navigationItem.icon,
@@ -125,6 +133,7 @@ class _ToolboxViewState extends ConsumerState<ToolsView> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 980),
         child: ListView.builder(
+          controller: _scrollController,
           itemCount: items.length,
           itemBuilder: (_, index) => items[index],
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 36),

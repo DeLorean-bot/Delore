@@ -4,6 +4,7 @@ import 'package:app_discovery/app_discovery.dart';
 import 'package:flclashx/common/application_routing.dart';
 import 'package:flclashx/common/premium_theme.dart';
 import 'package:flclashx/common/process_icon.dart';
+import 'package:flclashx/common/scroll.dart';
 import 'package:flclashx/models/models.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -83,10 +84,12 @@ class ApplicationsScene extends StatefulWidget {
 
 class _ApplicationsSceneState extends State<ApplicationsScene> {
   final _searchController = TextEditingController();
+  final _gridController = SmoothScrollController();
 
   @override
   void dispose() {
     _searchController.dispose();
+    _gridController.dispose();
     super.dispose();
   }
 
@@ -171,6 +174,7 @@ class _ApplicationsSceneState extends State<ApplicationsScene> {
                           onRetry: widget.onRefresh,
                           onRouteChanged: widget.onRouteChanged,
                           onBypass: widget.onBypass,
+                          scrollController: _gridController,
                         );
                         if (wide) {
                           return Row(
@@ -643,6 +647,7 @@ class _ApplicationsContent extends StatelessWidget {
     required this.onRetry,
     required this.onRouteChanged,
     required this.onBypass,
+    required this.scrollController,
   });
 
   final bool supported;
@@ -657,6 +662,7 @@ class _ApplicationsContent extends StatelessWidget {
     ApplicationRoute route,
   ) onRouteChanged;
   final VoidCallback onBypass;
+  final ScrollController scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -694,6 +700,7 @@ class _ApplicationsContent extends StatelessWidget {
       builder: (context, constraints) {
         final columns = constraints.maxWidth >= 1040 ? 2 : 1;
         return GridView.builder(
+          controller: scrollController,
           padding: const EdgeInsets.only(right: 4, bottom: 8),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,

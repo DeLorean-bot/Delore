@@ -132,16 +132,18 @@ extension RouteXGlassVariantDefaults on RouteXGlassVariant {
 /// wide enough to read as a stroke no matter how faint it was.
 const _routeXOpticalRim = OpticalBorder(
   borderSaturation: 1,
-  // Zero, not merely low. The ambient term is angle-independent, so any
-  // amount of it draws a ring around the entire shape — and a ring is
-  // exactly what we keep being told looks wrong. iOS glass has no such
-  // ring: its edge is a highlight where the light lands, and elsewhere
-  // the edge is carried by the blur and the refraction alone.
+  // Still zero — angle-independent, so any amount draws a full ring, and a
+  // ring read as a neon outline in earlier passes. That lesson stays.
   ambientIntensity: 0,
-  borderSolidity: 0,
-  // Barely spread: the highlight stays on the light-facing side instead
-  // of wrapping the perimeter.
-  lightSpread: 0.06,
+  // Was 0: with *zero* solidity the directional highlight below had
+  // nothing to actually render, so the "physics" (edge catching light,
+  // bending) was invisible rather than subtle. A real but still
+  // low value gives the light-facing edge something to show.
+  borderSolidity: 0.3,
+  // Was 0.06 — so narrow the highlight was a couple of pixels wide even
+  // when it did land. Wide enough to read as a bevel along the whole top
+  // edge without wrapping all the way around into a ring.
+  lightSpread: 0.35,
 );
 
 /// Where the rim highlight falls, in degrees (`90` = straight down from
@@ -183,9 +185,14 @@ LiquidGlassStyle routeXGlassStyle(
     // reads as a broken oversized banner, not glass. A denser tint
     // knocks the noise back; less blur is then needed to read as calm
     // frosted material rather than mush.
+    // Was 0x40 tint / 12 sigma — technically refracting, but a dark tint
+    // over an already near-black backdrop leaves almost nothing for the
+    // blur to visibly smear, so it read as "no glass at all" rather than
+    // subtle. Lower tint, higher sigma: more of the scrolling content
+    // shows through blurred, which is the actual visual cue for glass.
     RouteXGlassVariant.navigation => (
-        dark ? const Color(0x40000000) : const Color(0x38FFFFFF),
-        12.0,
+        dark ? const Color(0x26000000) : const Color(0x38FFFFFF),
+        22.0,
         0.35,
       ),
     // The selection reads as a lift in brightness, not as an outlined
@@ -229,9 +236,9 @@ LiquidGlassStyle routeXGlassStyle(
         magnification: 1,
         chromaticAberration: 0,
         refractionType: OpticalRefraction(
-          refraction: 1.5,
-          refractionWidth: 28,
-          depth: 0.7,
+          refraction: 1.6,
+          refractionWidth: 36,
+          depth: 0.85,
         ),
       ),
     // Less displacement: text sits directly on this surface.

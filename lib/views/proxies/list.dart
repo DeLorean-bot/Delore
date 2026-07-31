@@ -25,7 +25,7 @@ class ProxiesListView extends StatefulWidget {
 }
 
 class _ProxiesListViewState extends State<ProxiesListView> {
-  final _controller = ScrollController();
+  final _controller = SmoothScrollController();
   final _headerStateNotifier = ValueNotifier<ProxiesListHeaderSelectorState>(
     const ProxiesListHeaderSelectorState(
       offset: 0,
