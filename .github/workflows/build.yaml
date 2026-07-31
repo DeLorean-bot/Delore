@@ -237,11 +237,14 @@ jobs:
             if [ -n "$currentTag" ]; then
               echo "## $currentTag" >> NEW_CHANGELOG.md
               echo "" >> NEW_CHANGELOG.md
-              if [ -n "$tag" ]; then
-                git log --pretty=format:"%B" "$tag..$currentTag" | awk 'NF {print "- " $0} !NF {print ""}' >> NEW_CHANGELOG.md
-              else
-                git log --pretty=format:"%B" "$currentTag" | awk 'NF {print "- " $0} !NF {print ""}' >> NEW_CHANGELOG.md
-              fi
+              # Subject line only (not %B): the full commit body — rationale
+              # paragraphs, Co-Authored-By trailers — is dev-facing detail,
+              # not a release note. Noise commits (version bumps, CI-only
+              # plumbing fixes) are filtered so the list stays readable.
+              range=$([ -n "$tag" ] && echo "$tag..$currentTag" || echo "$currentTag")
+              git log --pretty=format:"%s" "$range" \
+                | grep -vEi '^(bump version|update changelog|merge |grant .* permission|fix (the )?changelog job)' \
+                | awk 'NF {print "- " $0}' >> NEW_CHANGELOG.md
               echo "" >> NEW_CHANGELOG.md
             fi
             currentTag=$tag
