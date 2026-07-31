@@ -232,13 +232,19 @@ LiquidGlassStyle routeXGlassStyle(
           distortionWidth: 10,
         ),
       ),
+    // depth was already near the documented 0-1 ceiling (0.85) — that
+    // knob was maxed, not the problem. refractionWidth (30-ish) was the
+    // real limiter: it's the width of the *band* that bends at all, in
+    // logical pixels, and this bar is 1000+ px wide — a 30-36px edge
+    // band is a sliver nobody's eye lands on. Widening it is what makes
+    // the bend visible across a bar this size, not further raising depth.
     RouteXGlassVariant.navigation => const LiquidGlassRefraction(
         magnification: 1,
         chromaticAberration: 0,
         refractionType: OpticalRefraction(
-          refraction: 1.6,
-          refractionWidth: 36,
-          depth: 0.85,
+          refraction: 2.0,
+          refractionWidth: 90,
+          depth: 0.95,
         ),
       ),
     // Less displacement: text sits directly on this surface.

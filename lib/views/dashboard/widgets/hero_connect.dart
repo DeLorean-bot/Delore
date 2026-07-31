@@ -185,32 +185,6 @@ class HeroConnect extends ConsumerWidget {
     final brandName = _decodeBase64(headers['flclashx-servicename']);
     final supportUrl = headers['support-url'];
 
-    // Same resolution _LegacyHeroConnect used: the group named in the
-    // `flclashx-serverinfo` header if the provider sends one, else the
-    // first group with a real (non-DIRECT/REJECT) live selection. Only
-    // needed here for its flag emoji, to plot the active dot on the map.
-    final groups = ref.watch(currentGroupsStateProvider).value;
-    var activeServerName = '';
-    final serverInfoHeader = headers['flclashx-serverinfo'];
-    if (serverInfoHeader != null && serverInfoHeader.isNotEmpty) {
-      final groupName =
-          _decodeBase64(serverInfoHeader) ?? serverInfoHeader.trim();
-      final group = groups.getGroup(groupName);
-      if (group != null) {
-        activeServerName = groups.resolveToDisplayName(group.name);
-      }
-    }
-    if (activeServerName.isEmpty) {
-      for (final g in groups) {
-        final now = g.realNow;
-        if (now.isNotEmpty && now != 'DIRECT' && now != 'REJECT') {
-          activeServerName = groups.resolveToDisplayName(g.name);
-          break;
-        }
-      }
-    }
-    final activeCountryCode = _flagToCountryCode(activeServerName);
-
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
@@ -255,18 +229,7 @@ class HeroConnect extends ConsumerWidget {
                         onImport: () => _openImportSheet(context),
                         supportUrl: supportUrl,
                       ),
-                      const SizedBox(height: 14),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: SizedBox(
-                          height: 160,
-                          width: double.infinity,
-                          child: _WorldMapBackdrop(
-                            activeCode: activeCountryCode,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 8),
                       _ConnectCircle(
                         isReady: state.isInit,
                         isRunning: isRunning,
@@ -975,25 +938,57 @@ class _RouteXSubscriptionSummary extends StatelessWidget {
 }
 
 // ----------------------------------------------------------------------------
-// World map backdrop — a graticule, every location this app is known to
-// reach as a faint dot, and one bright pulse arcing out to whichever one is
-// currently active. Deliberately not real coastlines: a geographically
-// accurate world map is a large, license-sensitive asset this app doesn't
-// have, and a wrong-looking one would read far worse than an abstract one.
-// A dotted graticule + node graph is its own honest visual language (the
-// one most "global network" dashboards actually use) rather than a fake
-// looking landmass.
+// World map backdrop — a real equirectangular landmass (CC0, Wikimedia
+// Commons "Simple world map.svg", assets/images/world_map.svg), every
+// location this app is known to reach as a faint dot on top of it, and one
+// bright pulse arcing out to whichever one is currently active.
+//
+// Public (not dashboard-file-private): it's the full-page background behind
+// the whole dashboard, so CommonScaffold renders it, not HeroConnect's own
+// card — the user's explicit correction after an earlier pass boxed it
+// inside the card instead.
 // ----------------------------------------------------------------------------
-class _WorldMapBackdrop extends StatefulWidget {
-  const _WorldMapBackdrop({this.activeCode});
+class RouteXWorldMapBackdrop extends StatefulWidget {
+  const RouteXWorldMapBackdrop({super.key, this.activeCode});
 
   final String? activeCode;
 
   @override
-  State<_WorldMapBackdrop> createState() => _WorldMapBackdropState();
+  State<RouteXWorldMapBackdrop> createState() =>
+      _RouteXWorldMapBackdropState();
 }
 
-class _WorldMapBackdropState extends State<_WorldMapBackdrop>
+/// Same resolution `_LegacyHeroConnect` used: the group named in the
+/// `flclashx-serverinfo` header if the provider sends one, else the first
+/// group with a real (non-DIRECT/REJECT) live selection — only needed for
+/// its flag emoji, to plot the active dot on [RouteXWorldMapBackdrop].
+String? resolveActiveServerCountryCode(WidgetRef ref) {
+  final profile = ref.watch(currentProfileProvider);
+  final headers = profile?.providerHeaders ?? const {};
+  final groups = ref.watch(currentGroupsStateProvider).value;
+  var activeServerName = '';
+  final serverInfoHeader = headers['flclashx-serverinfo'];
+  if (serverInfoHeader != null && serverInfoHeader.isNotEmpty) {
+    final groupName =
+        _decodeBase64(serverInfoHeader) ?? serverInfoHeader.trim();
+    final group = groups.getGroup(groupName);
+    if (group != null) {
+      activeServerName = groups.resolveToDisplayName(group.name);
+    }
+  }
+  if (activeServerName.isEmpty) {
+    for (final g in groups) {
+      final now = g.realNow;
+      if (now.isNotEmpty && now != 'DIRECT' && now != 'REJECT') {
+        activeServerName = groups.resolveToDisplayName(g.name);
+        break;
+      }
+    }
+  }
+  return _flagToCountryCode(activeServerName);
+}
+
+class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
@@ -1014,15 +1009,31 @@ class _WorldMapBackdropState extends State<_WorldMapBackdrop>
         ? null
         : countryCentroids[widget.activeCode!.toUpperCase()];
     return IgnorePointer(
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) => CustomPaint(
-          painter: _WorldMapPainter(
-            t: reduceMotion ? 0 : _controller.value,
-            activeLatLon: activeLatLon,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Opacity(
+            opacity: 0.16,
+            child: SvgPicture.asset(
+              'assets/images/world_map.svg',
+              fit: BoxFit.cover,
+              colorFilter: const ColorFilter.mode(
+                Colors.white,
+                BlendMode.srcIn,
+              ),
+            ),
           ),
-          size: Size.infinite,
-        ),
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) => CustomPaint(
+              painter: _WorldMapPainter(
+                t: reduceMotion ? 0 : _controller.value,
+                activeLatLon: activeLatLon,
+              ),
+              size: Size.infinite,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1036,21 +1047,9 @@ class _WorldMapPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final gridPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.035)
-      ..strokeWidth = 1;
-    for (var lat = -60; lat <= 60; lat += 30) {
-      final y = projectLatLon(Offset(lat.toDouble(), 0), size).dy;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-    for (var lon = -150; lon <= 150; lon += 30) {
-      final x = projectLatLon(Offset(0, lon.toDouble()), size).dx;
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
-    }
-
-    final dotPaint = Paint()..color = Colors.white.withValues(alpha: 0.16);
+    final dotPaint = Paint()..color = Colors.white.withValues(alpha: 0.22);
     for (final latLon in countryCentroids.values) {
-      canvas.drawCircle(projectLatLon(latLon, size), 1.6, dotPaint);
+      canvas.drawCircle(projectLatLon(latLon, size), 1.8, dotPaint);
     }
 
     if (activeLatLon == null) return;
