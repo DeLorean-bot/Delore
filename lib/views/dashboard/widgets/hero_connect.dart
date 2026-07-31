@@ -1023,15 +1023,30 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
               ),
             ),
           ),
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (context, _) => CustomPaint(
-              painter: _WorldMapPainter(
-                t: reduceMotion ? 0 : _controller.value,
-                activeLatLon: activeLatLon,
-              ),
-              size: Size.infinite,
-            ),
+          // The line's origin is the user's own detected location, not a
+          // fixed screen position — a fixed point lands wherever it
+          // lands geographically (an earlier version put it in open
+          // ocean off Africa for a user in Russia). Same IP-geolocation
+          // signal the location panel already shows the flag/IP from.
+          ValueListenableBuilder(
+            valueListenable: detectionState.state,
+            builder: (_, networkState, __) {
+              final homeCode = networkState.ipInfo?.countryCode;
+              final homeLatLon = homeCode == null
+                  ? null
+                  : countryCentroids[homeCode.toUpperCase()];
+              return AnimatedBuilder(
+                animation: _controller,
+                builder: (context, _) => CustomPaint(
+                  painter: _WorldMapPainter(
+                    t: reduceMotion ? 0 : _controller.value,
+                    activeLatLon: activeLatLon,
+                    homeLatLon: homeLatLon,
+                  ),
+                  size: Size.infinite,
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -1040,10 +1055,15 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
 }
 
 class _WorldMapPainter extends CustomPainter {
-  _WorldMapPainter({required this.t, required this.activeLatLon});
+  _WorldMapPainter({
+    required this.t,
+    required this.activeLatLon,
+    this.homeLatLon,
+  });
 
   final double t;
   final Offset? activeLatLon;
+  final Offset? homeLatLon;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1052,13 +1072,15 @@ class _WorldMapPainter extends CustomPainter {
       canvas.drawCircle(projectLatLon(latLon, size), 1.8, dotPaint);
     }
 
-    // A visible hub, not a point off-canvas. An earlier version put the
-    // origin below the bottom edge on the theory that "you" needn't be
-    // pinpointed, but with no dot to look at it just read as a line
-    // trailing off into nothing. Dead centre would sit under the hero
-    // card, so this sits low instead — below where the card ends,
-    // still inside the visible map.
-    final origin = Offset(size.width / 2, size.height * 0.88);
+    // The hub sits at the user's own detected location when it's known
+    // (real IP geolocation, same source the location panel's flag/IP
+    // comes from) — a fixed screen position landed in open ocean for
+    // anyone whose real country wasn't near there. Falls back to a
+    // point low on the map, clear of the hero card, only until
+    // detection resolves.
+    final origin = homeLatLon != null
+        ? projectLatLon(homeLatLon!, size)
+        : Offset(size.width / 2, size.height * 0.88);
     canvas.drawCircle(origin, 3.5, Paint()..color = premiumMint);
     canvas.drawCircle(
       origin,
