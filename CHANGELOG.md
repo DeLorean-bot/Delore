@@ -1,3 +1,12 @@
+## v0.4.10
+
+- Anchor the map's origin dot to the user's real detected location instead of a fixed screen position
+
+## v0.4.9
+
+- Give the map's connection line a visible origin dot instead of trailing off-canvas
+- Move the world map to a full-page dashboard background, use a real landmass, fix the repo constant, and widen the glass refraction band
+
 ## v0.4.8
 
 - Add a world map to the dashboard, fix mouse-wheel scroll jerkiness, and make the liquid glass actually visible
