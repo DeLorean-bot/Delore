@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -826,17 +825,14 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
       // Capture at the display's own density. A fixed `1` is *below*
       // native on any scaled Windows desktop (125% / 150%), so the
       // refracted background was being upscaled — the glass looked like
-      // it was rendered at the wrong resolution because it was. The upper
-      // bound was 2.0 across the board, which is generous for desktop
-      // scaling but well *below* native on real phones — most Android
-      // devices report 2.6-4.0, so the app bar's glass (a live capture)
-      // was upscaled from a blurry, under-resolved source on exactly the
-      // platform most likely to run this. Desktop keeps the tighter cap;
-      // mobile gets a ceiling that actually covers real device density.
-      pixelRatio: MediaQuery.devicePixelRatioOf(context).clamp(
-        1.0,
-        Platform.isAndroid || Platform.isIOS ? 4.0 : 2.0,
-      ),
+      // it was rendered at the wrong resolution because it was. A higher
+      // upper bound was tried for real Android phones (2.6-4.0 density)
+      // but this capture is live — realTimeCapture + high refresh rate —
+      // so raising it to 4.0 quadrupled the pixels blurred every frame
+      // and made the whole app visibly laggy on-device. 2.0 stays the
+      // cap everywhere: for a *blurred* surface the softness past 2x is
+      // in the noise next to the cost of capturing it live.
+      pixelRatio: MediaQuery.devicePixelRatioOf(context).clamp(1.0, 2.0),
       // Live, on every screen. Once the page moved into the capture this
       // stopped being an optimisation: a single snapshot means the
       // refraction shows the first frame of a list you are still
@@ -844,7 +840,15 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
       // live. The two sources drift apart and the glass looks broken.
       realTimeCapture:
           !(MediaQuery.maybeOf(context)?.disableAnimations ?? false),
-      refreshRate: LiquidGlassRefreshRate.high,
+      // high = ~60 re-captures/sec, medium = ~24 — desktop GPUs shrug
+      // this off, but re-capturing and re-blurring the full screen 60
+      // times a second is exactly what made real Android hardware feel
+      // "wildly laggy": every scroll frame paid for a full backdrop
+      // redraw. medium keeps the glass visibly live without doing that
+      // 2.5x more often than it needs to.
+      refreshRate: system.isMobile
+          ? LiquidGlassRefreshRate.medium
+          : LiquidGlassRefreshRate.high,
       useSync: true,
       child: chromeLayer,
     );
