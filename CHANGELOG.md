@@ -1,3 +1,7 @@
+## v0.5.0
+
+- Rebuild the dashboard around the live map: stats strip, active-apps panel, bottom connect bar
+
 ## v0.4.10
 
 - Anchor the map's origin dot to the user's real detected location instead of a fixed screen position
