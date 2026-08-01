@@ -196,11 +196,25 @@ class CommonPopupMenu extends StatelessWidget {
     this.minWidth = 200,
     this.minItemVerticalPadding = 16,
     this.fontSize = 15,
+    this.onDismiss,
+    this.trailingPadding = 64,
   });
   final List<PopupMenuItemData> items;
   final double minWidth;
   final double minItemVerticalPadding;
   final double fontSize;
+
+  /// How to close this menu when an item is picked.
+  ///
+  /// Defaults to popping the navigator, which is correct only when the menu
+  /// is shown as a route. Hosted in an [OverlayEntry] instead, that pop takes
+  /// the *page underneath* with it — the app is left showing an empty window.
+  /// Overlay callers must pass their own dismiss here.
+  final VoidCallback? onDismiss;
+
+  /// Space reserved to the right of each label. The 64 default leaves room
+  /// for a trailing control; a plain list of names just reads as lopsided.
+  final double trailingPadding;
 
   Widget _popupMenuItem(
     BuildContext context, {
@@ -215,7 +229,7 @@ class CommonPopupMenu extends StatelessWidget {
     return InkWell(
       onTap: onPressed != null
           ? () {
-              Navigator.of(context).pop();
+              (onDismiss ?? Navigator.of(context).pop)();
               onPressed();
             }
           : null,
@@ -225,7 +239,7 @@ class CommonPopupMenu extends StatelessWidget {
         ),
         padding: EdgeInsets.only(
           left: 16,
-          right: 64,
+          right: trailingPadding,
           top: minItemVerticalPadding,
           bottom: minItemVerticalPadding,
         ),

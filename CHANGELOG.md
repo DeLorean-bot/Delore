@@ -1,3 +1,15 @@
+## v0.5.2
+
+**Home screen**
+
+* The profile switcher and "add subscription" are back on the home screen — the map redesign left them in a branch that only renders when you have *no* profile, so with a profile there was no way to reach either without going to Profiles
+* Fixed picking a profile from the switcher blanking the whole app: the menu popped the navigator, which took the page under it down too, leaving an empty window
+* The profile name no longer eats the panel — it was set at headline size, and raw ids like `user_5675861882` filled the bar on their own
+* The profile menu now lines up with the panel's edge and sits below it, instead of being centred on the name text
+* Fixed the first row of "Add profile" (QR code) sitting clipped behind the sheet's title bar
+
+*Correction to the v0.5.1 notes: they listed "Added a profile switcher on the home screen". That was wrong — the switcher had been unreachable since the dashboard was rebuilt around the map. It works as of this release.*
+
 ## v0.5.1
 
 **Dashboard**
@@ -42,7 +54,6 @@
 **Interface**
 
 * Sidebar order is now Home, Locations, Profiles, Applications, Connections, Settings
-* Added a profile switcher on the home screen
 * The app bar's glass now visibly refracts and catches light
 * Narrow windows scroll the stat cards and stack the connect bar instead of truncating labels
 

@@ -258,16 +258,61 @@ class HeroConnect extends ConsumerWidget {
     );
   }
 
-  void _openImportSheet(BuildContext context) {
-    unawaited(
-      showExtend(
-        globalState.navigatorKey.currentState!.context,
-        builder: (_, type) => AdaptiveSheetScaffold(
-          type: type,
-          body: AddProfileView(
-            context: globalState.navigatorKey.currentState!.context,
+}
+
+/// Top-level so both [HeroConnect] and [DashboardUtilityBar] can open it.
+void _openImportSheet(BuildContext context) {
+  unawaited(
+    showExtend(
+      globalState.navigatorKey.currentState!.context,
+      builder: (_, type) => AdaptiveSheetScaffold(
+        type: type,
+        body: AddProfileView(
+          context: globalState.navigatorKey.currentState!.context,
+        ),
+        title: "${appLocalizations.addProfile}",
+      ),
+    ),
+  );
+}
+
+/// The hero's utility row — profile switcher, refresh, add subscription,
+/// support — surfaced on the map dashboard.
+///
+/// [HeroConnect] renders this row only in its has-profile branch, but
+/// [DashboardScene] routes to `HeroConnect` *only* when there is no profile,
+/// where it short-circuits to [_EmptyHero]. So from the moment the map
+/// dashboard took over the with-profile case, the row was unreachable: no
+/// way to switch profiles or add a subscription from the home screen at all.
+/// Same widget, just given a reachable home rather than a second copy.
+class DashboardUtilityBar extends ConsumerWidget {
+  const DashboardUtilityBar({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(currentProfileProvider);
+    final headers = profile?.providerHeaders ?? const {};
+    return RouteXGlassSurface(
+      // A Column/Stack child must not ask for infinite height, and the row's
+      // Expanded needs a bounded width to divide.
+      expand: false,
+      radius: RouteXRadius.control,
+      child: SizedBox(
+        width: 320,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          child: _HeroUtilityRow(
+            brandName: _decodeBase64(headers['flclashx-servicename']),
+            isUpdating: profile?.isUpdating ?? false,
+            onUpdate: profile == null
+                ? null
+                : () => globalState.appController.updateProfile(profile),
+            onImport: () => _openImportSheet(context),
+            supportUrl: headers['support-url'],
+            // Cancel this panel's own padding so the menu hangs off the
+            // panel's edge, which is the box the user is actually looking at.
+            menuOffset: const Offset(-12, 13),
           ),
-          title: "${appLocalizations.addProfile}",
         ),
       ),
     );
@@ -285,6 +330,7 @@ class _HeroUtilityRow extends StatelessWidget {
     required this.onUpdate,
     required this.onImport,
     this.supportUrl,
+    this.menuOffset,
   });
 
   final String? brandName;
@@ -292,13 +338,19 @@ class _HeroUtilityRow extends StatelessWidget {
   final VoidCallback? onUpdate;
   final VoidCallback onImport;
   final String? supportUrl;
+  final Offset? menuOffset;
 
   @override
   Widget build(BuildContext context) {
     final hasSupport = supportUrl != null && supportUrl!.isNotEmpty;
     return Row(
       children: [
-        Expanded(child: _ProfileSwitcher(brandName: brandName)),
+        Expanded(
+          child: _ProfileSwitcher(
+            brandName: brandName,
+            menuOffset: menuOffset,
+          ),
+        ),
         _HeroIconAction(
           icon: Icons.refresh_rounded,
           tooltip: appLocalizations.update,
@@ -337,9 +389,15 @@ class _HeroUtilityRow extends StatelessWidget {
 /// directly below the trigger via [CompositedTransformFollower] and only
 /// ever fades/scales in place from there — nothing jumps.
 class _ProfileSwitcher extends ConsumerStatefulWidget {
-  const _ProfileSwitcher({required this.brandName});
+  const _ProfileSwitcher({required this.brandName, this.menuOffset});
 
   final String? brandName;
+
+  /// Nudges the dropdown off the trigger's own box. The trigger is just the
+  /// name text, so inside a padded container the menu lines up with the
+  /// *text* rather than with the panel the user sees — hosts pass their own
+  /// padding back in to align it with the panel edge instead.
+  final Offset? menuOffset;
 
   @override
   ConsumerState<_ProfileSwitcher> createState() => _ProfileSwitcherState();
@@ -377,11 +435,14 @@ class _ProfileSwitcherState extends ConsumerState<_ProfileSwitcher> {
           ),
           CompositedTransformFollower(
             link: _layerLink,
-            targetAnchor: Alignment.bottomCenter,
-            followerAnchor: Alignment.topCenter,
-            offset: const Offset(0, 8),
+            // Left-aligned, not centred: the trigger is left-aligned text, so
+            // centring the menu under it pushed the menu off to one side —
+            // worse now the bar sits against the window's left edge.
+            targetAnchor: Alignment.bottomLeft,
+            followerAnchor: Alignment.topLeft,
+            offset: widget.menuOffset ?? const Offset(0, 8),
             child: Align(
-              alignment: Alignment.topCenter,
+              alignment: Alignment.topLeft,
               child: ConstrainedBox(
                 constraints: BoxConstraints(minWidth: triggerWidth),
                 child: TweenAnimationBuilder<double>(
@@ -398,6 +459,13 @@ class _ProfileSwitcherState extends ConsumerState<_ProfileSwitcher> {
                   ),
                   child: CommonPopupMenu(
                     minWidth: triggerWidth,
+                    // This menu lives in an OverlayEntry, not a route, so it
+                    // must close itself — the default Navigator.pop would
+                    // pop the page it is floating above and blank the app.
+                    onDismiss: () => setState(_close),
+                    minItemVerticalPadding: 11,
+                    fontSize: 13,
+                    trailingPadding: 20,
                     items: [
                       for (final profile in profiles)
                         PopupMenuItemData(
@@ -407,12 +475,9 @@ class _ProfileSwitcherState extends ConsumerState<_ProfileSwitcher> {
                           label: profile.label ?? profile.id,
                           onPressed: profile.id == currentId
                               ? null
-                              : () {
-                                  setState(_close);
-                                  ref
-                                      .read(currentProfileIdProvider.notifier)
-                                      .value = profile.id;
-                                },
+                              : () => ref
+                                  .read(currentProfileIdProvider.notifier)
+                                  .value = profile.id,
                         ),
                     ],
                   ),
@@ -436,7 +501,10 @@ class _ProfileSwitcherState extends ConsumerState<_ProfileSwitcher> {
     final title = (widget.brandName != null && widget.brandName!.isNotEmpty)
         ? widget.brandName!
         : current?.label ?? current?.id ?? '';
-    final textStyle = context.textTheme.titleMedium?.copyWith(
+    // bodyMedium, not titleMedium: profile names are often raw ids
+    // ("user_5675861882"), and at headline size one ate most of the utility
+    // bar's width before the icons even got a turn.
+    final textStyle = context.textTheme.bodyMedium?.copyWith(
       fontWeight: FontWeight.w600,
     );
 

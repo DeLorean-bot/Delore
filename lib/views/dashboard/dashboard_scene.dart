@@ -10,7 +10,11 @@ import 'package:flclashx/state.dart';
 import 'package:flclashx/views/dashboard/dashboard_flows.dart';
 import 'package:flclashx/views/proxies/common.dart' show delayTest;
 import 'package:flclashx/views/dashboard/widgets/hero_connect.dart'
-    show HeroConnect, RouteXWorldMapBackdrop, resolveActiveServerCountryCode;
+    show
+        DashboardUtilityBar,
+        HeroConnect,
+        RouteXWorldMapBackdrop,
+        resolveActiveServerCountryCode;
 import 'package:flclashx/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -41,10 +45,6 @@ class DashboardScene extends ConsumerStatefulWidget {
 }
 
 class _DashboardSceneState extends ConsumerState<DashboardScene> {
-  /// The panel covers a slice of the map, and map markers can end up behind
-  /// it, so it can be folded away.
-  bool _showApps = true;
-
   @override
   Widget build(BuildContext context) {
     final hasProfile =
@@ -67,16 +67,41 @@ class _DashboardSceneState extends ConsumerState<DashboardScene> {
               child: RouteXWorldMapBackdrop(activeCode: mapCode),
             ),
             Padding(
-          padding: EdgeInsets.fromLTRB(wide ? 16 : 10, 8, wide ? 16 : 10, 12),
-          child: Column(
-            children: [
-              _StatsStrip(compact: !wide),
-              const SizedBox(height: 12),
-              const Expanded(child: SizedBox()),
-              const SizedBox(height: 12),
-              _ConnectBar(compact: !wide),
-            ],
-          ),
+              padding:
+                  EdgeInsets.fromLTRB(wide ? 16 : 10, 8, wide ? 16 : 10, 12),
+              child: Column(
+                children: [
+                  // Past ~1100 the centred stat cards leave enough clear
+                  // space to their left for the utility bar to sit in the
+                  // same band; below that it would collide with them, so it
+                  // takes its own row and pushes the cards down instead.
+                  if (constraints.maxWidth >= 1100)
+                    SizedBox(
+                      height: 56,
+                      child: Stack(
+                        children: [
+                          _StatsStrip(compact: !wide),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: DashboardUtilityBar(),
+                          ),
+                        ],
+                      ),
+                    )
+                  else ...[
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: DashboardUtilityBar(),
+                    ),
+                    const SizedBox(height: 8),
+                    _StatsStrip(compact: !wide),
+                  ],
+                  const SizedBox(height: 12),
+                  const Expanded(child: SizedBox()),
+                  const SizedBox(height: 12),
+                  _ConnectBar(compact: !wide),
+                ],
+              ),
             ),
           ],
         );

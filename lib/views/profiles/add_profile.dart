@@ -62,6 +62,10 @@ class AddProfileView extends StatelessWidget {
         builder: (context, snapshot) {
           final isTV = snapshot.data ?? false;
           return ListView(
+            // The sheet's glass title bar is painted over the body, and a
+            // bare ListView starts at y=0 beneath it, so the first row —
+            // "QR code" — sat with its top clipped behind the bar.
+            padding: const EdgeInsets.only(top: 12, bottom: 8),
             children: [
               if (isTV)
                 ListItem(
