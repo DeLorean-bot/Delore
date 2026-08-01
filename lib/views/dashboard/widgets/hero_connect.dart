@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flclashx/clash/clash.dart';
@@ -994,9 +995,12 @@ String? resolveActiveServerCountryCode(WidgetRef ref) {
 
 class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
     with SingleTickerProviderStateMixin {
+  // 8s per cycle. This used to be 2400s, which made every "animation"
+  // driven by it advance about one part in 2400 per second — the packets
+  // crawled a pixel every few seconds and the route looked frozen.
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: 2400),
+    duration: const Duration(seconds: 8),
   )..repeat();
 
   @override
@@ -1115,6 +1119,10 @@ class _WorldMapPainter extends CustomPainter {
   /// (the caller passes at most one of the two — see RouteXWorldMapBackdrop).
   final List<Offset> appLatLons;
 
+  /// One flowing route: a fading filament with several comet-like packets
+  /// running along it, each with a tapered tail. Trails are drawn as short
+  /// segments sampled off the real path so they curve with the arc instead
+  /// of being straight streaks laid over it.
   void _drawArc(
     Canvas canvas,
     Size size,
@@ -1132,42 +1140,96 @@ class _WorldMapPainter extends CustomPainter {
     final path = Path()
       ..moveTo(origin.dx, origin.dy)
       ..quadraticBezierTo(control.dx, control.dy, target.dx, target.dy);
+    final metric = path.computeMetrics().first;
+    final length = metric.length;
 
+    // The filament itself: brightest near the destination, dissolving back
+    // toward the origin, so a glance reads direction without an arrowhead.
     canvas.drawPath(
       path,
       Paint()
-        ..color = premiumMint.withValues(alpha: 0.22)
+        ..shader = ui.Gradient.linear(
+          origin,
+          target,
+          [
+            premiumMint.withValues(alpha: 0.04),
+            premiumMint.withValues(alpha: 0.20),
+            premiumMint.withValues(alpha: 0.38),
+          ],
+          const [0.0, 0.55, 1.0],
+        )
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2,
+        ..strokeWidth = 1.1
+        ..strokeCap = StrokeCap.round,
     );
 
-    final metric = path.computeMetrics().first;
-    // Phase-shifted per line so parallel pulses don't all travel in
-    // lockstep — reads as several independent flows, not one blinking.
-    final pulseT = (t * 3 + phase) % 1;
-    final pulsePos = metric.getTangentForOffset(metric.length * pulseT);
-    if (pulsePos != null) {
+    // Three packets per route at staggered offsets and slightly different
+    // speeds, so the traffic never visibly loops in lockstep.
+    const packets = 3;
+    for (var p = 0; p < packets; p++) {
+      final speed = 0.42 + 0.13 * p;
+      final head = ((t * speed * 6) + phase + p / packets) % 1.0;
+      final headPos = metric.getTangentForOffset(length * head)?.position;
+      if (headPos == null) continue;
+
+      // Tail: sampled back along the path, thinning and fading as it goes.
+      const steps = 14;
+      final tailSpan = 0.13;
+      for (var i = steps; i >= 1; i--) {
+        final a = head - tailSpan * (i / steps);
+        final b = head - tailSpan * ((i - 1) / steps);
+        if (a <= 0) continue;
+        final pa = metric.getTangentForOffset(length * a)?.position;
+        final pb = metric.getTangentForOffset(length * b)?.position;
+        if (pa == null || pb == null) continue;
+        final k = 1 - i / steps;
+        canvas.drawLine(
+          pa,
+          pb,
+          Paint()
+            ..color = premiumMint.withValues(alpha: 0.55 * k * k)
+            ..strokeWidth = 0.6 + 2.0 * k
+            ..strokeCap = StrokeCap.round,
+        );
+      }
+
+      // Head: a hot core inside a soft bloom.
       canvas.drawCircle(
-        pulsePos.position,
-        2.6,
-        Paint()..color = premiumMint.withValues(alpha: 0.9),
+        headPos,
+        6.5,
+        Paint()
+          ..color = premiumMint.withValues(alpha: 0.22)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
       );
       canvas.drawCircle(
-        pulsePos.position,
-        7,
-        Paint()
-          ..color = premiumMint.withValues(alpha: 0.18)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+        headPos,
+        1.9,
+        Paint()..color = premiumMint.withValues(alpha: 0.95),
       );
     }
 
-    canvas.drawCircle(target, 4, Paint()..color = premiumMint);
+    // Destination: a steady node with a slow breathing halo so an idle
+    // route still reads as live.
+    final breathe = 0.5 + 0.5 * math.sin((t * 6 + phase) * 2 * math.pi);
     canvas.drawCircle(
       target,
-      9,
+      9 + 3 * breathe,
       Paint()
-        ..color = premiumMint.withValues(alpha: 0.25)
+        ..color = premiumMint.withValues(alpha: 0.10 + 0.12 * breathe)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+    canvas.drawCircle(
+      target,
+      3.6,
+      Paint()..color = premiumMint,
+    );
+    canvas.drawCircle(
+      target,
+      6.0,
+      Paint()
+        ..color = premiumMint.withValues(alpha: 0.45)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
     );
   }
 
@@ -1187,14 +1249,27 @@ class _WorldMapPainter extends CustomPainter {
     final origin = homeLatLon != null
         ? projectLatLon(homeLatLon!, size)
         : Offset(size.width / 2, size.height * 0.88);
-    canvas.drawCircle(origin, 3.5, Paint()..color = premiumMint);
+    // Home node: concentric rings that expand and fade, so the origin
+    // reads as actively radiating rather than being a static dot.
+    for (var r = 0; r < 3; r++) {
+      final wave = ((t * 6) + r / 3) % 1.0;
+      canvas.drawCircle(
+        origin,
+        6 + wave * 26,
+        Paint()
+          ..color = premiumMint.withValues(alpha: 0.20 * (1 - wave))
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2 * (1 - wave),
+      );
+    }
     canvas.drawCircle(
       origin,
-      8,
+      12,
       Paint()
-        ..color = premiumMint.withValues(alpha: 0.28)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+        ..color = premiumMint.withValues(alpha: 0.22)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
     );
+    canvas.drawCircle(origin, 4, Paint()..color = premiumMint);
 
     if (appLatLons.isNotEmpty) {
       for (var i = 0; i < appLatLons.length; i++) {
