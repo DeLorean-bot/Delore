@@ -166,13 +166,18 @@ class SmoothScrollPosition extends ScrollPositionWithSingleContext {
       return;
     }
     _wheelTarget = target;
-    // Short: long enough to smooth the step, short enough that the list
-    // still feels attached to the wheel.
+    // Duration scales with how far there is left to travel, capped tight.
+    // A fixed duration meant a long accumulated flick and a single notch
+    // took the same time, so fast scrolling felt rubbery and slow; and a
+    // linear curve keeps a held-down wheel moving at a constant rate
+    // instead of easing to a crawl between ticks.
+    final distance = (target - pixels).abs();
+    final ms = distance < 40 ? 90 : (distance < 200 ? 130 : 180);
     unawaited(
       animateTo(
         target,
-        duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOutCubic,
+        duration: Duration(milliseconds: ms),
+        curve: Curves.linearToEaseOut,
       ).whenComplete(() {
         if (_wheelTarget == target) _wheelTarget = null;
       }),

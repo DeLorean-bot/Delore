@@ -185,8 +185,16 @@ class _StatsStrip extends ConsumerWidget {
       );
     }
 
-    // Equal cells, centred as a group: uneven widths pinned to one edge
-    // read as a ragged pile rather than a row of readouts.
+    // Centred in the page's own box — the same box the map and the connect
+    // bar sit in, so all three share a centre line, and the row glides with
+    // the sidebar's own animation when it opens or closes.
+    //
+    // Centring on the whole window instead needs the row's offset from the
+    // window edge, which it cannot know: it is inset by the sidebar, the
+    // page padding *and* the scaffold's max-width clamp. Measuring that
+    // after layout and correcting with a transform did centre it, but the
+    // correction lands a frame late, so the cards jumped into place instead
+    // of moving with the sidebar.
     return SizedBox(
       height: 56,
       child: Row(
@@ -406,10 +414,10 @@ class _ConnectBar extends ConsumerWidget {
               fit: compact ? FlexFit.loose : FlexFit.tight,
               child: Row(
               children: [
-            RouteXFocusableTap(
-              borderRadius: 28,
-              onTap: isReady ? toggle : null,
-              child: AnimatedContainer(
+            // Status indicator, not a second control: the labelled button
+            // at the other end of the bar already toggles the connection,
+            // and having both do it read as two connect buttons.
+            AnimatedContainer(
                 duration: RouteXMotion.resolve(context, RouteXMotion.base),
                 curve: RouteXMotion.curve,
                 width: 56,
@@ -441,7 +449,6 @@ class _ConnectBar extends ConsumerWidget {
                   size: 26,
                   color: isRunning ? const Color(0xFF07110E) : premiumMint,
                 ),
-              ),
             ),
             const SizedBox(width: 14),
             Expanded(

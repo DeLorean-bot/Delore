@@ -185,7 +185,15 @@ class _AdaptiveSheetScaffoldState extends State<AdaptiveSheetScaffold> {
     return CommonScaffold(
       appBar: appBar,
       backgroundColor: backgroundColor,
-      body: widget.body,
+      // The floating glass bar is painted in a layer above the page, and
+      // the page begins directly beneath it, so the first row of every
+      // side sheet (settings sub-pages, profile and proxy sheets) sat in
+      // the bar's blurred edge. This is the gap, applied once for all of
+      // them rather than page by page.
+      body: Padding(
+        padding: const EdgeInsets.only(top: 16),
+        child: widget.body,
+      ),
       disableBackground: widget.disableBackground,
     );
   }

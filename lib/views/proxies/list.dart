@@ -196,7 +196,9 @@ class _ProxiesListViewState extends State<ProxiesListView> {
                       child: FocusTraversalGroup(
                         policy: WidgetOrderTraversalPolicy(),
                         child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
+                          // Top clears the floating glass bar.
+                          padding:
+                              const EdgeInsets.fromLTRB(16, 30, 16, 16),
                           controller: _controller,
                           itemCount: items.length,
                           itemBuilder: (_, index) => items[index],

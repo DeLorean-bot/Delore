@@ -152,7 +152,9 @@ class _ProfilesViewState extends State<ProfilesView> with PageMixin {
               child: CustomScrollView(
                 slivers: [
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(28, 20, 28, 100),
+                    // Top clears the floating glass bar, which paints in
+                    // a layer above the page.
+                    padding: const EdgeInsets.fromLTRB(28, 34, 28, 100),
                     sliver: SliverGrid(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {

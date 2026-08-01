@@ -1,22 +1,36 @@
 ## v0.5.0
 
-- Rebuild the dashboard around the live map: stats strip, active-apps panel, bottom connect bar
+**Dashboard**
 
-## v0.4.10
+* Reworked the home screen around a live world map
+* Added a traffic web — every app's destination becomes a node, threads are spun from your location out to each one, packets travel the threads
+* Added app markers on the map: icon, process, destination host, country flag and live speed
+* Added a live stats row: ping, speed, traffic and subscription
+* Added a connect bar with the power control, uptime, server picker and connect/disconnect
+* Ping is now measured for the active server instead of showing an empty value
+* The map is now the backdrop of the whole app — sharp on the home screen, blurred behind every other page
+* Removed the separate "Active apps" panel; the map markers cover it
+* Removed the duplicated server card from the stats row
 
-- Anchor the map's origin dot to the user's real detected location instead of a fixed screen position
+**Performance**
 
-## v0.4.9
+* Fixed mouse-wheel scrolling stalling on long lists (server list, connections, logs) — fast scrolls were restarting the animation on every tick
+* Server groups no longer build every proxy card while collapsed — large subscriptions (200+ servers) open without the stall
+* Fixed the map animation running about 300x slower than intended, which made every effect look frozen
 
-- Give the map's connection line a visible origin dot instead of trailing off-canvas
-- Move the world map to a full-page dashboard background, use a real landmass, fix the repo constant, and widen the glass refraction band
+**Fixes**
 
-## v0.4.8
+* App update checks pointed at the old upstream repository, so no Delore release was ever offered — fixed
+* Fixed app markers never appearing on the map (country codes were compared in the wrong case)
+* Fixed the connect bar collapsing into a narrow island instead of spanning the window
+* Fixed the top stat cards being oversized and unevenly spaced
 
-- Add a world map to the dashboard, fix mouse-wheel scroll jerkiness, and make the liquid glass actually visible
-- Add a profile switcher to the dashboard, reorder the sidebar logically, and smooth out scroll/state-change animations
-- Include the scaffold.dart Android performance revert in this commit
-- Rewrite CHANGELOG.md as readable release notes, fix the auto-changelog script, and undo the Android capture-resolution regression
+**Interface**
+
+* Sidebar order is now Home, Locations, Profiles, Applications, Connections, Settings
+* Added a profile switcher on the home screen
+* The app bar's glass now visibly refracts and catches light
+* Narrow windows scroll the stat cards and stack the connect bar instead of truncating labels
 
 ## v0.4.7
 

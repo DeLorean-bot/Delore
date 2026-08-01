@@ -1015,17 +1015,60 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 8),
-  )..repeat();
+  );
 
   @override
   void initState() {
     super.initState();
-    dashboardFlows.addListener();
+    // Behind another page the map is static scenery under a heavy blur:
+    // no packets to see, no markers to place. Animating and polling for it
+    // meant every page paid for a full-screen animated blur every frame,
+    // which is what made the whole UI feel sluggish while scrolling.
+    if (!widget.blurred) {
+      dashboardFlows.addListener();
+      _controller.repeat();
+    }
+  }
+
+  /// The plotted set, refreshed on a slow cadence of its own.
+  ///
+  /// The underlying feed updates every couple of seconds and is ordered by
+  /// current speed, so adopting it directly made markers re-order and jump
+  /// around constantly. This is a visualisation — it only needs to settle
+  /// on what is going on, not track every byte.
+  List<AppFlow> _plotted = const [];
+  DateTime _plottedAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  List<AppFlow> _stablePlot(List<AppFlow> flows) {
+    final now = DateTime.now();
+    final due = now.difference(_plottedAt) > const Duration(seconds: 8);
+    final changed = _plotted.length != flows.take(5).length;
+    if (_plotted.isEmpty || due || changed) {
+      // Pick by traffic, then order by name so placement is deterministic
+      // and a marker doesn't hop because two apps swapped speeds.
+      _plotted = flows.take(5).toList()
+        ..sort((a, b) => a.process.compareTo(b.process));
+      _plottedAt = now;
+    }
+    return _plotted;
+  }
+
+  @override
+  void didUpdateWidget(RouteXWorldMapBackdrop oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.blurred == widget.blurred) return;
+    if (widget.blurred) {
+      dashboardFlows.removeListener();
+      _controller.stop();
+    } else {
+      dashboardFlows.addListener();
+      _controller.repeat();
+    }
   }
 
   @override
   void dispose() {
-    dashboardFlows.removeListener();
+    if (!widget.blurred) dashboardFlows.removeListener();
     _controller.dispose();
     super.dispose();
   }
@@ -1066,6 +1109,11 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
               ),
             ),
           ),
+          // Scenery mode stops here: a static image the compositor can
+          // cache, instead of a per-frame repaint under a blur.
+          if (widget.blurred)
+            const SizedBox.shrink()
+          else
           // The line's origin is the user's own detected location, not a
           // fixed screen position — a fixed point lands wherever it
           // lands geographically (an earlier version put it in open
@@ -1087,7 +1135,7 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
                     // Busiest few only — enough to read as "your traffic,
                     // going places" without the map becoming a tangle.
                     final candidates = [
-                      for (final flow in flows.take(6))
+                      for (final flow in _stablePlot(flows))
                         if (flow.countryCode != null &&
                             countryCentroids[flow.countryCode!.toUpperCase()] !=
                                 null)
@@ -1119,7 +1167,8 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
                     return Stack(
                       fit: StackFit.expand,
                       children: [
-                        AnimatedBuilder(
+                        RepaintBoundary(
+                          child: AnimatedBuilder(
                           animation: _controller,
                           builder: (context, _) => CustomPaint(
                             painter: _WorldMapPainter(
@@ -1131,6 +1180,7 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
                               appPoints: [for (final e in placed) e.at],
                             ),
                             size: mapSize,
+                          ),
                           ),
                         ),
                         if (widget.showMarkers)
@@ -1177,78 +1227,24 @@ class _WorldMapPainter extends CustomPainter {
   /// arcs have to land on the same adjusted points the labels sit at.
   final List<Offset> appPoints;
 
-  /// The traffic web.
+  /// The traffic itself: a thin route from the hub out to each live
+  /// destination, packets travelling it, and a node at each end.
   ///
-  /// Two parts, both derived from real traffic:
-  ///
-  /// * a compact web spun around the home node — one radial per active
-  ///   destination, aimed at its true bearing, with rings tying the
-  ///   radials together. Fixed radius on purpose: radials drawn all the
-  ///   way out to far-flung destinations degenerate into a few hairlines
-  ///   stretched across the map, which is not a web.
-  /// * a clean route line from the hub out to each destination marker,
-  ///   with packets crawling it.
-  ///
-  /// Only the packets animate; the web itself is still, so it reads.
+  /// No spun web around the hub — radials and rings looked like clutter
+  /// laid over the map rather than something the traffic had drawn.
   void _drawWeb(Canvas canvas, Size size, Offset origin, List<Offset> nodes) {
     if (nodes.isEmpty) return;
 
-    final bearings = [
-      for (final n in nodes) math.atan2(n.dy - origin.dy, n.dx - origin.dx),
-    ]..sort();
-    final webRadius = math.min(size.shortestSide * 0.17, 150.0);
-
-    Offset onWeb(double angle, double r) => origin +
-        Offset(math.cos(angle), math.sin(angle)) * (webRadius * r);
-
-    // Radials.
-    for (final angle in bearings) {
+    for (var i = 0; i < nodes.length; i++) {
       canvas.drawLine(
         origin,
-        onWeb(angle, 1.0),
-        Paint()
-          ..color = premiumMint.withValues(alpha: 0.30)
-          ..strokeWidth = 1.0
-          ..strokeCap = StrokeCap.round,
-      );
-    }
-
-    // Rings between neighbouring radials, sagging inward like real silk.
-    if (bearings.length > 1) {
-      const rings = [0.34, 0.58, 0.82, 1.0];
-      for (final r in rings) {
-        for (var i = 0; i < bearings.length; i++) {
-          final isClosing = i == bearings.length - 1;
-          if (isClosing && bearings.length == 2) break;
-          final a = onWeb(bearings[i], r);
-          final b = onWeb(bearings[(i + 1) % bearings.length], r);
-          final mid = Offset.lerp(a, b, 0.5)!;
-          final sag = Offset.lerp(mid, origin, 0.10)!;
-          canvas.drawPath(
-            Path()
-              ..moveTo(a.dx, a.dy)
-              ..quadraticBezierTo(sag.dx, sag.dy, b.dx, b.dy),
-            Paint()
-              ..color = premiumMint.withValues(alpha: 0.20)
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 0.9,
-          );
-        }
-      }
-    }
-
-    // Routes out to the real destinations.
-    for (var i = 0; i < nodes.length; i++) {
-      final angle = math.atan2(nodes[i].dy - origin.dy, nodes[i].dx - origin.dx);
-      final from = onWeb(angle, 1.0);
-      canvas.drawLine(
-        from,
         nodes[i],
         Paint()
           ..color = premiumMint.withValues(alpha: 0.22)
           ..strokeWidth = 0.9,
       );
 
+      // Two packets per route, phase-shifted so routes don't pulse in step.
       for (var k = 0; k < 2; k++) {
         final phase = ((t * 3) + i * 0.29 + k * 0.5) % 1.0;
         final head = Offset.lerp(origin, nodes[i], phase)!;
@@ -1288,7 +1284,7 @@ class _WorldMapPainter extends CustomPainter {
       );
     }
 
-    // The hub itself.
+    // The hub.
     canvas.drawCircle(
       origin,
       14,

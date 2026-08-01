@@ -90,7 +90,10 @@ class _ConnectionsViewState extends ConsumerState<ConnectionsView>
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          // Clears the floating glass app bar, which is painted in a layer
+          // above the page: at the old 16 the segmented control sat under
+          // the bar's blurred edge.
+          padding: const EdgeInsets.fromLTRB(16, 34, 16, 10),
           child: Center(
             child: CommonTabBar<_ConnTab>(
               groupValue: _tab,
