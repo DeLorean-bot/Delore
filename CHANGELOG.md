@@ -27,6 +27,11 @@
 * Fixed page content sliding under the floating app bar — the Active/Log switch on Connections, the profile list, the server list, and the heading in every settings side panel
 * Release notes on GitHub are now the hand-written changelog instead of a dump of every commit message
 
+**Subscription links**
+
+* Delore now claims the `clash://` and `clashmeta://` schemes on Windows — it only ever registered `clashx`, `flclash` and `flclashx`, so an "add subscription" link opened whichever other Clash client had taken `clash://`
+* Added a `delore://` scheme on Windows, macOS and Android
+
 **Naming**
 
 * The Windows executable is now `Delore.exe` — it used to ship as `FlClashX.exe` with a window titled "RouteX", so Task Manager and Alt-Tab showed two old names

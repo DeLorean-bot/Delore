@@ -14,9 +14,21 @@ class Window {
       exit(0);
     }
     if (Platform.isWindows) {
-      protocol.register("clashx");
-      protocol.register("flclash");
-      protocol.register("flclashx");
+      // Must stay in sync with the schemes declared in macos/Runner/Info.plist
+      // and android/app/src/main/AndroidManifest.xml. "clash" and "clashmeta"
+      // were missing here, which is the pair subscription links actually use —
+      // so on Windows any other Clash client that did register them kept
+      // owning every "add subscription" link.
+      for (final scheme in const [
+        'clash',
+        'clashmeta',
+        'clashx',
+        'delore',
+        'flclash',
+        'flclashx',
+      ]) {
+        protocol.register(scheme);
+      }
     }
 
     // On macOS, the app runs in status bar with popover - no window manager needed
