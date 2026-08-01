@@ -7,6 +7,8 @@ import 'package:flclashx/enum/enum.dart';
 import 'package:flclashx/models/models.dart';
 import 'package:flclashx/providers/providers.dart';
 import 'package:flclashx/state.dart';
+import 'package:flclashx/views/dashboard/widgets/hero_connect.dart'
+    show RouteXWorldMapBackdrop, resolveActiveServerCountryCode;
 import 'package:flclashx/widgets/fade_box.dart';
 import 'package:flclashx/widgets/pop_scope.dart';
 import 'package:flclashx/widgets/routex_backdrop.dart';
@@ -801,6 +803,16 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
         children: [
           _buildPremiumBackdrop(),
           RouteXBackdrop(active: isDashboard),
+          // Behind every page except the dashboard: blurred and bare, so it
+          // reads as depth. The dashboard draws its own sharp copy inside
+          // the page content — the glass panels there have to have it in
+          // their own layer to blur it, which a sibling layer can't give.
+          if (!isDashboard)
+            RouteXWorldMapBackdrop(
+              activeCode: resolveActiveServerCountryCode(ref),
+              blurred: true,
+              showMarkers: false,
+            ),
           if (backgroundUrl != null) ...[
             _buildBackground(backgroundUrl),
             _buildOverlay(

@@ -59,10 +59,10 @@ class _DashboardSceneState extends ConsumerState<DashboardScene> {
         return Stack(
           fit: StackFit.expand,
           children: [
-            // The map lives in the page itself, not in the scaffold's
-            // background capture: the app markers are real widgets that
-            // have to share the map's coordinate space and be painted in
-            // the same layer as the rest of the dashboard.
+            // The dashboard's own sharp copy. It lives in the page content
+            // so the glass panels above can actually blur it, and so the
+            // app markers share its coordinate space; every other page gets
+            // the blurred copy from CommonScaffold instead.
             Positioned.fill(
               child: RouteXWorldMapBackdrop(activeCode: mapCode),
             ),
@@ -72,52 +72,7 @@ class _DashboardSceneState extends ConsumerState<DashboardScene> {
             children: [
               _StatsStrip(compact: !wide),
               const SizedBox(height: 12),
-              Expanded(
-                child: wide
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const Expanded(child: SizedBox()),
-                          const SizedBox(width: 12),
-                          if (_showApps)
-                            SizedBox(
-                              width: 300,
-                              child: _ActiveAppsPanel(
-                                onHide: () =>
-                                    setState(() => _showApps = false),
-                              ),
-                            )
-                          else
-                            Align(
-                              alignment: Alignment.topRight,
-                              child: _ShowAppsButton(
-                                onTap: () =>
-                                    setState(() => _showApps = true),
-                              ),
-                            ),
-                        ],
-                      )
-                    // Narrow: the map needs the width more than the list
-                    // does, so the list collapses to a short dock.
-                    : Align(
-                        alignment: Alignment.bottomCenter,
-                        child: _showApps
-                            ? SizedBox(
-                                height: 210,
-                                child: _ActiveAppsPanel(
-                                  onHide: () =>
-                                      setState(() => _showApps = false),
-                                ),
-                              )
-                            : Align(
-                                alignment: Alignment.bottomRight,
-                                child: _ShowAppsButton(
-                                  onTap: () =>
-                                      setState(() => _showApps = true),
-                                ),
-                              ),
-                      ),
-              ),
+              const Expanded(child: SizedBox()),
               const SizedBox(height: 12),
               _ConnectBar(compact: !wide),
             ],
@@ -143,16 +98,6 @@ class _StatsStrip extends ConsumerWidget {
     final isRussian = Localizations.localeOf(context).languageCode == 'ru';
     final profile = ref.watch(currentProfileProvider);
     final sub = profile?.subscriptionInfo;
-    final isRunning = ref.watch(runTimeProvider.select((v) => v != null));
-    final groups = ref.watch(currentGroupsStateProvider).value;
-    var serverName = '';
-    for (final g in groups) {
-      final now = g.realNow;
-      if (now.isNotEmpty && now != 'DIRECT' && now != 'REJECT') {
-        serverName = groups.resolveToDisplayName(g.name);
-        break;
-      }
-    }
     final traffics = ref.watch(trafficsProvider);
     final live = traffics.length == 0 ? null : traffics[traffics.length - 1];
 
@@ -164,26 +109,6 @@ class _StatsStrip extends ConsumerWidget {
         : null;
 
     final cards = <Widget>[
-      _StatCard(
-        compact: compact,
-        // Not the connection status — the bar at the bottom already says
-        // "Подключено"/"Connected", and saying it twice on one screen read
-        // as duplication.
-        label: isRussian ? 'Сервер' : 'Server',
-        // The server's own name, not its country: the connect bar already
-        // states the country too.
-        child: Text(
-          serverName.isNotEmpty
-              ? serverName
-              : (isRussian ? 'Нет сервера' : 'No server'),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: (compact
-                  ? context.textTheme.titleSmall
-                  : context.textTheme.titleMedium)
-              ?.copyWith(fontWeight: FontWeight.w700),
-        ),
-      ),
       _PingCard(isRussian: isRussian, compact: compact),
       _StatCard(
         compact: compact,
@@ -238,9 +163,7 @@ class _StatsStrip extends ConsumerWidget {
               : (isRussian ? '$days дн.' : '$days days'),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: (compact
-                  ? context.textTheme.bodyMedium
-                  : context.textTheme.titleSmall)
+          style: context.textTheme.bodySmall
               ?.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
@@ -262,14 +185,16 @@ class _StatsStrip extends ConsumerWidget {
       );
     }
 
-    const flexes = [2, 1, 2, 1, 2];
+    // Equal cells, centred as a group: uneven widths pinned to one edge
+    // read as a ragged pile rather than a row of readouts.
     return SizedBox(
-      height: 76,
+      height: 56,
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           for (var i = 0; i < cards.length; i++) ...[
             if (i > 0) const SizedBox(width: 10),
-            Expanded(flex: flexes[i], child: cards[i]),
+            SizedBox(width: 150, child: cards[i]),
           ],
         ],
       ),
@@ -279,8 +204,7 @@ class _StatsStrip extends ConsumerWidget {
 
 TextStyle? _mono(BuildContext context,
         {bool bold = false, bool compact = false}) =>
-    (compact ? context.textTheme.bodySmall : context.textTheme.titleSmall)
-        ?.copyWith(
+    context.textTheme.bodySmall?.copyWith(
       fontFamily: FontFamily.jetBrainsMono.value,
       fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
     );
@@ -391,12 +315,12 @@ class _StatCard extends StatelessWidget {
         radius: compact ? 13 : 16,
         child: Padding(
           padding: EdgeInsets.symmetric(
-            horizontal: compact ? 10 : 14,
-            vertical: compact ? 7 : 10,
+            horizontal: compact ? 9 : 11,
+            vertical: compact ? 6 : 7,
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
                 label,
@@ -406,7 +330,7 @@ class _StatCard extends StatelessWidget {
                   color: context.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               DefaultTextStyle.merge(
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -435,277 +359,6 @@ class _Flag extends StatelessWidget {
       );
 }
 
-// ---------------------------------------------------------------------------
-// Active apps
-// ---------------------------------------------------------------------------
-class _ActiveAppsPanel extends StatefulWidget {
-  const _ActiveAppsPanel({required this.onHide});
-
-  final VoidCallback onHide;
-
-  @override
-  State<_ActiveAppsPanel> createState() => _ActiveAppsPanelState();
-}
-
-class _ActiveAppsPanelState extends State<_ActiveAppsPanel> {
-  final _searchController = TextEditingController();
-  final _scrollController = SmoothScrollController();
-  String _query = '';
-
-  @override
-  void initState() {
-    super.initState();
-    dashboardFlows.addListener();
-  }
-
-  @override
-  void dispose() {
-    dashboardFlows.removeListener();
-    _searchController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isRussian = Localizations.localeOf(context).languageCode == 'ru';
-    return RouteXGlassSurface(
-      variant: RouteXGlassVariant.panel,
-      radius: 20,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    isRussian ? 'Активные приложения' : 'Active apps',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ),
-                RouteXFocusableTap(
-                  borderRadius: 8,
-                  onTap: widget.onHide,
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      Icons.close_rounded,
-                      size: 16,
-                      color: context.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 34,
-              child: TextField(
-                controller: _searchController,
-                onChanged: (v) => setState(() => _query = v.toLowerCase()),
-                style: context.textTheme.bodySmall,
-                decoration: InputDecoration(
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                  prefixIcon: const Icon(Icons.search_rounded, size: 16),
-                  prefixIconConstraints:
-                      const BoxConstraints(minWidth: 32, minHeight: 32),
-                  hintText: isRussian ? 'Поиск приложения' : 'Search app',
-                  hintStyle: context.textTheme.bodySmall?.copyWith(
-                    color: context.colorScheme.onSurfaceVariant,
-                  ),
-                  filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.05),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: ValueListenableBuilder<List<AppFlow>>(
-                valueListenable: dashboardFlows.state,
-                builder: (_, flows, __) {
-                  final visible = _query.isEmpty
-                      ? flows
-                      : flows
-                          .where((f) =>
-                              f.process.toLowerCase().contains(_query) ||
-                              f.host.toLowerCase().contains(_query))
-                          .toList();
-                  if (visible.isEmpty) {
-                    return Center(
-                      child: Text(
-                        isRussian ? 'Нет активности' : 'No activity',
-                        style: context.textTheme.bodySmall?.copyWith(
-                          color: context.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    );
-                  }
-                  return ListView.separated(
-                    controller: _scrollController,
-                    padding: EdgeInsets.zero,
-                    itemCount: visible.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 6),
-                    itemBuilder: (_, i) => _AppRow(flow: visible[i]),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Restores the folded-away active-apps panel.
-class _ShowAppsButton extends StatelessWidget {
-  const _ShowAppsButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => RouteXFocusableTap(
-        borderRadius: 14,
-        onTap: onTap,
-        child: RouteXGlassSurface(
-          variant: RouteXGlassVariant.panel,
-          radius: 14,
-          expand: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.apps_rounded, size: 16),
-                const SizedBox(width: 6),
-                Text(
-                  Localizations.localeOf(context).languageCode == 'ru'
-                      ? 'Приложения'
-                      : 'Apps',
-                  style: context.textTheme.labelLarge
-                      ?.copyWith(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-}
-
-class _AppRow extends StatelessWidget {
-  const _AppRow({required this.flow});
-
-  final AppFlow flow;
-
-  @override
-  Widget build(BuildContext context) {
-    final name = flow.process.replaceAll(RegExp(r'\.exe$'), '');
-    return Row(
-      children: [
-        _AppIcon(connectionId: flow.connectionId),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.textTheme.bodySmall
-                    ?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              Row(
-                children: [
-                  if (flow.countryCode != null) ...[
-                    _Flag(code: flow.countryCode!, size: 12),
-                    const SizedBox(width: 4),
-                  ],
-                  Flexible(
-                    child: Text(
-                      flow.viaProxy ? flow.host : '${flow.host} · direct',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.textTheme.labelSmall?.copyWith(
-                        color: context.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 6),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '↓${_bytes(flow.downSpeed, perSecond: true)}',
-              style: context.textTheme.labelSmall?.copyWith(
-                fontFamily: FontFamily.jetBrainsMono.value,
-              ),
-            ),
-            Text(
-              '↑${_bytes(flow.upSpeed, perSecond: true)}',
-              style: context.textTheme.labelSmall?.copyWith(
-                fontFamily: FontFamily.jetBrainsMono.value,
-                color: context.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _AppIcon extends StatelessWidget {
-  const _AppIcon({required this.connectionId});
-
-  final String connectionId;
-
-  @override
-  Widget build(BuildContext context) {
-    final fallback = Container(
-      width: 28,
-      height: 28,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withValues(alpha: 0.06),
-      ),
-      child: const Icon(Icons.apps_rounded, size: 15, color: Colors.white70),
-    );
-    if (!Platform.isWindows) return fallback;
-    return SizedBox(
-      width: 28,
-      height: 28,
-      child: FutureBuilder<ImageProvider?>(
-        future: windowsProcessIcon(connectionId),
-        builder: (context, snapshot) => snapshot.data == null
-            ? fallback
-            : ClipOval(child: Image(image: snapshot.data!, fit: BoxFit.cover)),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Bottom connect bar
-// ---------------------------------------------------------------------------
 class _ConnectBar extends ConsumerWidget {
   const _ConnectBar({required this.compact});
 

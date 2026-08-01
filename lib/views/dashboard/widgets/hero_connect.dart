@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'dart:ui' show ImageFilter;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flclashx/clash/clash.dart';
@@ -954,9 +955,22 @@ class _RouteXSubscriptionSummary extends StatelessWidget {
 // inside the card instead.
 // ----------------------------------------------------------------------------
 class RouteXWorldMapBackdrop extends StatefulWidget {
-  const RouteXWorldMapBackdrop({super.key, this.activeCode});
+  const RouteXWorldMapBackdrop({
+    super.key,
+    this.activeCode,
+    this.blurred = false,
+    this.showMarkers = true,
+  });
 
   final String? activeCode;
+
+  /// Off the dashboard the map is pushed back behind the page: blurred, so
+  /// it reads as depth rather than competing with the content in front.
+  final bool blurred;
+
+  /// App marker cards only make sense on the dashboard; elsewhere the map
+  /// is scenery.
+  final bool showMarkers;
 
   @override
   State<RouteXWorldMapBackdrop> createState() =>
@@ -1024,7 +1038,21 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
         ? null
         : countryCentroids[widget.activeCode!.toUpperCase()];
     return IgnorePointer(
-      child: Stack(
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: widget.blurred ? 14.0 : 0.0),
+        duration: reduceMotion
+            ? Duration.zero
+            : const Duration(milliseconds: 420),
+        curve: RouteXMotion.curve,
+        builder: (context, sigma, child) => sigma < 0.05
+            // ImageFiltered with a ~0 sigma still costs a full-screen
+            // filter pass, so the sharp state skips it entirely.
+            ? child!
+            : ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+                child: child,
+              ),
+        child: Stack(
         fit: StackFit.expand,
         children: [
           Opacity(
@@ -1105,7 +1133,8 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
                             size: mapSize,
                           ),
                         ),
-                        for (final e in placed)
+                        if (widget.showMarkers)
+                          for (final e in placed)
                           Positioned(
                             left: e.at.dx - 78,
                             top: e.at.dy - 62,
@@ -1120,6 +1149,7 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
             },
           ),
         ],
+      ),
       ),
     );
   }
@@ -1147,182 +1177,126 @@ class _WorldMapPainter extends CustomPainter {
   /// arcs have to land on the same adjusted points the labels sit at.
   final List<Offset> appPoints;
 
-  /// The web between destinations: every node linked to its neighbours,
-  /// plus a faint anchoring strand out to nearby country dots, so the
-  /// picture reads as a network rather than a fan of unrelated lines.
-  void _drawMesh(Canvas canvas, Size size, Offset origin) {
-    final nodes = [origin, ...appPoints];
+  /// The traffic web.
+  ///
+  /// Two parts, both derived from real traffic:
+  ///
+  /// * a compact web spun around the home node — one radial per active
+  ///   destination, aimed at its true bearing, with rings tying the
+  ///   radials together. Fixed radius on purpose: radials drawn all the
+  ///   way out to far-flung destinations degenerate into a few hairlines
+  ///   stretched across the map, which is not a web.
+  /// * a clean route line from the hub out to each destination marker,
+  ///   with packets crawling it.
+  ///
+  /// Only the packets animate; the web itself is still, so it reads.
+  void _drawWeb(Canvas canvas, Size size, Offset origin, List<Offset> nodes) {
+    if (nodes.isEmpty) return;
 
-    // Anchor strands: each node webbed to a couple of nearby map dots.
-    // This is what turns a handful of routes into something that reads as
-    // a net stretched over the map.
-    final anchors = [
-      for (final latLon in countryCentroids.values) projectLatLon(latLon, size),
-    ];
-    for (final node in nodes) {
-      final near = anchors.where((a) => (a - node).distance < 150).take(6);
-      for (final a in near) {
-        final d = (a - node).distance;
-        canvas.drawLine(
-          node,
-          a,
-          Paint()
-            ..color = premiumMint.withValues(
-              alpha: 0.10 * (1 - d / 150).clamp(0.0, 1.0),
-            )
-            ..strokeWidth = 0.6,
-        );
-      }
-    }
+    final bearings = [
+      for (final n in nodes) math.atan2(n.dy - origin.dy, n.dx - origin.dx),
+    ]..sort();
+    final webRadius = math.min(size.shortestSide * 0.17, 150.0);
 
-    // Node-to-node strands, with a spark shuttling along each.
-    for (var i = 0; i < nodes.length; i++) {
-      for (var j = i + 1; j < nodes.length; j++) {
-        final a = nodes[i];
-        final b = nodes[j];
-        final distance = (b - a).distance;
-        // Only near neighbours, otherwise every node links to every other
-        // and the map turns into a solid net.
-        if (distance > 520) continue;
-        final fade = (1 - distance / 520).clamp(0.0, 1.0);
-        canvas.drawLine(
-          a,
-          b,
-          Paint()
-            ..color = premiumMint.withValues(alpha: 0.22 * fade)
-            ..strokeWidth = 1.0,
-        );
-        final phase = ((t * 4) + (i * 0.37 + j * 0.61)) % 1.0;
-        final sparkAt = Offset.lerp(a, b, phase)!;
-        canvas.drawCircle(
-          sparkAt,
-          1.6,
-          Paint()..color = premiumMint.withValues(alpha: 0.75 * fade),
-        );
-      }
-    }
+    Offset onWeb(double angle, double r) => origin +
+        Offset(math.cos(angle), math.sin(angle)) * (webRadius * r);
 
-    // The joints themselves, so strand crossings read as nodes.
-    for (final node in nodes) {
-      canvas.drawCircle(
-        node,
-        2.2,
-        Paint()..color = premiumMint.withValues(alpha: 0.5),
+    // Radials.
+    for (final angle in bearings) {
+      canvas.drawLine(
+        origin,
+        onWeb(angle, 1.0),
+        Paint()
+          ..color = premiumMint.withValues(alpha: 0.30)
+          ..strokeWidth = 1.0
+          ..strokeCap = StrokeCap.round,
       );
     }
-  }
 
-  /// One flowing route: a fading filament with several comet-like packets
-  /// running along it, each with a tapered tail. Trails are drawn as short
-  /// segments sampled off the real path so they curve with the arc instead
-  /// of being straight streaks laid over it.
-  void _drawArc(
-    Canvas canvas,
-    Size size,
-    Offset origin,
-    Offset target,
-    double phase,
-  ) {
-    // A quadratic control point above the midpoint gives the arc a lift
-    // instead of a flat, mechanical straight line.
-    final control = Offset(
-      (origin.dx + target.dx) / 2,
-      math.min(origin.dy, target.dy) - size.height * 0.35,
-    );
-    final path = Path()
-      ..moveTo(origin.dx, origin.dy)
-      ..quadraticBezierTo(control.dx, control.dy, target.dx, target.dy);
-    final metric = path.computeMetrics().first;
-    final length = metric.length;
-
-    // The filament itself: brightest near the destination, dissolving back
-    // toward the origin, so a glance reads direction without an arrowhead.
-    canvas.drawPath(
-      path,
-      Paint()
-        ..shader = ui.Gradient.linear(
-          origin,
-          target,
-          [
-            premiumMint.withValues(alpha: 0.04),
-            premiumMint.withValues(alpha: 0.20),
-            premiumMint.withValues(alpha: 0.38),
-          ],
-          const [0.0, 0.55, 1.0],
-        )
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.1
-        ..strokeCap = StrokeCap.round,
-    );
-
-    // Three packets per route at staggered offsets and slightly different
-    // speeds, so the traffic never visibly loops in lockstep.
-    const packets = 3;
-    for (var p = 0; p < packets; p++) {
-      final speed = 0.42 + 0.13 * p;
-      final head = ((t * speed * 6) + phase + p / packets) % 1.0;
-      final headPos = metric.getTangentForOffset(length * head)?.position;
-      if (headPos == null) continue;
-
-      // Tail: sampled back along the path, thinning and fading as it goes.
-      const steps = 14;
-      final tailSpan = 0.13;
-      for (var i = steps; i >= 1; i--) {
-        final a = head - tailSpan * (i / steps);
-        final b = head - tailSpan * ((i - 1) / steps);
-        if (a <= 0) continue;
-        final pa = metric.getTangentForOffset(length * a)?.position;
-        final pb = metric.getTangentForOffset(length * b)?.position;
-        if (pa == null || pb == null) continue;
-        final k = 1 - i / steps;
-        canvas.drawLine(
-          pa,
-          pb,
-          Paint()
-            ..color = premiumMint.withValues(alpha: 0.55 * k * k)
-            ..strokeWidth = 0.6 + 2.0 * k
-            ..strokeCap = StrokeCap.round,
-        );
+    // Rings between neighbouring radials, sagging inward like real silk.
+    if (bearings.length > 1) {
+      const rings = [0.34, 0.58, 0.82, 1.0];
+      for (final r in rings) {
+        for (var i = 0; i < bearings.length; i++) {
+          final isClosing = i == bearings.length - 1;
+          if (isClosing && bearings.length == 2) break;
+          final a = onWeb(bearings[i], r);
+          final b = onWeb(bearings[(i + 1) % bearings.length], r);
+          final mid = Offset.lerp(a, b, 0.5)!;
+          final sag = Offset.lerp(mid, origin, 0.10)!;
+          canvas.drawPath(
+            Path()
+              ..moveTo(a.dx, a.dy)
+              ..quadraticBezierTo(sag.dx, sag.dy, b.dx, b.dy),
+            Paint()
+              ..color = premiumMint.withValues(alpha: 0.20)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 0.9,
+          );
+        }
       }
+    }
 
-      // Head: a hot core inside a soft bloom.
-      canvas.drawCircle(
-        headPos,
-        6.5,
+    // Routes out to the real destinations.
+    for (var i = 0; i < nodes.length; i++) {
+      final angle = math.atan2(nodes[i].dy - origin.dy, nodes[i].dx - origin.dx);
+      final from = onWeb(angle, 1.0);
+      canvas.drawLine(
+        from,
+        nodes[i],
         Paint()
           ..color = premiumMint.withValues(alpha: 0.22)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+          ..strokeWidth = 0.9,
       );
+
+      for (var k = 0; k < 2; k++) {
+        final phase = ((t * 3) + i * 0.29 + k * 0.5) % 1.0;
+        final head = Offset.lerp(origin, nodes[i], phase)!;
+        final tail =
+            Offset.lerp(origin, nodes[i], (phase - 0.06).clamp(0.0, 1.0))!;
+        canvas.drawLine(
+          tail,
+          head,
+          Paint()
+            ..color = premiumMint.withValues(alpha: 0.8)
+            ..strokeWidth = 1.7
+            ..strokeCap = StrokeCap.round,
+        );
+        canvas.drawCircle(head, 2.0, Paint()..color = premiumMint);
+      }
+    }
+
+    // Destination nodes.
+    for (var i = 0; i < nodes.length; i++) {
+      final breathe =
+          0.5 + 0.5 * math.sin((t * 6 + i / nodes.length) * 2 * math.pi);
       canvas.drawCircle(
-        headPos,
-        1.9,
-        Paint()..color = premiumMint.withValues(alpha: 0.95),
+        nodes[i],
+        8 + 3 * breathe,
+        Paint()
+          ..color = premiumMint.withValues(alpha: 0.10 + 0.10 * breathe)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+      );
+      canvas.drawCircle(nodes[i], 3.4, Paint()..color = premiumMint);
+      canvas.drawCircle(
+        nodes[i],
+        6,
+        Paint()
+          ..color = premiumMint.withValues(alpha: 0.45)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1,
       );
     }
 
-    // Destination: a steady node with a slow breathing halo so an idle
-    // route still reads as live.
-    final breathe = 0.5 + 0.5 * math.sin((t * 6 + phase) * 2 * math.pi);
+    // The hub itself.
     canvas.drawCircle(
-      target,
-      9 + 3 * breathe,
+      origin,
+      14,
       Paint()
-        ..color = premiumMint.withValues(alpha: 0.10 + 0.12 * breathe)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+        ..color = premiumMint.withValues(alpha: 0.20)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
     );
-    canvas.drawCircle(
-      target,
-      3.6,
-      Paint()..color = premiumMint,
-    );
-    canvas.drawCircle(
-      target,
-      6.0,
-      Paint()
-        ..color = premiumMint.withValues(alpha: 0.45)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
+    canvas.drawCircle(origin, 4, Paint()..color = premiumMint);
   }
 
   @override
@@ -1364,15 +1338,12 @@ class _WorldMapPainter extends CustomPainter {
     canvas.drawCircle(origin, 4, Paint()..color = premiumMint);
 
     if (appPoints.isNotEmpty) {
-      _drawMesh(canvas, size, origin);
-      for (var i = 0; i < appPoints.length; i++) {
-        _drawArc(canvas, size, origin, appPoints[i], i / appPoints.length);
-      }
+      _drawWeb(canvas, size, origin, appPoints);
       return;
     }
 
     if (activeLatLon == null) return;
-    _drawArc(canvas, size, origin, projectLatLon(activeLatLon!, size), 0);
+    _drawWeb(canvas, size, origin, [projectLatLon(activeLatLon!, size)]);
   }
 
   @override

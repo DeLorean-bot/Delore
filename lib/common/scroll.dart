@@ -145,22 +145,52 @@ class SmoothScrollPosition extends ScrollPositionWithSingleContext {
     super.debugLabel,
   });
 
+  /// Where the in-flight wheel animation is heading, or null when none is.
+  ///
+  /// Each wheel tick must extend *this*, not restart from [pixels]. Animating
+  /// from the live (mid-flight) position on every tick meant a fast scroll
+  /// spent its whole time restarting a decelerating animation: the list
+  /// crawled and felt like it was refusing to move.
+  double? _wheelTarget;
+
   @override
   void pointerScroll(double delta) {
     if (delta == 0.0) {
       goBallistic(0.0);
       return;
     }
-    final targetPixels = min(
-      max(pixels + delta, minScrollExtent),
-      maxScrollExtent,
+    final base = _wheelTarget ?? pixels;
+    final target = min(max(base + delta, minScrollExtent), maxScrollExtent);
+    if (target == pixels) {
+      _wheelTarget = null;
+      return;
+    }
+    _wheelTarget = target;
+    // Short: long enough to smooth the step, short enough that the list
+    // still feels attached to the wheel.
+    unawaited(
+      animateTo(
+        target,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutCubic,
+      ).whenComplete(() {
+        if (_wheelTarget == target) _wheelTarget = null;
+      }),
     );
-    if (targetPixels == pixels) return;
-    unawaited(animateTo(
-      targetPixels,
-      duration: const Duration(milliseconds: 240),
-      curve: Curves.easeOutCubic,
-    ));
+  }
+
+  // Any other kind of scroll invalidates the wheel's target, otherwise the
+  // next tick would resume from a position the user has since left.
+  @override
+  void applyUserOffset(double delta) {
+    _wheelTarget = null;
+    super.applyUserOffset(delta);
+  }
+
+  @override
+  void jumpTo(double value) {
+    _wheelTarget = null;
+    super.jumpTo(value);
   }
 }
 
