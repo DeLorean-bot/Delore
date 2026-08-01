@@ -122,7 +122,12 @@ class DashboardFlows {
           process: entry.key,
           connectionId: entry.value.id,
           host: entry.value.host,
-          countryCode: (code != null && code.length == 2) ? code : null,
+          // Normalised here: the flag helpers uppercase internally, so a
+          // lowercase code from geoip still renders a flag — but every
+          // lookup keyed by country code (the map's centroid table) would
+          // silently miss.
+          countryCode:
+              (code != null && code.length == 2) ? code.toUpperCase() : null,
           upload: entry.value.up,
           download: entry.value.down,
           upSpeed: (elapsed > 0 && upDelta > 0) ? (upDelta / elapsed).round() : 0,

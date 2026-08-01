@@ -1058,14 +1058,36 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
                         Size(constraints.maxWidth, constraints.maxHeight);
                     // Busiest few only — enough to read as "your traffic,
                     // going places" without the map becoming a tangle.
-                    final appTargets = [
-                      for (final flow in flows.take(5))
-                        if (flow.countryCode != null)
+                    final candidates = [
+                      for (final flow in flows.take(6))
+                        if (flow.countryCode != null &&
+                            countryCentroids[flow.countryCode!.toUpperCase()] !=
+                                null)
                           (
                             flow: flow,
-                            latLon: countryCentroids[flow.countryCode!],
+                            latLon: countryCentroids[
+                                flow.countryCode!.toUpperCase()]!,
                           ),
-                    ].where((e) => e.latLon != null).toList();
+                    ];
+
+                    // Several apps usually exit through the same country, so
+                    // their markers would stack into one illegible blob.
+                    // Fan the collisions out around the shared point instead.
+                    final placed = <({AppFlow flow, Offset latLon, Offset at})>[];
+                    for (final c in candidates) {
+                      var at = projectLatLon(c.latLon, mapSize);
+                      var attempt = 0;
+                      while (placed.any((p) => (p.at - at).distance < 96) &&
+                          attempt < 8) {
+                        attempt++;
+                        final angle = attempt * (math.pi * 2 / 6);
+                        final radius = 52.0 + 26 * (attempt ~/ 6);
+                        at = projectLatLon(c.latLon, mapSize) +
+                            Offset(math.cos(angle), math.sin(angle)) * radius;
+                      }
+                      placed.add((flow: c.flow, latLon: c.latLon, at: at));
+                    }
+
                     return Stack(
                       fit: StackFit.expand,
                       children: [
@@ -1075,19 +1097,19 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
                             painter: _WorldMapPainter(
                               t: reduceMotion ? 0 : _controller.value,
                               activeLatLon:
-                                  appTargets.isEmpty ? activeLatLon : null,
+                                  placed.isEmpty ? activeLatLon : null,
                               homeLatLon: homeLatLon,
-                              appLatLons: [
-                                for (final e in appTargets) e.latLon!,
-                              ],
+                              appLatLons: [for (final e in placed) e.latLon],
+                              appPoints: [for (final e in placed) e.at],
                             ),
                             size: mapSize,
                           ),
                         ),
-                        for (final e in appTargets)
+                        for (final e in placed)
                           Positioned(
-                            left: projectLatLon(e.latLon!, mapSize).dx - 60,
-                            top: projectLatLon(e.latLon!, mapSize).dy - 34,
+                            left: e.at.dx - 78,
+                            top: e.at.dy - 62,
+                            width: 156,
                             child: _AppMapLabel(flow: e.flow),
                           ),
                       ],
@@ -1109,15 +1131,86 @@ class _WorldMapPainter extends CustomPainter {
     required this.activeLatLon,
     this.homeLatLon,
     this.appLatLons = const [],
+    this.appPoints = const [],
   });
 
   final double t;
   final Offset? activeLatLon;
   final Offset? homeLatLon;
 
-  /// One arc per app on Windows, in place of the single [activeLatLon] arc
-  /// (the caller passes at most one of the two — see RouteXWorldMapBackdrop).
+  /// One arc per app, in place of the single [activeLatLon] arc (the caller
+  /// passes at most one of the two — see RouteXWorldMapBackdrop).
   final List<Offset> appLatLons;
+
+  /// Already-projected, collision-resolved screen positions for [appLatLons].
+  /// The markers are fanned out when several apps share a country, so the
+  /// arcs have to land on the same adjusted points the labels sit at.
+  final List<Offset> appPoints;
+
+  /// The web between destinations: every node linked to its neighbours,
+  /// plus a faint anchoring strand out to nearby country dots, so the
+  /// picture reads as a network rather than a fan of unrelated lines.
+  void _drawMesh(Canvas canvas, Size size, Offset origin) {
+    final nodes = [origin, ...appPoints];
+
+    // Anchor strands: each node webbed to a couple of nearby map dots.
+    // This is what turns a handful of routes into something that reads as
+    // a net stretched over the map.
+    final anchors = [
+      for (final latLon in countryCentroids.values) projectLatLon(latLon, size),
+    ];
+    for (final node in nodes) {
+      final near = anchors.where((a) => (a - node).distance < 150).take(6);
+      for (final a in near) {
+        final d = (a - node).distance;
+        canvas.drawLine(
+          node,
+          a,
+          Paint()
+            ..color = premiumMint.withValues(
+              alpha: 0.10 * (1 - d / 150).clamp(0.0, 1.0),
+            )
+            ..strokeWidth = 0.6,
+        );
+      }
+    }
+
+    // Node-to-node strands, with a spark shuttling along each.
+    for (var i = 0; i < nodes.length; i++) {
+      for (var j = i + 1; j < nodes.length; j++) {
+        final a = nodes[i];
+        final b = nodes[j];
+        final distance = (b - a).distance;
+        // Only near neighbours, otherwise every node links to every other
+        // and the map turns into a solid net.
+        if (distance > 520) continue;
+        final fade = (1 - distance / 520).clamp(0.0, 1.0);
+        canvas.drawLine(
+          a,
+          b,
+          Paint()
+            ..color = premiumMint.withValues(alpha: 0.22 * fade)
+            ..strokeWidth = 1.0,
+        );
+        final phase = ((t * 4) + (i * 0.37 + j * 0.61)) % 1.0;
+        final sparkAt = Offset.lerp(a, b, phase)!;
+        canvas.drawCircle(
+          sparkAt,
+          1.6,
+          Paint()..color = premiumMint.withValues(alpha: 0.75 * fade),
+        );
+      }
+    }
+
+    // The joints themselves, so strand crossings read as nodes.
+    for (final node in nodes) {
+      canvas.drawCircle(
+        node,
+        2.2,
+        Paint()..color = premiumMint.withValues(alpha: 0.5),
+      );
+    }
+  }
 
   /// One flowing route: a fading filament with several comet-like packets
   /// running along it, each with a tapered tail. Trails are drawn as short
@@ -1127,10 +1220,9 @@ class _WorldMapPainter extends CustomPainter {
     Canvas canvas,
     Size size,
     Offset origin,
-    Offset targetLatLon,
+    Offset target,
     double phase,
   ) {
-    final target = projectLatLon(targetLatLon, size);
     // A quadratic control point above the midpoint gives the arc a lift
     // instead of a flat, mechanical straight line.
     final control = Offset(
@@ -1271,15 +1363,16 @@ class _WorldMapPainter extends CustomPainter {
     );
     canvas.drawCircle(origin, 4, Paint()..color = premiumMint);
 
-    if (appLatLons.isNotEmpty) {
-      for (var i = 0; i < appLatLons.length; i++) {
-        _drawArc(canvas, size, origin, appLatLons[i], i / appLatLons.length);
+    if (appPoints.isNotEmpty) {
+      _drawMesh(canvas, size, origin);
+      for (var i = 0; i < appPoints.length; i++) {
+        _drawArc(canvas, size, origin, appPoints[i], i / appPoints.length);
       }
       return;
     }
 
     if (activeLatLon == null) return;
-    _drawArc(canvas, size, origin, activeLatLon!, 0);
+    _drawArc(canvas, size, origin, projectLatLon(activeLatLon!, size), 0);
   }
 
   @override
@@ -1287,7 +1380,8 @@ class _WorldMapPainter extends CustomPainter {
       oldDelegate.t != t ||
       oldDelegate.activeLatLon != activeLatLon ||
       oldDelegate.homeLatLon != homeLatLon ||
-      !listEquals(oldDelegate.appLatLons, appLatLons);
+      !listEquals(oldDelegate.appLatLons, appLatLons) ||
+      !listEquals(oldDelegate.appPoints, appPoints);
 }
 
 /// The small icon + name + live traffic chip pinned at an app's connection
@@ -1299,74 +1393,116 @@ class _AppMapLabel extends StatelessWidget {
   final AppFlow flow;
 
   @override
-  Widget build(BuildContext context) => IgnorePointer(
-        child: SizedBox(
-          width: 120,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 26,
-                height: 26,
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black.withValues(alpha: 0.55),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.18),
-                  ),
+  Widget build(BuildContext context) {
+    final name = flow.process.replaceAll(RegExp(r'\.exe$'), '');
+    return IgnorePointer(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // A real card, not floating text: over a busy map, bare glyphs
+          // disappear into the landmass underneath them.
+          Container(
+            padding: const EdgeInsets.fromLTRB(7, 5, 9, 5),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.72),
+              borderRadius: BorderRadius.circular(11),
+              border: Border.all(
+                color: premiumMint.withValues(alpha: 0.28),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  blurRadius: 10,
                 ),
-                child: Platform.isWindows
-                    ? FutureBuilder<ImageProvider?>(
-                        future: windowsProcessIcon(flow.connectionId),
-                        builder: (context, snapshot) => snapshot.data == null
-                            ? const Icon(
-                                Icons.apps_rounded,
-                                size: 14,
-                                color: Colors.white70,
-                              )
-                            : Image(
-                                image: snapshot.data!,
-                                fit: BoxFit.cover,
-                              ),
-                      )
-                    : const Icon(
-                        Icons.apps_rounded,
-                        size: 14,
-                        color: Colors.white70,
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: Platform.isWindows
+                      ? FutureBuilder<ImageProvider?>(
+                          future: windowsProcessIcon(flow.connectionId),
+                          builder: (context, snapshot) => snapshot.data == null
+                              ? const Icon(Icons.apps_rounded,
+                                  size: 13, color: Colors.white70)
+                              : ClipOval(
+                                  child: Image(
+                                    image: snapshot.data!,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                        )
+                      : const Icon(Icons.apps_rounded,
+                          size: 13, color: Colors.white70),
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          height: 1.15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
                       ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                flow.process,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                  shadows: [Shadow(blurRadius: 4, color: Colors.black)],
-                ),
-              ),
-              if (flow.upSpeed + flow.downSpeed > 0)
-                Text(
-                  '↑${_formatBytes(flow.upSpeed)}/s ↓${_formatBytes(flow.downSpeed)}/s',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontFamily: FontFamily.jetBrainsMono.value,
-                    color: Colors.white.withValues(alpha: 0.75),
-                    shadows: const [
-                      Shadow(blurRadius: 4, color: Colors.black),
+                      Text(
+                        flow.host,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 9,
+                          height: 1.2,
+                          color: Colors.white.withValues(alpha: 0.62),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-            ],
+                if (flow.countryCode != null) ...[
+                  const SizedBox(width: 6),
+                  EmojiText(
+                    countryCodeToEmoji(flow.countryCode!),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ],
+            ),
           ),
-        ),
-      );
+          if (flow.upSpeed + flow.downSpeed > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                '↓${_formatBytes(flow.downSpeed)}/s  ↑${_formatBytes(flow.upSpeed)}/s',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontFamily: FontFamily.jetBrainsMono.value,
+                  color: Colors.white.withValues(alpha: 0.8),
+                  shadows: const [Shadow(blurRadius: 5, color: Colors.black)],
+                ),
+              ),
+            ),
+          // Stem down to the node the arc actually lands on.
+          Container(
+            width: 1.2,
+            height: 14,
+            color: premiumMint.withValues(alpha: 0.45),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _RouteXMetric extends StatelessWidget {

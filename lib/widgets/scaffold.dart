@@ -7,8 +7,6 @@ import 'package:flclashx/enum/enum.dart';
 import 'package:flclashx/models/models.dart';
 import 'package:flclashx/providers/providers.dart';
 import 'package:flclashx/state.dart';
-import 'package:flclashx/views/dashboard/widgets/hero_connect.dart'
-    show RouteXWorldMapBackdrop, resolveActiveServerCountryCode;
 import 'package:flclashx/widgets/fade_box.dart';
 import 'package:flclashx/widgets/pop_scope.dart';
 import 'package:flclashx/widgets/routex_backdrop.dart';
@@ -612,8 +610,6 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
     final viewMode = ref.watch(viewModeProvider);
     final isDashboard =
         ref.watch(currentPageLabelProvider) == PageLabel.dashboard;
-    final activeMapCode =
-        isDashboard ? resolveActiveServerCountryCode(ref) : null;
     final pageBody = viewMode == ViewMode.desktop
         ? Align(
             alignment: Alignment.topCenter,
@@ -805,11 +801,6 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
         children: [
           _buildPremiumBackdrop(),
           RouteXBackdrop(active: isDashboard),
-          // Full-page, behind everything — not a panel inside the hero
-          // card. Only mounted on the dashboard: elsewhere there's no
-          // "active server" context for it to plot.
-          if (isDashboard)
-            RouteXWorldMapBackdrop(activeCode: activeMapCode),
           if (backgroundUrl != null) ...[
             _buildBackground(backgroundUrl),
             _buildOverlay(
