@@ -41,7 +41,10 @@ var
   i: Integer;
   ResultCode: Integer;
 begin
-  Processes := ['FlClashX.exe', 'FlClashCore.exe', 'FlClashHelperService.exe'];
+  // FlClashX.exe stays in the list: an install on top of a pre-rename
+  // version has to shut down the old executable too, or its files are
+  // still locked when the installer tries to replace them.
+  Processes := ['Delore.exe', 'FlClashX.exe', 'FlClashCore.exe', 'FlClashHelperService.exe'];
 
   // First try graceful shutdown
   for i := 0 to GetArrayLength(Processes)-1 do

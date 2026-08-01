@@ -24,7 +24,7 @@ class Vpn {
 
   Vpn._();
 
-  String _cachedProfileName = 'FlClashX';
+  String _cachedProfileName = 'Delore';
   String _cachedServiceName = '';
 
   String get cachedProfileName => _cachedProfileName;

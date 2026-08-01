@@ -74,7 +74,7 @@ class AppPath {
 
   Future<String> get lockFilePath async {
     final directory = await dataDir.future;
-    return join(directory.path, "FlClashX.lock");
+    return join(directory.path, "Delore.lock");
   }
 
   Future<String> get sharedPreferencesPath async {

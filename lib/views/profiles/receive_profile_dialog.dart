@@ -284,7 +284,7 @@ class _ReceiveProfileDialogState extends State<ReceiveProfileDialog> {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>FlClashX — подписка на ТВ</title>
+<title>Delore — подписка на ТВ</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }

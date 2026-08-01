@@ -131,7 +131,12 @@ class Build {
         ),
       ];
 
-  static String get appName => "FlClashX";
+  // Must match BINARY_NAME in windows/ and linux/ CMakeLists.txt and
+  // PRODUCT_NAME in macos/Runner/Configs/AppInfo.xcconfig — this name is
+  // used both to locate the built binary and to name what ships. While it
+  // said FlClashX and Linux already built "Delore", the .deb's desktop
+  // entry pointed Exec at /opt/FlClashX/FlClashX, which does not exist.
+  static String get appName => "Delore";
 
   static String get coreName => "FlClashCore";
 
@@ -632,7 +637,7 @@ class BuildCommand extends Command {
           .replaceAll("{{APP_VERSION}}", version)
           .replaceAll("{{DISPLAY_NAME}}", Build.appName)
           .replaceAll("{{PUBLISHER_NAME}}", "pluralplay")
-          .replaceAll("{{PUBLISHER_URL}}", "https://github.com/pluralplay/FlClashX")
+          .replaceAll("{{PUBLISHER_URL}}", "https://github.com/DeLorean-bot/Delore")
           .replaceAll("{{INSTALL_DIR_NAME}}", "{autopf}\\${Build.appName}")
           .replaceAll("{{OUTPUT_BASE_FILENAME}}", "${Build.appName}-windows-$archName-setup")
           .replaceAll("{{SETUP_ICON_FILE}}", join(current, "windows", "runner", "resources", "app_icon.ico"))
@@ -751,7 +756,7 @@ class BuildCommand extends Command {
       "Icon=$appName\n"
       "Terminal=false\n"
       "Categories=Network;\n"
-      "Keywords=FlClashX;Clash;Proxy;\n"
+      "Keywords=Delore;Clash;Proxy;\n"
       "StartupNotify=true\n",
     );
     File(join(debControlDir, "control")).writeAsStringSync(
@@ -790,7 +795,7 @@ class BuildCommand extends Command {
         "Icon=$appName\n"
         "Terminal=false\n"
         "Categories=Network;\n"
-        "Keywords=FlClashX;Clash;Proxy;\n"
+        "Keywords=Delore;Clash;Proxy;\n"
         "StartupNotify=true\n",
       );
 
@@ -903,7 +908,7 @@ class BuildCommand extends Command {
         "Icon=$appName\n"
         "Terminal=false\n"
         "Categories=Network;\n"
-        "Keywords=FlClashX;Clash;Proxy;\n"
+        "Keywords=Delore;Clash;Proxy;\n"
         "StartupNotify=true\n",
       );
       Build.copyFile(join(appShareDesktop, "com.follow.clashx.desktop"), join(appDir, "com.follow.clashx.desktop"));

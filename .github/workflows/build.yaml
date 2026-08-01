@@ -247,51 +247,28 @@ jobs:
               mv "$file" "${file/FlClashX-/Delore-}"
             done
 
+      # The release body is the hand-written CHANGELOG.md section for this
+      # tag, verbatim. This used to be `git log --pretty=%B` piped through
+      # awk, which pasted every commit message — subject *and* body, the
+      # long explanatory ones included — into the release post as a flat
+      # bullet list. Unreadable, and it meant the curated changelog never
+      # reached the people actually reading the release.
       - name: Generate release.md
         run: |
-          tags=($(git tag --merged $(git rev-parse HEAD) --sort=-creatordate))
-          
-          # Determine previous tag based on release type
-          if [ "${{ env.IS_STABLE }}" == "true" ]; then
-            # For stable: get latest stable release from API
-            preTag=$(curl --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")' || echo "")
-          else
-            # For pre-release: get the latest pre-release tag (last tag with '-' in name before current)
-            preTag=""
-            for tag in "${tags[@]}"; do
-              if [ "$tag" != "${tags[0]}" ] && [[ "$tag" == *-* ]]; then
-                preTag="$tag"
-                break
-              fi
-            done
-            # If no previous pre-release found, use latest stable
-            if [ -z "$preTag" ]; then
-              preTag=$(curl --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")' || echo "")
-            fi
+          version="${GITHUB_REF_NAME#v}"
+          awk -v want="## v$version" '
+            $0 == want { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md | sed -e '/./,$!d' > release.md
+
+          if [ ! -s release.md ]; then
+            echo "::warning::No '## v$version' section in CHANGELOG.md; releasing without notes."
+            printf 'See [CHANGELOG.md](https://github.com/%s/blob/master/CHANGELOG.md).\n' \
+              "$GITHUB_REPOSITORY" > release.md
           fi
-          
-          currentTag=""
-          for ((i = 0; i <= ${#tags[@]}; i++)); do
-            if (( i < ${#tags[@]} )); then
-              tag=${tags[$i]}
-            else
-              tag=""
-            fi
-            if [ -n "$currentTag" ]; then
-              if [ "$(echo -e "$currentTag\n$preTag" | sort -V | head -n 1)" == "$currentTag" ]; then
-                break
-              fi
-            fi
-            if [ -n "$currentTag" ]; then
-              if [ -n "$tag" ]; then
-                git log --pretty=format:"%B" "$tag..$currentTag" | awk 'NF {print "- " $0} !NF {print ""}' >> release.md
-              else
-                git log --pretty=format:"%B" "$currentTag" | awk 'NF {print "- " $0} !NF {print ""}' >> release.md
-              fi
-              echo "" >> release.md
-            fi
-            currentTag=$tag
-          done
+
+          echo "" >> release.md
 
       - name: Patch release.md
         run: |
@@ -452,14 +429,19 @@ jobs:
         with:
           name: release-notes
 
-      - name: Prepare commit list for notification
+      # release.md is now the changelog section, whose bullets are "* ", not
+      # the "- " the old commit dump produced — match both, and never let a
+      # grep miss abort the step (`run:` is `bash -e`, so a failing pipeline
+      # inside $(...) would).
+      - name: Prepare highlights for notification
         id: prepare_commits
         run: |
-          main_commit=$(git log -1 --pretty=format:"%s" ${{ github.ref_name }})
-          other_commits=$(head -n 20 release.md | grep "^- " | grep -v "^- ${main_commit}$" | head -n 9)
-          commits="• ${main_commit}"
-          if [ -n "$other_commits" ]; then
-            commits="${commits}"$'\n'"${other_commits}"
+          headline=$(git log -1 --pretty=format:"%s" ${{ github.ref_name }})
+          bullets=$(grep -E '^[-*] ' release.md | head -n 9 | sed 's/^[-*] /• /' || true)
+          if [ -n "$bullets" ]; then
+            commits="$bullets"
+          else
+            commits="• ${headline}"
           fi
           commits_escaped=$(echo "$commits" | jq -Rs .)
           echo "commits=$commits_escaped" >> $GITHUB_OUTPUT

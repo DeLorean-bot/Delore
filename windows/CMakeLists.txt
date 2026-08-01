@@ -1,10 +1,12 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
-project(FlClashX LANGUAGES CXX)
+project(Delore LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
-# the on-disk name of your application.
-set(BINARY_NAME "FlClashX")
+# the on-disk name of your application. Linux already builds a "Delore"
+# binary; this matches it so Task Manager, the installer's kill list and
+# setup.dart's packaging all agree on one name.
+set(BINARY_NAME "Delore")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.

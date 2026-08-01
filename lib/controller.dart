@@ -1120,6 +1120,8 @@ class AppController {
       final filesToDelete = [
         'cache.db',
         'libCachedImageData.json',
+        'Delore.lock',
+        // Left behind by installs that predate the rename.
         'FlClashX.lock',
       ];
 

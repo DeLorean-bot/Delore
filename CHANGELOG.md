@@ -24,6 +24,15 @@
 * Fixed app markers never appearing on the map (country codes were compared in the wrong case)
 * Fixed the connect bar collapsing into a narrow island instead of spanning the window
 * Fixed the top stat cards being oversized and unevenly spaced
+* Fixed page content sliding under the floating app bar — the Active/Log switch on Connections, the profile list, the server list, and the heading in every settings side panel
+* Release notes on GitHub are now the hand-written changelog instead of a dump of every commit message
+
+**Naming**
+
+* The Windows executable is now `Delore.exe` — it used to ship as `FlClashX.exe` with a window titled "RouteX", so Task Manager and Alt-Tab showed two old names
+* Fixed the Linux `.deb` launcher doing nothing: the desktop entry pointed at `/opt/FlClashX/FlClashX` while the packaged binary was already named `Delore`
+* The macOS bundle is now `Delore.app`
+* Installer, MSIX display name, log files, VPN notification and the subscription page title all say Delore
 
 **Interface**
 
