@@ -4,13 +4,17 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flclashx/clash/clash.dart';
 import 'package:flclashx/common/common.dart';
+import 'package:flclashx/common/process_icon.dart';
 import 'package:flclashx/enum/enum.dart';
 import 'package:flclashx/models/models.dart';
 import 'package:flclashx/providers/providers.dart';
 import 'package:flclashx/state.dart';
+import 'package:flclashx/views/dashboard/dashboard_flows.dart';
 import 'package:flclashx/views/profiles/add_profile.dart';
 import 'package:flclashx/widgets/widgets.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -996,7 +1000,14 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
   )..repeat();
 
   @override
+  void initState() {
+    super.initState();
+    dashboardFlows.addListener();
+  }
+
+  @override
   void dispose() {
+    dashboardFlows.removeListener();
     _controller.dispose();
     super.dispose();
   }
@@ -1035,15 +1046,49 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
               final homeLatLon = homeCode == null
                   ? null
                   : countryCentroids[homeCode.toUpperCase()];
-              return AnimatedBuilder(
-                animation: _controller,
-                builder: (context, _) => CustomPaint(
-                  painter: _WorldMapPainter(
-                    t: reduceMotion ? 0 : _controller.value,
-                    activeLatLon: activeLatLon,
-                    homeLatLon: homeLatLon,
-                  ),
-                  size: Size.infinite,
+              return ValueListenableBuilder<List<AppFlow>>(
+                valueListenable: dashboardFlows.state,
+                builder: (_, flows, __) => LayoutBuilder(
+                  builder: (context, constraints) {
+                    final mapSize =
+                        Size(constraints.maxWidth, constraints.maxHeight);
+                    // Busiest few only — enough to read as "your traffic,
+                    // going places" without the map becoming a tangle.
+                    final appTargets = [
+                      for (final flow in flows.take(5))
+                        if (flow.countryCode != null)
+                          (
+                            flow: flow,
+                            latLon: countryCentroids[flow.countryCode!],
+                          ),
+                    ].where((e) => e.latLon != null).toList();
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        AnimatedBuilder(
+                          animation: _controller,
+                          builder: (context, _) => CustomPaint(
+                            painter: _WorldMapPainter(
+                              t: reduceMotion ? 0 : _controller.value,
+                              activeLatLon:
+                                  appTargets.isEmpty ? activeLatLon : null,
+                              homeLatLon: homeLatLon,
+                              appLatLons: [
+                                for (final e in appTargets) e.latLon!,
+                              ],
+                            ),
+                            size: mapSize,
+                          ),
+                        ),
+                        for (final e in appTargets)
+                          Positioned(
+                            left: projectLatLon(e.latLon!, mapSize).dx - 60,
+                            top: projectLatLon(e.latLon!, mapSize).dy - 34,
+                            child: _AppMapLabel(flow: e.flow),
+                          ),
+                      ],
+                    );
+                  },
                 ),
               );
             },
@@ -1059,39 +1104,25 @@ class _WorldMapPainter extends CustomPainter {
     required this.t,
     required this.activeLatLon,
     this.homeLatLon,
+    this.appLatLons = const [],
   });
 
   final double t;
   final Offset? activeLatLon;
   final Offset? homeLatLon;
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final dotPaint = Paint()..color = Colors.white.withValues(alpha: 0.22);
-    for (final latLon in countryCentroids.values) {
-      canvas.drawCircle(projectLatLon(latLon, size), 1.8, dotPaint);
-    }
+  /// One arc per app on Windows, in place of the single [activeLatLon] arc
+  /// (the caller passes at most one of the two — see RouteXWorldMapBackdrop).
+  final List<Offset> appLatLons;
 
-    // The hub sits at the user's own detected location when it's known
-    // (real IP geolocation, same source the location panel's flag/IP
-    // comes from) — a fixed screen position landed in open ocean for
-    // anyone whose real country wasn't near there. Falls back to a
-    // point low on the map, clear of the hero card, only until
-    // detection resolves.
-    final origin = homeLatLon != null
-        ? projectLatLon(homeLatLon!, size)
-        : Offset(size.width / 2, size.height * 0.88);
-    canvas.drawCircle(origin, 3.5, Paint()..color = premiumMint);
-    canvas.drawCircle(
-      origin,
-      8,
-      Paint()
-        ..color = premiumMint.withValues(alpha: 0.28)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
-    );
-
-    if (activeLatLon == null) return;
-    final target = projectLatLon(activeLatLon!, size);
+  void _drawArc(
+    Canvas canvas,
+    Size size,
+    Offset origin,
+    Offset targetLatLon,
+    double phase,
+  ) {
+    final target = projectLatLon(targetLatLon, size);
     // A quadratic control point above the midpoint gives the arc a lift
     // instead of a flat, mechanical straight line.
     final control = Offset(
@@ -1111,7 +1142,9 @@ class _WorldMapPainter extends CustomPainter {
     );
 
     final metric = path.computeMetrics().first;
-    final pulseT = (t * 3) % 1;
+    // Phase-shifted per line so parallel pulses don't all travel in
+    // lockstep — reads as several independent flows, not one blinking.
+    final pulseT = (t * 3 + phase) % 1;
     final pulsePos = metric.getTangentForOffset(metric.length * pulseT);
     if (pulsePos != null) {
       canvas.drawCircle(
@@ -1139,8 +1172,126 @@ class _WorldMapPainter extends CustomPainter {
   }
 
   @override
+  void paint(Canvas canvas, Size size) {
+    final dotPaint = Paint()..color = Colors.white.withValues(alpha: 0.22);
+    for (final latLon in countryCentroids.values) {
+      canvas.drawCircle(projectLatLon(latLon, size), 1.8, dotPaint);
+    }
+
+    // The hub sits at the user's own detected location when it's known
+    // (real IP geolocation, same source the location panel's flag/IP
+    // comes from) — a fixed screen position landed in open ocean for
+    // anyone whose real country wasn't near there. Falls back to a
+    // point low on the map, clear of the hero card, only until
+    // detection resolves.
+    final origin = homeLatLon != null
+        ? projectLatLon(homeLatLon!, size)
+        : Offset(size.width / 2, size.height * 0.88);
+    canvas.drawCircle(origin, 3.5, Paint()..color = premiumMint);
+    canvas.drawCircle(
+      origin,
+      8,
+      Paint()
+        ..color = premiumMint.withValues(alpha: 0.28)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    );
+
+    if (appLatLons.isNotEmpty) {
+      for (var i = 0; i < appLatLons.length; i++) {
+        _drawArc(canvas, size, origin, appLatLons[i], i / appLatLons.length);
+      }
+      return;
+    }
+
+    if (activeLatLon == null) return;
+    _drawArc(canvas, size, origin, activeLatLon!, 0);
+  }
+
+  @override
   bool shouldRepaint(covariant _WorldMapPainter oldDelegate) =>
-      oldDelegate.t != t || oldDelegate.activeLatLon != activeLatLon;
+      oldDelegate.t != t ||
+      oldDelegate.activeLatLon != activeLatLon ||
+      oldDelegate.homeLatLon != homeLatLon ||
+      !listEquals(oldDelegate.appLatLons, appLatLons);
+}
+
+/// The small icon + name + live traffic chip pinned at an app's connection
+/// target on the map. Fixed width so it doesn't reflow the map layout as
+/// traffic numbers change length.
+class _AppMapLabel extends StatelessWidget {
+  const _AppMapLabel({required this.flow});
+
+  final AppFlow flow;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+        child: SizedBox(
+          width: 120,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 26,
+                height: 26,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black.withValues(alpha: 0.55),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Platform.isWindows
+                    ? FutureBuilder<ImageProvider?>(
+                        future: windowsProcessIcon(flow.connectionId),
+                        builder: (context, snapshot) => snapshot.data == null
+                            ? const Icon(
+                                Icons.apps_rounded,
+                                size: 14,
+                                color: Colors.white70,
+                              )
+                            : Image(
+                                image: snapshot.data!,
+                                fit: BoxFit.cover,
+                              ),
+                      )
+                    : const Icon(
+                        Icons.apps_rounded,
+                        size: 14,
+                        color: Colors.white70,
+                      ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                flow.process,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  shadows: [Shadow(blurRadius: 4, color: Colors.black)],
+                ),
+              ),
+              if (flow.upSpeed + flow.downSpeed > 0)
+                Text(
+                  '↑${_formatBytes(flow.upSpeed)}/s ↓${_formatBytes(flow.downSpeed)}/s',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontFamily: FontFamily.jetBrainsMono.value,
+                    color: Colors.white.withValues(alpha: 0.75),
+                    shadows: const [
+                      Shadow(blurRadius: 4, color: Colors.black),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
 }
 
 class _RouteXMetric extends StatelessWidget {

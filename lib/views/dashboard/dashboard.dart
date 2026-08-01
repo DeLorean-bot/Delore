@@ -4,7 +4,7 @@ import 'package:flclashx/providers/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'widgets/hero_connect.dart';
+import 'dashboard_scene.dart';
 
 class DashboardView extends ConsumerStatefulWidget {
   const DashboardView({super.key});
@@ -36,9 +36,6 @@ class _DashboardViewState extends ConsumerState<DashboardView> with PageMixin {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(16, 12, 16, 24),
-      child: HeroConnect(),
-    );
+    return const DashboardScene();
   }
 }

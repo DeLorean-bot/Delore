@@ -98,7 +98,11 @@ class _ProxiesListViewState extends State<ProxiesListView> {
       );
       groupNameProxiesMap[groupName] = sortedProxies;
       final chunks = sortedProxies.chunks(columns);
-      final rows = chunks
+      // Built lazily. Previously every group materialised a ProxyCard for
+      // each of its proxies even while collapsed, so a subscription with
+      // ~200 servers constructed ~200 widgets per group on every rebuild of
+      // this list — which is what made opening the page stutter (issue #1).
+      List<Widget> buildRows() => chunks
           .map<Widget>((proxies) {
             final children = proxies
                 .map<Widget>(
@@ -139,7 +143,7 @@ class _ProxiesListViewState extends State<ProxiesListView> {
           )
           .toList();
 
-      items.add(ProxyGroupCard(group: group, proxies: rows));
+      items.add(ProxyGroupCard(group: group, proxiesBuilder: buildRows));
     }
     _lastGroupNameProxiesMap = groupNameProxiesMap;
     return items;
@@ -212,10 +216,12 @@ class ProxyGroupCard extends StatefulWidget {
   const ProxyGroupCard({
     super.key,
     required this.group,
-    required this.proxies,
+    required this.proxiesBuilder,
   });
   final Group group;
-  final List<Widget> proxies;
+
+  /// Invoked only once the group is actually expanded — see [buildRows].
+  final List<Widget> Function() proxiesBuilder;
 
   @override
   State<ProxyGroupCard> createState() => _ProxyGroupCardState();
@@ -225,8 +231,21 @@ class _ProxyGroupCardState extends State<ProxyGroupCard>
     with AutomaticKeepAliveClientMixin {
   final _expansibleController = ExpansibleController();
 
+  /// Built on first expand and kept until the group's data changes, so the
+  /// collapse animation still has content to shrink and a re-expand doesn't
+  /// pay the build cost twice.
+  List<Widget>? _builtProxies;
+
   bool isLock = false;
   bool _hovered = false;
+
+  @override
+  void didUpdateWidget(ProxyGroupCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // New closure => the underlying proxy list may have changed; drop the
+    // cache so the next paint rebuilds from current data.
+    _builtProxies = null;
+  }
 
   String get icon => widget.group.icon;
 
@@ -431,7 +450,12 @@ class _ProxyGroupCardState extends State<ProxyGroupCard>
                 ),
               ),
             ),
-            bodyBuilder: (context, animation) => ExcludeFocus(
+            bodyBuilder: (context, animation) {
+              if (shouldExpand) {
+                _builtProxies ??= widget.proxiesBuilder();
+              }
+              final proxies = _builtProxies ?? const <Widget>[];
+              return ExcludeFocus(
               // A collapsed group keeps its proxy cards mounted — SizeTransition
               // only clips them to zero height — and every card is a focusable
               // OutlinedButton. On Android TV the D-pad would otherwise dive into
@@ -446,12 +470,13 @@ class _ProxyGroupCardState extends State<ProxyGroupCard>
                     opacity: animation,
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Column(children: widget.proxies),
+                      child: Column(children: proxies),
                     ),
                   ),
                 ),
               ),
-            ),
+              );
+            },
             expansibleBuilder: (context, header, body, animation) =>
                 Column(children: [header, body]),
           ),
