@@ -1,3 +1,15 @@
+## v0.5.3
+
+**Site routing**
+
+* Added a "Sites" tab on the Applications page: pin a domain (e.g. `youtube.com`) to a specific location or Direct, independent of which app opens it — a site pin now takes priority over an app's own routing, so it can carve out an exception even inside an app that's already pinned elsewhere
+* The Applications page is now Apps/Sites, matching the Active/Log switch on Connections
+
+**Fixes**
+
+* Fixed Global mode sending traffic out unproxied instead of through a server: switching to Global only pointed the UI at the GLOBAL group, it never selected a node inside it, so the core fell back to its own default (DIRECT) — with the tunnel up that's a routing loop and the whole system loses internet. Global now picks up whatever node Rules mode was already using, or the first real entry in GLOBAL
+* Fixed every in-app notification (add-site errors, undo toasts, "no proxy group available", etc.) rendering squeezed into a single-character-wide column — its width was computed against the full window, but it renders inside the page's own 1680px-clamped content area, so on a wide window the two numbers didn't agree and the box came out barely wider than the border
+
 ## v0.5.2
 
 **Home screen**

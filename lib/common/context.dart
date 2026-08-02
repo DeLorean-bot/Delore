@@ -11,28 +11,26 @@ extension BuildContextExtension on BuildContext {
     String message, {
     SnackBarAction? action,
   }) {
+    // Used to size the SnackBar via `width:` rather than `margin:`. The old
+    // margin math (`right: viewWidth - 316`) assumed the SnackBar lays out
+    // against the full MediaQuery width, but CommonScaffold's body — which
+    // is what a floating SnackBar actually renders against — is clamped to
+    // `BoxConstraints(maxWidth: 1680)` on desktop (see scaffold.dart). At a
+    // wide window that mismatch left a right-margin bigger than the box the
+    // SnackBar actually had to fit in, squeezing it down to a near-zero
+    // width where every word wrapped onto its own line. `width:` sets the
+    // box directly and can't drift out of sync with wherever it's hosted.
     final width = viewWidth;
-    EdgeInsets margin;
-    if (width < 600) {
-      margin = const EdgeInsets.only(
-        bottom: 16,
-        right: 16,
-        left: 16,
-      );
-    } else {
-      margin = EdgeInsets.only(
-        bottom: 16,
-        left: 16,
-        right: width - 316,
-      );
-    }
     ScaffoldMessenger.of(this).showSnackBar(
       SnackBar(
         action: action,
         content: Text(message),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(milliseconds: 1500),
-        margin: margin,
+        width: width < 600 ? null : 340,
+        margin: width < 600
+            ? const EdgeInsets.only(bottom: 16, right: 16, left: 16)
+            : null,
       ),
     );
   }

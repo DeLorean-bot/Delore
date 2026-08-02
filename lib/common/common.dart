@@ -8,6 +8,7 @@ export 'converter.dart';
 export 'core_update.dart';
 export 'country_geo.dart';
 export 'datetime.dart';
+export 'domain_routing.dart';
 export 'file_logger.dart';
 export 'fixed.dart';
 export 'function.dart';

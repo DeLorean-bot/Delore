@@ -761,7 +761,13 @@ class GlobalState {
       // is unable to resolve its process.
       rawConfig["find-process-mode"] = FindProcessMode.always.name;
     }
-    rules = [...applicationRules, ...rules];
+    // Visual per-site routing goes ahead of per-application routing: Clash
+    // rules match top-to-bottom and stop at the first hit, so a DOMAIN-SUFFIX
+    // pin for youtube.com has to be checked before a PROCESS-PATH catch-all
+    // for the browser that opened it — otherwise the app rule matches every
+    // destination from that process first and the site pin never fires.
+    final domainRules = await DomainRoutingStore.clashRules(profile.id);
+    rules = [...domainRules, ...applicationRules, ...rules];
     rawConfig["rule"] = rules;
     return rawConfig;
   }

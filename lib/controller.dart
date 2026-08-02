@@ -1777,8 +1777,49 @@ class AppController {
         );
     if (mode == Mode.global) {
       updateCurrentGroupName(GroupName.GLOBAL.name);
+      unawaited(_ensureGlobalSelection());
     }
     addCheckIpNumDebounce();
+  }
+
+  /// Point the GLOBAL group at a real proxy before global mode takes effect.
+  ///
+  /// Switching the mode only told the core `mode: global` and pointed the UI at
+  /// the GLOBAL group — it never picked anything *inside* that group. On a
+  /// profile where the user had never opened GLOBAL and chosen a node by hand,
+  /// the core kept its own default for the selector, DIRECT, so global mode
+  /// sent everything out unproxied. With the TUN up that is a routing loop —
+  /// the core hands the packet to the physical interface, whose default route
+  /// points straight back into the TUN — and the machine loses the network
+  /// entirely. It presented as "global mode has no internet at all".
+  ///
+  /// Preference order: whatever node the rules mode is already using (so
+  /// flipping the switch keeps you on the same server), then the first real
+  /// entry in GLOBAL. A selection the user made themselves is never touched.
+  Future<void> _ensureGlobalSelection() async {
+    const globalName = 'GLOBAL';
+    final groups = _ref.read(currentGroupsStateProvider).value;
+    final global = groups.getGroup(globalName);
+    if (global == null) return;
+
+    bool usable(String name) =>
+        name.isNotEmpty && name != 'DIRECT' && name != 'REJECT';
+
+    // Already on a real node — either the user's own pick or a previous run's.
+    if (usable(global.realNow)) return;
+
+    final inUse = groups
+        .where((g) => g.name != globalName)
+        .map((g) => g.realNow)
+        .firstWhere(usable, orElse: () => '');
+    final target = usable(inUse)
+        ? inUse
+        : global.all
+            .map((p) => p.name)
+            .firstWhere(usable, orElse: () => '');
+    if (!usable(target)) return;
+
+    await changeProxy(groupName: globalName, proxyName: target);
   }
 
   void updateAutoLaunch() {

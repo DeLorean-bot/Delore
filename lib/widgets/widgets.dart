@@ -25,6 +25,7 @@ export 'open_container.dart';
 export 'palette.dart';
 export 'pop_scope.dart';
 export 'popup.dart';
+export 'proxy_route_control.dart';
 export 'scaffold.dart';
 export 'search_order_marker.dart';
 export 'scroll.dart';

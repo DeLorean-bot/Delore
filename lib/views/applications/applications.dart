@@ -16,7 +16,16 @@ import 'package:path/path.dart' as p;
 
 import 'applications_scene.dart';
 import 'applications_workspace.dart';
+import 'domain_routing.dart';
 
+enum _AppsTab { apps, sites }
+
+/// The merged "Applications" page: an Apps/Sites segmented switch over an
+/// IndexedStack of the two bodies, mirroring how Connections merges its own
+/// Active/Log tabs. Owns only the shared refresh action — process discovery
+/// (Apps) has always had its own inline search box in [ApplicationsWorkspace]'s
+/// toolbar rather than the floating app-bar's search, and Sites follows the
+/// same convention rather than introduce a second, inconsistent pattern.
 class ApplicationsView extends ConsumerStatefulWidget {
   const ApplicationsView({super.key});
 
@@ -25,7 +34,104 @@ class ApplicationsView extends ConsumerStatefulWidget {
 }
 
 class _ApplicationsViewState extends ConsumerState<ApplicationsView>
-    with PageMixin, WidgetsBindingObserver {
+    with PageMixin {
+  _AppsTab _tab = _AppsTab.apps;
+  final _appsKey = GlobalKey<_AppRoutingBodyState>();
+  bool _visible = false;
+
+  @override
+  List<Widget> get actions => switch (_tab) {
+        _AppsTab.apps => [
+            IconButton(
+              tooltip: 'Refresh',
+              onPressed: () => _appsKey.currentState?.refreshNow(),
+              icon: const Icon(Icons.refresh_rounded),
+            ),
+          ],
+        _AppsTab.sites => const [],
+      };
+
+  @override
+  void initState() {
+    super.initState();
+    ref.listenManual(
+      isCurrentPageProvider(PageLabel.applications),
+      (prev, next) {
+        _visible = next;
+        if (prev != next && _visible) initPageState();
+      },
+      fireImmediately: true,
+    );
+  }
+
+  void _selectTab(_AppsTab tab) {
+    if (_tab == tab) return;
+    setState(() => _tab = tab);
+    // Re-push the app-bar so the refresh action appears/disappears with the tab.
+    initPageState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          // Clears the floating glass app bar, same offset Connections uses
+          // for its own segmented switch below the same kind of bar.
+          padding: const EdgeInsets.fromLTRB(16, 34, 16, 10),
+          child: Center(
+            child: CommonTabBar<_AppsTab>(
+              groupValue: _tab,
+              thumbColor: context.colorScheme.surface,
+              backgroundColor: context.colorScheme.surfaceContainerHighest,
+              onValueChanged: (value) {
+                if (value != null) _selectTab(value);
+              },
+              children: const {
+                _AppsTab.apps: Padding(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Text('Приложения'),
+                ),
+                _AppsTab.sites: Padding(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Text('Сайты'),
+                ),
+              },
+            ),
+          ),
+        ),
+        Expanded(
+          child: IndexedStack(
+            index: _tab.index,
+            children: [
+              _AppRoutingBody(
+                key: _appsKey,
+                active: _visible && _tab == _AppsTab.apps,
+              ),
+              DomainRoutingBody(
+                active: _visible && _tab == _AppsTab.sites,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AppRoutingBody extends ConsumerStatefulWidget {
+  const _AppRoutingBody({super.key, required this.active});
+
+  final bool active;
+
+  @override
+  ConsumerState<_AppRoutingBody> createState() => _AppRoutingBodyState();
+}
+
+class _AppRoutingBodyState extends ConsumerState<_AppRoutingBody>
+    with WidgetsBindingObserver {
   Timer? _timer;
   // The stock SnackBar timer doesn't reliably fire while this page keeps
   // polling every 2s in the background, so the route-change toast is force-
@@ -33,7 +139,6 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
   // this so a stale delayed dismiss from an earlier tap can't hide a toast
   // that a later tap already replaced.
   int _snackbarGeneration = 0;
-  bool _visible = false;
   bool _loading = true;
   bool _refreshing = false;
   String _query = '';
@@ -42,34 +147,25 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
   Map<String, ApplicationRouteEntry> _routes = const {};
   Map<String, _ApplicationTraffic> _traffic = const {};
 
-  @override
-  List<Widget> get actions => [
-        IconButton(
-          tooltip: 'Refresh',
-          onPressed: _refresh,
-          icon: const Icon(Icons.refresh_rounded),
-        ),
-      ];
+  Future<void> refreshNow() => _refresh();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    ref.listenManual(
-      isCurrentPageProvider(PageLabel.applications),
-      (_, next) {
-        _visible = next;
-        _syncPolling();
-        if (_visible) initPageState();
-      },
-      fireImmediately: true,
-    );
+    _syncPolling();
+  }
+
+  @override
+  void didUpdateWidget(_AppRoutingBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.active != widget.active) _syncPolling();
   }
 
   void _syncPolling() {
     _timer?.cancel();
     _timer = null;
-    if (_visible) unawaited(_refresh());
+    if (widget.active) unawaited(_refresh());
   }
 
   Future<void> _refresh() async {
@@ -133,7 +229,7 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
       });
     } finally {
       _refreshing = false;
-      if (mounted && _visible) {
+      if (mounted && widget.active) {
         _timer = Timer(const Duration(seconds: 2), _refresh);
       }
     }
