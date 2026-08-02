@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flclashx/common/common.dart';
 import 'package:flclashx/providers/providers.dart';
 import 'package:flclashx/state.dart';
@@ -158,7 +159,6 @@ class _DomainRoutingBodyState extends ConsumerState<DomainRoutingBody> {
     await DomainRoutingStore.remove(profileId, entry.domain);
     await globalState.appController.applyProfile();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     context.showSnackBar(
       '${entry.domain} удалён',
       action: SnackBarAction(
@@ -306,21 +306,7 @@ class _DomainRow extends StatelessWidget {
             final narrow = constraints.maxWidth < 560;
             final identity = Row(
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: context.colorScheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: context.colorScheme.outlineVariant.withValues(
-                        alpha: 0.62,
-                      ),
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.public_rounded, size: 20),
-                ),
+                _DomainIcon(domain: entry.domain),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -372,6 +358,42 @@ class _DomainRow extends StatelessWidget {
               ],
             );
           },
+        ),
+      );
+}
+
+/// The site's real favicon, not a generic globe — pulled from DuckDuckGo's
+/// icon service (icons.duckduckgo.com) rather than Google's equivalent,
+/// since routing this from a VPN client's own "which sites did you pin"
+/// list to Google specifically felt like the wrong default to reach for.
+/// Falls back to the globe glyph while loading or if a domain has none.
+class _DomainIcon extends StatelessWidget {
+  const _DomainIcon({required this.domain});
+
+  final String domain;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 44,
+        height: 44,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: context.colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: context.colorScheme.outlineVariant.withValues(alpha: 0.62),
+          ),
+        ),
+        alignment: Alignment.center,
+        child: CachedNetworkImage(
+          imageUrl: 'https://icons.duckduckgo.com/ip3/$domain.ico',
+          width: 26,
+          height: 26,
+          fit: BoxFit.contain,
+          fadeInDuration: const Duration(milliseconds: 150),
+          placeholder: (_, __) => const Icon(Icons.public_rounded, size: 20),
+          errorWidget: (_, __, ___) =>
+              const Icon(Icons.public_rounded, size: 20),
         ),
       );
 }
