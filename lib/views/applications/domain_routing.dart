@@ -54,7 +54,11 @@ class _DomainRoutingBodyState extends ConsumerState<DomainRoutingBody> {
     final profileId = ref.read(currentProfileIdProvider);
     _profileId = profileId;
     if (profileId == null) {
-      if (mounted) setState(() { _entries = const []; _loading = false; });
+      if (mounted)
+        setState(() {
+          _entries = const [];
+          _loading = false;
+        });
       return;
     }
     final entries = await DomainRoutingStore.load(profileId);
@@ -139,6 +143,7 @@ class _DomainRoutingBodyState extends ConsumerState<DomainRoutingBody> {
       domain: previous.domain,
       route: route,
       target: target,
+      favorite: previous.favorite,
     );
     setState(() {
       _entries = [
@@ -148,6 +153,24 @@ class _DomainRoutingBodyState extends ConsumerState<DomainRoutingBody> {
     });
     await DomainRoutingStore.set(profileId, entry);
     await globalState.appController.applyProfile();
+  }
+
+  Future<void> _toggleFavorite(DomainRouteEntry previous) async {
+    final profileId = ref.read(currentProfileIdProvider);
+    if (profileId == null) return;
+    final entry = DomainRouteEntry(
+      domain: previous.domain,
+      route: previous.route,
+      target: previous.target,
+      favorite: !previous.favorite,
+    );
+    setState(() {
+      _entries = [
+        for (final existing in _entries)
+          if (existing.domain == previous.domain) entry else existing,
+      ];
+    });
+    await DomainRoutingStore.set(profileId, entry);
   }
 
   Future<void> _removeEntry(DomainRouteEntry entry) async {
@@ -206,7 +229,13 @@ class _DomainRoutingBodyState extends ConsumerState<DomainRoutingBody> {
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 8),
                           itemBuilder: (_, index) {
-                            final entry = _entries[index];
+                            final entries = [..._entries]..sort((a, b) {
+                                if (a.favorite != b.favorite) {
+                                  return a.favorite ? -1 : 1;
+                                }
+                                return a.domain.compareTo(b.domain);
+                              });
+                            final entry = entries[index];
                             return _DomainRow(
                               key: ValueKey(entry.domain),
                               entry: entry,
@@ -218,6 +247,7 @@ class _DomainRoutingBodyState extends ConsumerState<DomainRoutingBody> {
                                 explicitTarget: target,
                               ),
                               onRemove: () => _removeEntry(entry),
+                              onToggleFavorite: () => _toggleFavorite(entry),
                             );
                           },
                         ),
@@ -282,12 +312,14 @@ class _DomainRow extends StatelessWidget {
     required this.onRouteChanged,
     required this.onPickLocation,
     required this.onRemove,
+    required this.onToggleFavorite,
   });
 
   final DomainRouteEntry entry;
   final ValueChanged<ApplicationRoute> onRouteChanged;
   final ValueChanged<String> onPickLocation;
   final VoidCallback onRemove;
+  final VoidCallback onToggleFavorite;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -324,6 +356,18 @@ class _DomainRow extends StatelessWidget {
             final controls = Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                IconButton(
+                  tooltip: entry.favorite
+                      ? 'Remove from favorites'
+                      : 'Add to favorites',
+                  onPressed: onToggleFavorite,
+                  icon: Icon(
+                    entry.favorite
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
+                    color: entry.favorite ? premiumAmber : null,
+                  ),
+                ),
                 ProxyRouteControl(
                   width: narrow ? double.infinity : 260,
                   route: entry.route,

@@ -9,6 +9,7 @@ import 'package:flclashx/manager/hotkey_manager.dart';
 import 'package:flclashx/manager/manager.dart';
 import 'package:flclashx/plugins/app.dart';
 import 'package:flclashx/providers/providers.dart';
+import 'package:flclashx/services/browser_bridge_service.dart';
 import 'package:flclashx/state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
@@ -56,6 +57,7 @@ class ApplicationState extends ConsumerState<Application> {
     }
 
     globalState.startGroupsUpdateTask();
+    if (system.isDesktop) unawaited(browserBridge.start());
     _autoUpdateProfilesTask();
     globalState.appController = AppController(context, ref);
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
@@ -225,6 +227,7 @@ class ApplicationState extends ConsumerState<Application> {
   }
 
   Future<void> _desktopTeardown() async {
+    await browserBridge.stop();
     await clashCore.destroy();
     await globalState.appController.savePreferences();
     await globalState.appController.handleExit();

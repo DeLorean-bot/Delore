@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flclashx/clash/lib.dart';
 import 'package:flclashx/common/common.dart';
+import 'package:flclashx/models/models.dart';
 import 'package:flclashx/plugins/app.dart';
 import 'package:flclashx/providers/config.dart';
 import 'package:flclashx/state.dart';
@@ -20,12 +21,12 @@ class OpenLogsFolderItem extends ConsumerWidget {
       final homePath = await appPath.homeDirPath;
       final logsPath = join(homePath, 'logs');
       final logsDir = Directory(logsPath);
-      
+
       // Create logs directory if it doesn't exist
       if (!await logsDir.exists()) {
         await logsDir.create(recursive: true);
       }
-      
+
       // Open the folder based on platform
       if (Platform.isWindows) {
         await Process.run('explorer', [logsPath]);
@@ -58,28 +59,28 @@ class ResetAppItem extends ConsumerWidget {
           style: TextStyle(
             color: context.colorScheme.error,
             fontWeight: FontWeight.bold,
-        ),
-      ),
-      leading: Icon(
-        Icons.delete_forever,
-        color: context.colorScheme.error,
-      ),
-      onTap: () async {
-        final res = await globalState.showMessage(
-          title: appLocalizations.clearData,
-          message: TextSpan(
-            text: appLocalizations.clearDataTip,
-            style: TextStyle(
-              color: context.colorScheme.onSurface,
-            ),
           ),
-        );
-        if (res == true) {
-          await globalState.appController.handleClear();
-          system.exit();
-        }
-      },
-    );
+        ),
+        leading: Icon(
+          Icons.delete_forever,
+          color: context.colorScheme.error,
+        ),
+        onTap: () async {
+          final res = await globalState.showMessage(
+            title: appLocalizations.clearData,
+            message: TextSpan(
+              text: appLocalizations.clearDataTip,
+              style: TextStyle(
+                color: context.colorScheme.onSurface,
+              ),
+            ),
+          );
+          if (res == true) {
+            await globalState.appController.handleClear();
+            system.exit();
+          }
+        },
+      );
 }
 
 class OverrideProviderSettingsItem extends ConsumerWidget {
@@ -110,7 +111,10 @@ class OverrideProviderSettingsItem extends ConsumerWidget {
         if (!overrideProviderSettings)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            color: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest
+                .withValues(alpha: 0.5),
             child: Row(
               children: [
                 Icon(
@@ -156,13 +160,15 @@ class CloseConnectionsItem extends ConsumerWidget {
         subtitle: Text(appLocalizations.autoCloseConnectionsDesc),
         delegate: SwitchDelegate(
           value: closeConnections,
-          onChanged: isEnabled ? (value) async {
-            ref.read(appSettingProvider.notifier).updateState(
-                  (state) => state.copyWith(
-                    closeConnections: value,
-                  ),
-                );
-          } : null,
+          onChanged: isEnabled
+              ? (value) async {
+                  ref.read(appSettingProvider.notifier).updateState(
+                        (state) => state.copyWith(
+                          closeConnections: value,
+                        ),
+                      );
+                }
+              : null,
         ),
       ),
     );
@@ -239,13 +245,15 @@ class MinimizeItem extends ConsumerWidget {
         subtitle: Text(appLocalizations.minimizeOnExitDesc),
         delegate: SwitchDelegate(
           value: minimizeOnExit,
-          onChanged: isEnabled ? (bool value) {
-            ref.read(appSettingProvider.notifier).updateState(
-                  (state) => state.copyWith(
-                    minimizeOnExit: value,
-                  ),
-                );
-          } : null,
+          onChanged: isEnabled
+              ? (bool value) {
+                  ref.read(appSettingProvider.notifier).updateState(
+                        (state) => state.copyWith(
+                          minimizeOnExit: value,
+                        ),
+                      );
+                }
+              : null,
         ),
       ),
     );
@@ -271,13 +279,15 @@ class AutoLaunchItem extends ConsumerWidget {
         subtitle: Text(appLocalizations.autoLaunchDesc),
         delegate: SwitchDelegate(
           value: autoLaunch,
-          onChanged: isEnabled ? (bool value) {
-            ref.read(appSettingProvider.notifier).updateState(
-                  (state) => state.copyWith(
-                    autoLaunch: value,
-                  ),
-                );
-          } : null,
+          onChanged: isEnabled
+              ? (bool value) {
+                  ref.read(appSettingProvider.notifier).updateState(
+                        (state) => state.copyWith(
+                          autoLaunch: value,
+                        ),
+                      );
+                }
+              : null,
         ),
       ),
     );
@@ -303,13 +313,15 @@ class SilentLaunchItem extends ConsumerWidget {
         subtitle: Text(appLocalizations.silentLaunchDesc),
         delegate: SwitchDelegate(
           value: silentLaunch,
-          onChanged: isEnabled ? (bool value) {
-            ref.read(appSettingProvider.notifier).updateState(
-                  (state) => state.copyWith(
-                    silentLaunch: value,
-                  ),
-                );
-          } : null,
+          onChanged: isEnabled
+              ? (bool value) {
+                  ref.read(appSettingProvider.notifier).updateState(
+                        (state) => state.copyWith(
+                          silentLaunch: value,
+                        ),
+                      );
+                }
+              : null,
         ),
       ),
     );
@@ -335,13 +347,15 @@ class AutoRunItem extends ConsumerWidget {
         subtitle: Text(appLocalizations.autoRunDesc),
         delegate: SwitchDelegate(
           value: autoRun,
-          onChanged: isEnabled ? (bool value) {
-            ref.read(appSettingProvider.notifier).updateState(
-                  (state) => state.copyWith(
-                    autoRun: value,
-                  ),
-                );
-          } : null,
+          onChanged: isEnabled
+              ? (bool value) {
+                  ref.read(appSettingProvider.notifier).updateState(
+                        (state) => state.copyWith(
+                          autoRun: value,
+                        ),
+                      );
+                }
+              : null,
         ),
       ),
     );
@@ -489,13 +503,15 @@ class OpenLogsItem extends ConsumerWidget {
         subtitle: Text(appLocalizations.logcatDesc),
         delegate: SwitchDelegate(
           value: openLogs,
-          onChanged: isEnabled ? (bool value) {
-            ref.read(appSettingProvider.notifier).updateState(
-                  (state) => state.copyWith(
-                    openLogs: value,
-                  ),
-                );
-          } : null,
+          onChanged: isEnabled
+              ? (bool value) {
+                  ref.read(appSettingProvider.notifier).updateState(
+                        (state) => state.copyWith(
+                          openLogs: value,
+                        ),
+                      );
+                }
+              : null,
         ),
       ),
     );
@@ -521,13 +537,15 @@ class AutoCheckUpdateItem extends ConsumerWidget {
         subtitle: Text(appLocalizations.autoCheckUpdateDesc),
         delegate: SwitchDelegate(
           value: autoCheckUpdate,
-          onChanged: isEnabled ? (bool value) {
-            ref.read(appSettingProvider.notifier).updateState(
-                  (state) => state.copyWith(
-                    autoCheckUpdate: value,
-                  ),
-                );
-          } : null,
+          onChanged: isEnabled
+              ? (bool value) {
+                  ref.read(appSettingProvider.notifier).updateState(
+                        (state) => state.copyWith(
+                          autoCheckUpdate: value,
+                        ),
+                      );
+                }
+              : null,
         ),
       ),
     );
@@ -559,7 +577,7 @@ class ZashboardInAppItem extends ConsumerWidget {
   }
 }
 
-class ApplicationSettingView extends StatelessWidget {
+class ApplicationSettingView extends ConsumerWidget {
   const ApplicationSettingView({super.key});
 
   String getLocaleString(Locale? locale) {
@@ -568,38 +586,82 @@ class ApplicationSettingView extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(appSettingProvider);
+    final modifiedCount = <bool>[
+      settings.onlyStatisticsProxy !=
+          defaultAppSettingProps.onlyStatisticsProxy,
+      settings.autoLaunch != defaultAppSettingProps.autoLaunch,
+      settings.silentLaunch != defaultAppSettingProps.silentLaunch,
+      settings.autoRun != defaultAppSettingProps.autoRun,
+      settings.openLogs != defaultAppSettingProps.openLogs,
+      settings.closeConnections != defaultAppSettingProps.closeConnections,
+      settings.testUrl != defaultAppSettingProps.testUrl,
+      settings.isAnimateToPage != defaultAppSettingProps.isAnimateToPage,
+      settings.autoCheckUpdate != defaultAppSettingProps.autoCheckUpdate,
+      settings.showLabel != defaultAppSettingProps.showLabel,
+      settings.minimizeOnExit != defaultAppSettingProps.minimizeOnExit,
+      settings.hidden != defaultAppSettingProps.hidden,
+      settings.developerMode != defaultAppSettingProps.developerMode,
+      settings.crashlytics != defaultAppSettingProps.crashlytics,
+      settings.zashboardInApp != defaultAppSettingProps.zashboardInApp,
+      settings.overrideProviderSettings !=
+          defaultAppSettingProps.overrideProviderSettings,
+      settings.overrideNetworkSettings !=
+          defaultAppSettingProps.overrideNetworkSettings,
+      settings.recoveryStrategy != defaultAppSettingProps.recoveryStrategy,
+    ].where((changed) => changed).length;
     List<Widget> items = [
-      OverrideProviderSettingsItem(),
-      MinimizeItem(),
+      if (modifiedCount > 0)
+        _ModifiedSettingsBanner(
+          count: modifiedCount,
+          onReset: () async {
+            final confirmed = await globalState.showMessage(
+              title: 'Reset application settings?',
+              message: const TextSpan(
+                text:
+                    'Only application preferences will be reset. Profiles and routing rules stay untouched.',
+              ),
+            );
+            if (confirmed != true) return;
+            ref.read(appSettingProvider.notifier).updateState(
+                  (_) => defaultAppSettingProps.copyWith(
+                    locale: settings.locale,
+                    disclaimerAccepted: settings.disclaimerAccepted,
+                  ),
+                );
+          },
+        ),
+      const OverrideProviderSettingsItem(),
+      const MinimizeItem(),
       if (system.isDesktop) ...[
-        AutoLaunchItem(),
-        SilentLaunchItem(),
+        const AutoLaunchItem(),
+        const SilentLaunchItem(),
       ],
-      AutoRunItem(),
+      const AutoRunItem(),
       if (Platform.isAndroid) ...[
-        HiddenItem(),
-        BatteryOptimizationItem(),
-        AutoStartItem(),
-        CrashlyticsItem(),
+        const HiddenItem(),
+        const BatteryOptimizationItem(),
+        const AutoStartItem(),
+        const CrashlyticsItem(),
       ],
-      AnimateTabItem(),
-      OpenLogsItem(),
-      CloseConnectionsItem(),
-      AutoCheckUpdateItem(),
+      const AnimateTabItem(),
+      const OpenLogsItem(),
+      const CloseConnectionsItem(),
+      const AutoCheckUpdateItem(),
       // The in-app webview exists only on Android/iOS/macOS (webview_flutter);
       // hide the toggle where it could never take effect.
       if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS)
-        ZashboardInAppItem(),
+        const ZashboardInAppItem(),
       if (system.isDesktop) ...[
         Padding(
           padding: const EdgeInsets.only(top: 16),
-          child: OpenLogsFolderItem(),
+          child: const OpenLogsFolderItem(),
         ),
       ],
       Padding(
         padding: EdgeInsets.only(top: system.isDesktop ? 0 : 16),
-        child: ResetAppItem(),
+        child: const ResetAppItem(),
       ),
     ];
     return ListView.separated(
@@ -610,4 +672,36 @@ class ApplicationSettingView extends StatelessWidget {
       itemCount: items.length,
     );
   }
+}
+
+class _ModifiedSettingsBanner extends StatelessWidget {
+  const _ModifiedSettingsBanner({required this.count, required this.onReset});
+
+  final int count;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+        decoration: BoxDecoration(
+          color: context.colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(RouteXRadius.card),
+          border: Border.all(color: context.colorScheme.outlineVariant),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.tune_rounded, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text('$count application settings changed from defaults'),
+            ),
+            TextButton.icon(
+              onPressed: onReset,
+              icon: const Icon(Icons.restart_alt_rounded, size: 18),
+              label: const Text('Reset'),
+            ),
+          ],
+        ),
+      );
 }

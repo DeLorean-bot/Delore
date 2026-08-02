@@ -72,12 +72,13 @@ class Profile with _$Profile {
   factory Profile.normal({
     String? label,
     String url = '',
-  }) => Profile(
-      label: label,
-      url: url,
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      autoUpdateDuration: defaultUpdateDuration,
-    );
+  }) =>
+      Profile(
+        label: label,
+        url: url,
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        autoUpdateDuration: defaultUpdateDuration,
+      );
 }
 
 @freezed
@@ -134,6 +135,8 @@ extension ProfilesExt on List<Profile> {
 }
 
 extension ProfileExtension on Profile {
+  static const _maxStoredRevisions = 5;
+
   ProfileType get type =>
       url.isEmpty == true ? ProfileType.file : ProfileType.url;
 
@@ -192,35 +195,35 @@ extension ProfileExtension on Profile {
 
     final disposition = response.headers.value("content-disposition");
     final userinfo = response.headers.value('subscription-userinfo');
-    
+
     final responseData = response.data;
     if (responseData == null) {
       throw Exception("Failed to get profile data from response.");
     }
 
     final providerHeaders = <String, String>{};
-    
+
     final headersToCollect = [
       'announce',
-      'support-url', 
+      'support-url',
       'profile-update-interval',
       'x-hwid-max-devices-reached',
       'x-hwid-not-supported',
     ];
-    
+
     for (final headerName in headersToCollect) {
       final value = response.headers.value(headerName);
       if (value != null && value.isNotEmpty) {
         providerHeaders[headerName] = value;
       }
     }
-    
+
     response.headers.forEach((name, values) {
       if (name.toLowerCase().startsWith('flclashx-') && values.isNotEmpty) {
         providerHeaders[name.toLowerCase()] = values.first;
       }
     });
-    
+
     Duration? durationFromHeader;
     final updateIntervalHeader = providerHeaders['profile-update-interval'];
     if (updateIntervalHeader != null) {
@@ -253,8 +256,7 @@ extension ProfileExtension on Profile {
     if (message.isNotEmpty) {
       throw message;
     }
-    final file = await getFile();
-    await file.writeAsBytes(bytes);
+    await _replaceProfileFile(bytes);
     return copyWith(lastUpdateDate: DateTime.now());
   }
 
@@ -263,8 +265,82 @@ extension ProfileExtension on Profile {
     if (message.isNotEmpty) {
       throw message;
     }
-    final file = await getFile();
-    await file.writeAsString(value);
+    await _replaceProfileFile(utf8.encode(value));
+    return copyWith(lastUpdateDate: DateTime.now());
+  }
+
+  /// Replaces a profile only after it has been validated by mihomo. The old
+  /// file is moved out of the way first and restored if the final rename fails,
+  /// so a power loss or an I/O error cannot leave a half-written subscription.
+  Future<void> _replaceProfileFile(List<int> bytes) async {
+    final profilePath = await appPath.getProfilePath(id);
+    final file = File(profilePath);
+    await file.parent.create(recursive: true);
+
+    final nonce = DateTime.now().microsecondsSinceEpoch;
+    final temporary = File('$profilePath.$nonce.pending');
+    final rollback = File('$profilePath.$nonce.rollback');
+    await temporary.writeAsBytes(bytes, flush: true);
+
+    final hadPrevious = await file.exists() && await file.length() > 0;
+    if (hadPrevious) {
+      await _storeRevision(file, nonce);
+      await file.rename(rollback.path);
+    }
+
+    try {
+      await temporary.rename(profilePath);
+      if (await rollback.exists()) await rollback.delete();
+    } catch (_) {
+      if (await temporary.exists()) await temporary.delete();
+      if (await rollback.exists()) {
+        if (await file.exists()) await file.delete();
+        await rollback.rename(profilePath);
+      }
+      rethrow;
+    }
+  }
+
+  Future<Directory> get _revisionDirectory async {
+    final profilePath = await appPath.getProfilePath(id);
+    return Directory('$profilePath.revisions');
+  }
+
+  Future<void> _storeRevision(File source, int nonce) async {
+    final directory = await _revisionDirectory;
+    await directory.create(recursive: true);
+    await source.copy('${directory.path}/$nonce.yaml');
+
+    final revisions = await directory
+        .list()
+        .where((entry) => entry is File && entry.path.endsWith('.yaml'))
+        .cast<File>()
+        .toList();
+    revisions.sort((a, b) => b.path.compareTo(a.path));
+    for (final stale in revisions.skip(_maxStoredRevisions)) {
+      await stale.delete();
+    }
+  }
+
+  /// Newest first. These are known-good files because revisions are only
+  /// created after both download and mihomo validation have succeeded.
+  Future<List<File>> getRevisions() async {
+    final directory = await _revisionDirectory;
+    if (!await directory.exists()) return const [];
+    final revisions = await directory
+        .list()
+        .where((entry) => entry is File && entry.path.endsWith('.yaml'))
+        .cast<File>()
+        .toList();
+    revisions.sort((a, b) => b.path.compareTo(a.path));
+    return revisions;
+  }
+
+  Future<Profile> restoreRevision(File revision) async {
+    final bytes = await revision.readAsBytes();
+    final message = await clashCore.validateConfig(utf8.decode(bytes));
+    if (message.isNotEmpty) throw message;
+    await _replaceProfileFile(bytes);
     return copyWith(lastUpdateDate: DateTime.now());
   }
 }

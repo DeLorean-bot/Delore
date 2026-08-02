@@ -272,6 +272,31 @@ class _ProfileItemState extends State<ProfileItem> {
     });
   }
 
+  Future<void> _restorePreviousVersion() async {
+    await globalState.safeRun(silence: false, () async {
+      final revisions = await widget.profile.getRevisions();
+      if (revisions.isEmpty) {
+        if (mounted) context.showSnackBar('No previous working version yet');
+        return;
+      }
+      if (!mounted) return;
+      final confirmed = await globalState.showMessage(
+        title: 'Restore previous version?',
+        message: const TextSpan(
+          text:
+              'The current profile will remain in history, so this action can be undone.',
+        ),
+      );
+      if (confirmed != true) return;
+      final restored = await widget.profile.restoreRevision(revisions.first);
+      globalState.appController.setProfile(restored);
+      if (widget.profile.id == globalState.config.currentProfileId) {
+        await globalState.appController.applyProfile(silence: true);
+      }
+      if (mounted) context.showSnackBar('Previous working profile restored');
+    });
+  }
+
   void _handleShowEditExtendPage(BuildContext context) {
     showExtend(
       context,
@@ -485,6 +510,11 @@ class _ProfileItemState extends State<ProfileItem> {
                                   icon: Icons.sync_alt_sharp,
                                   label: appLocalizations.sync,
                                   onPressed: updateProfile,
+                                ),
+                                PopupMenuItemData(
+                                  icon: Icons.history_rounded,
+                                  label: 'Restore previous version',
+                                  onPressed: _restorePreviousVersion,
                                 ),
                               ],
                               PopupMenuItemData(

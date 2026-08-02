@@ -16,9 +16,10 @@ import 'package:path/path.dart' as p;
 
 import 'applications_scene.dart';
 import 'applications_workspace.dart';
+import 'browser_tabs.dart';
 import 'domain_routing.dart';
 
-enum _AppsTab { apps, sites }
+enum _AppsTab { apps, sites, browser }
 
 /// The merged "Applications" page: an Apps/Sites segmented switch over an
 /// IndexedStack of the two bodies, mirroring how Connections merges its own
@@ -49,6 +50,7 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
             ),
           ],
         _AppsTab.sites => const [],
+        _AppsTab.browser => const [],
       };
 
   @override
@@ -89,14 +91,16 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
               },
               children: const {
                 _AppsTab.apps: Padding(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Text('Приложения'),
                 ),
                 _AppsTab.sites: Padding(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Text('Сайты'),
+                ),
+                _AppsTab.browser: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Text('Browser'),
                 ),
               },
             ),
@@ -112,6 +116,9 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
               ),
               DomainRoutingBody(
                 active: _visible && _tab == _AppsTab.sites,
+              ),
+              BrowserTabsBody(
+                active: _visible && _tab == _AppsTab.browser,
               ),
             ],
           ),
@@ -139,6 +146,7 @@ class _AppRoutingBodyState extends ConsumerState<_AppRoutingBody>
   Object? _error;
   List<DiscoveredApplication> _applications = const [];
   Map<String, ApplicationRouteEntry> _routes = const {};
+  Set<String> _favorites = const {};
   Map<String, _ApplicationTraffic> _traffic = const {};
 
   Future<void> refreshNow() => _refresh();
@@ -183,6 +191,9 @@ class _AppRoutingBodyState extends ConsumerState<_AppRoutingBody>
       final routes = profileId == null
           ? <String, ApplicationRouteEntry>{}
           : await ApplicationRoutingStore.load(profileId);
+      final favorites = profileId == null
+          ? <String>{}
+          : await ApplicationFavoriteStore.load(profileId);
       final traffic = <String, _ApplicationTraffic>{};
       for (final connection in connections) {
         final executablePath = connectionProcessPaths[connection.id];
@@ -211,6 +222,7 @@ class _AppRoutingBodyState extends ConsumerState<_AppRoutingBody>
       setState(() {
         _applications = applications;
         _routes = routes;
+        _favorites = favorites;
         _traffic = traffic;
         _loading = false;
         _error = null;
@@ -227,6 +239,17 @@ class _AppRoutingBodyState extends ConsumerState<_AppRoutingBody>
         _timer = Timer(const Duration(seconds: 2), _refresh);
       }
     }
+  }
+
+  Future<void> _toggleFavorite(DiscoveredApplication application) async {
+    final profileId = ref.read(currentProfileIdProvider);
+    if (profileId == null) {
+      _message('Add or select a profile first');
+      return;
+    }
+    final favorites = await ApplicationFavoriteStore.toggle(
+        profileId, application.executablePath);
+    if (mounted) setState(() => _favorites = favorites);
   }
 
   Future<List<Connection>> _loadConnections() async {
@@ -404,7 +427,13 @@ class _AppRoutingBodyState extends ConsumerState<_AppRoutingBody>
       return application.name.toLowerCase().contains(_query) ||
           application.windowTitle.toLowerCase().contains(_query) ||
           application.executablePath.toLowerCase().contains(_query);
-    }).toList(growable: false);
+    }).toList(growable: true)
+      ..sort((a, b) {
+        final aFavorite = _favorites.contains(a.executablePath.toLowerCase());
+        final bFavorite = _favorites.contains(b.executablePath.toLowerCase());
+        if (aFavorite != bFavorite) return aFavorite ? -1 : 1;
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
     return ApplicationsWorkspace(
       supported: Platform.isWindows,
       loading: _loading,
@@ -422,12 +451,14 @@ class _AppRoutingBodyState extends ConsumerState<_AppRoutingBody>
             items: entry.value.items,
           ),
       },
+      favorites: _favorites,
       onRefresh: _refresh,
       onQueryChanged: (value) {
         setState(() => _query = value.trim().toLowerCase());
       },
       onRouteChanged: _setRoute,
       onPickLocation: _setLocation,
+      onToggleFavorite: _toggleFavorite,
       onBypass: () => _message(
         'True TUN bypass needs a Windows WFP split-tunnel layer. '
         'Use Direct for a Clash DIRECT rule.',

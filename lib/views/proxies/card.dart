@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ProxyCard extends StatelessWidget {
-
   const ProxyCard({
     super.key,
     required this.groupName,
@@ -34,43 +33,43 @@ class ProxyCard extends StatelessWidget {
   }
 
   Widget _buildDelayText() => SizedBox(
-      height: measure.labelSmallHeight,
-      child: Consumer(
-        builder: (context, ref, __) {
-          final delay = ref.watch(getDelayProvider(
-            proxyName: proxy.name,
-            testUrl: testUrl,
-          ));
-          return delay == 0 || delay == null
-              ? SizedBox(
-                  height: measure.labelSmallHeight,
-                  width: measure.labelSmallHeight,
-                  child: delay == 0
-                      ? const CircularProgressIndicator(
-                          strokeWidth: 2,
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.bolt),
-                          iconSize: globalState.measure.labelSmallHeight,
-                          padding: EdgeInsets.zero,
-                          onPressed: _handleTestCurrentDelay,
+        height: measure.labelSmallHeight,
+        child: Consumer(
+          builder: (context, ref, __) {
+            final delay = ref.watch(getDelayProvider(
+              proxyName: proxy.name,
+              testUrl: testUrl,
+            ));
+            return delay == 0 || delay == null
+                ? SizedBox(
+                    height: measure.labelSmallHeight,
+                    width: measure.labelSmallHeight,
+                    child: delay == 0
+                        ? const CircularProgressIndicator(
+                            strokeWidth: 2,
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.bolt),
+                            iconSize: globalState.measure.labelSmallHeight,
+                            padding: EdgeInsets.zero,
+                            onPressed: _handleTestCurrentDelay,
+                          ),
+                  )
+                : GestureDetector(
+                    onTap: _handleTestCurrentDelay,
+                    child: Text(
+                      delay > 0 ? '$delay ms' : "Timeout",
+                      style: context.textTheme.labelSmall?.copyWith(
+                        overflow: TextOverflow.ellipsis,
+                        color: utils.getDelayColor(
+                          delay,
                         ),
-                )
-              : GestureDetector(
-                  onTap: _handleTestCurrentDelay,
-                  child: Text(
-                    delay > 0 ? '$delay ms' : "Timeout",
-                    style: context.textTheme.labelSmall?.copyWith(
-                      overflow: TextOverflow.ellipsis,
-                      color: utils.getDelayColor(
-                        delay,
                       ),
                     ),
-                  ),
-                );
-        },
-      ),
-    );
+                  );
+          },
+        ),
+      );
 
   Widget _buildProxyNameText(BuildContext context) {
     if (type == ProxyCardType.oneline) {
@@ -222,14 +221,76 @@ class ProxyCard extends StatelessWidget {
               proxy: proxy,
               cardType: type,
             ),
-          )
+          ),
+        Positioned(
+          bottom: 2,
+          right: 2,
+          child: _ProxyFavoriteButton(proxyName: proxy.name),
+        ),
       ],
     );
   }
 }
 
-class _ProxyDesc extends ConsumerWidget {
+class _ProxyFavoriteButton extends StatefulWidget {
+  const _ProxyFavoriteButton({required this.proxyName});
 
+  final String proxyName;
+
+  @override
+  State<_ProxyFavoriteButton> createState() => _ProxyFavoriteButtonState();
+}
+
+class _ProxyFavoriteButtonState extends State<_ProxyFavoriteButton> {
+  bool _favorite = false;
+  bool _loaded = false;
+
+  String? get _profileId => globalState.config.currentProfileId;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final profileId = _profileId;
+    if (profileId == null) return;
+    final favorites = await ProxyFavoriteStore.load(profileId);
+    if (mounted) {
+      setState(() {
+        _favorite = favorites.contains(widget.proxyName);
+        _loaded = true;
+      });
+    }
+  }
+
+  Future<void> _toggle() async {
+    final profileId = _profileId;
+    if (profileId == null) return;
+    final favorite =
+        await ProxyFavoriteStore.toggle(profileId, widget.proxyName);
+    if (mounted) setState(() => _favorite = favorite);
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedOpacity(
+        duration: RouteXMotion.fast,
+        opacity: _favorite ? 1 : (_loaded ? 0.48 : 0),
+        child: IconButton(
+          tooltip: _favorite ? 'Remove from favorites' : 'Add to favorites',
+          visualDensity: VisualDensity.compact,
+          iconSize: 17,
+          onPressed: _toggle,
+          icon: Icon(
+            _favorite ? Icons.star_rounded : Icons.star_border_rounded,
+            color: _favorite ? premiumAmber : null,
+          ),
+        ),
+      );
+}
+
+class _ProxyDesc extends ConsumerWidget {
   const _ProxyDesc({
     required this.proxy,
   });
@@ -251,7 +312,6 @@ class _ProxyDesc extends ConsumerWidget {
 }
 
 class _ProxyComputedMark extends ConsumerWidget {
-
   const _ProxyComputedMark({
     required this.groupName,
     required this.proxy,

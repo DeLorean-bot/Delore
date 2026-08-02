@@ -14,6 +14,7 @@ import 'package:flclashx/views/access.dart';
 import 'package:flclashx/views/application_setting.dart';
 import 'package:flclashx/views/config/config.dart';
 import 'package:flclashx/views/hotkey.dart';
+import 'package:flclashx/views/route_doctor.dart';
 import 'package:flclashx/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -77,6 +78,7 @@ class _ToolboxViewState extends ConsumerState<ToolsView> {
         generateSectionV2(
           title: AppLocalizations.of(context).other,
           items: [
+            const _RouteDoctorItem(),
             const _RuntimeConfigItem(),
             const _DisclaimerItem(),
             if (enableDeveloperMode) const _DeveloperItem(),
@@ -175,6 +177,22 @@ class _LocaleItem extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _RouteDoctorItem extends StatelessWidget {
+  const _RouteDoctorItem();
+
+  @override
+  Widget build(BuildContext context) => ListItem.open(
+        leading: const Icon(Icons.health_and_safety_outlined),
+        title: const Text('Route Doctor'),
+        subtitle: const Text(
+            'Find out why a profile, DNS or connection is not working'),
+        delegate: const OpenDelegate(
+          title: 'Route Doctor',
+          widget: RouteDoctorView(),
+        ),
+      );
 }
 
 class _ThemeItem extends StatelessWidget {

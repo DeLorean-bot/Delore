@@ -1,3 +1,28 @@
+## v0.5.4
+
+**Browser Bridge**
+
+* Added a live Browser tab next to Apps and Sites, showing the real title, domain, favicon, browser and active state of every open tab
+* Added one-click routing for a browser tab's domain through Direct, the default proxy group or a specific location
+* Added bundled Manifest V3 extensions for Chrome, Edge, Opera, Brave, Vivaldi and Firefox
+* Browser pairing is automatic: the extension receives a private token directly from Delore over a loopback-only local service; browser data is not sent to a cloud service
+
+**Safer subscriptions**
+
+* Subscription files are now validated, written to a temporary file and replaced atomically, so an interrupted update cannot leave a half-written profile
+* Delore keeps the five latest working revisions of every profile
+* Added "Restore previous version" to the profile menu; restoring also keeps the current version in history, so the rollback itself can be undone
+
+**Everyday routing**
+
+* Added persistent favorites for applications, sites and proxy servers
+* Favorite applications and sites stay above the rest of their lists and remain independent from subscription YAML
+
+**Route Doctor**
+
+* Added a Route Doctor screen to Settings that checks the active profile, Mihomo validation, core control channel, DNS and the real network exit
+* Application Settings now show how many values differ from defaults and can reset only those preferences without deleting profiles or routing rules
+
 ## v0.5.3
 
 **Site routing**

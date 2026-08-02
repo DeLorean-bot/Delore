@@ -8,6 +8,7 @@ class DomainRouteEntry {
     required this.domain,
     required this.route,
     this.target,
+    this.favorite = false,
   });
 
   factory DomainRouteEntry.fromJson(Map<String, dynamic> json) =>
@@ -18,11 +19,13 @@ class DomainRouteEntry {
           orElse: () => ApplicationRoute.proxy,
         ),
         target: json['target'] as String?,
+        favorite: json['favorite'] as bool? ?? false,
       );
 
   final String domain;
   final ApplicationRoute route;
   final String? target;
+  final bool favorite;
 
   // DOMAIN-SUFFIX matches the domain itself and every subdomain — what
   // someone typing "youtube.com" into a "route this site" box means, not
@@ -38,6 +41,7 @@ class DomainRouteEntry {
         'domain': domain,
         'route': route.name,
         if (target != null) 'target': target,
+        if (favorite) 'favorite': true,
       };
 }
 
@@ -101,6 +105,7 @@ class DomainRoutingStore {
         domain: domain,
         route: entry.route,
         target: entry.target,
+        favorite: entry.favorite,
       ));
     }
     await _save(profileId, entries);

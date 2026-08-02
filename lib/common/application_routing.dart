@@ -92,3 +92,55 @@ class ApplicationRoutingStore {
         .toList(growable: false);
   }
 }
+
+/// Favorites are deliberately independent from routing: pinning an app is a
+/// workspace preference and must not create or modify a Clash rule.
+class ApplicationFavoriteStore {
+  ApplicationFavoriteStore._();
+
+  static const _prefix = 'application_favorites_v1_';
+
+  static String _key(String profileId) => '$_prefix$profileId';
+
+  static Future<Set<String>> load(String profileId) async {
+    final preferences = await SharedPreferences.getInstance();
+    return (preferences.getStringList(_key(profileId)) ?? const <String>[])
+        .map((value) => value.toLowerCase())
+        .toSet();
+  }
+
+  static Future<Set<String>> toggle(
+    String profileId,
+    String executablePath,
+  ) async {
+    final favorites = await load(profileId);
+    final key = executablePath.toLowerCase();
+    if (!favorites.add(key)) favorites.remove(key);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setStringList(_key(profileId), favorites.toList());
+    return favorites;
+  }
+}
+
+class ProxyFavoriteStore {
+  ProxyFavoriteStore._();
+
+  static const _prefix = 'proxy_favorites_v1_';
+
+  static String _key(String profileId) => '$_prefix$profileId';
+
+  static Future<Set<String>> load(String profileId) async {
+    final preferences = await SharedPreferences.getInstance();
+    return (preferences.getStringList(_key(profileId)) ?? const <String>[])
+        .toSet();
+  }
+
+  static Future<bool> toggle(String profileId, String proxyName) async {
+    final favorites = await load(profileId);
+    final isFavorite = favorites.add(proxyName);
+    if (!isFavorite) favorites.remove(proxyName);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setStringList(_key(profileId), favorites.toList());
+    return isFavorite;
+  }
+}

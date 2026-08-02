@@ -19,10 +19,12 @@ class ApplicationsWorkspace extends StatefulWidget {
     required this.applications,
     required this.routes,
     required this.traffic,
+    required this.favorites,
     required this.onRefresh,
     required this.onQueryChanged,
     required this.onRouteChanged,
     required this.onPickLocation,
+    required this.onToggleFavorite,
     required this.onBypass,
   });
 
@@ -34,6 +36,7 @@ class ApplicationsWorkspace extends StatefulWidget {
   final List<DiscoveredApplication> applications;
   final Map<String, ApplicationRouteEntry> routes;
   final Map<String, ApplicationTrafficData> traffic;
+  final Set<String> favorites;
   final Future<void> Function() onRefresh;
   final ValueChanged<String> onQueryChanged;
   final Future<void> Function(
@@ -46,6 +49,8 @@ class ApplicationsWorkspace extends StatefulWidget {
     DiscoveredApplication application,
     String target,
   ) onPickLocation;
+  final Future<void> Function(DiscoveredApplication application)
+      onToggleFavorite;
   final VoidCallback onBypass;
 
   @override
@@ -85,9 +90,11 @@ class _ApplicationsWorkspaceState extends State<ApplicationsWorkspace> {
               applications: visibleApplications,
               routes: widget.routes,
               traffic: widget.traffic,
+              favorites: widget.favorites,
               onRetry: widget.onRefresh,
               onRouteChanged: widget.onRouteChanged,
               onPickLocation: widget.onPickLocation,
+              onToggleFavorite: widget.onToggleFavorite,
               onBypass: widget.onBypass,
             ),
           ),
@@ -226,9 +233,11 @@ class _ProcessList extends StatelessWidget {
     required this.applications,
     required this.routes,
     required this.traffic,
+    required this.favorites,
     required this.onRetry,
     required this.onRouteChanged,
     required this.onPickLocation,
+    required this.onToggleFavorite,
     required this.onBypass,
   });
 
@@ -238,6 +247,7 @@ class _ProcessList extends StatelessWidget {
   final List<DiscoveredApplication> applications;
   final Map<String, ApplicationRouteEntry> routes;
   final Map<String, ApplicationTrafficData> traffic;
+  final Set<String> favorites;
   final Future<void> Function() onRetry;
   final Future<void> Function(
     DiscoveredApplication application,
@@ -247,6 +257,8 @@ class _ProcessList extends StatelessWidget {
     DiscoveredApplication application,
     String target,
   ) onPickLocation;
+  final Future<void> Function(DiscoveredApplication application)
+      onToggleFavorite;
   final VoidCallback onBypass;
 
   @override
@@ -290,8 +302,10 @@ class _ProcessList extends StatelessWidget {
           route: routes[key]?.route ?? ApplicationRoute.rule,
           routeTarget: routes[key]?.target,
           traffic: traffic[key] ?? const ApplicationTrafficData(),
+          favorite: favorites.contains(key),
           onRouteChanged: (route) => onRouteChanged(application, route),
           onPickLocation: (target) => onPickLocation(application, target),
+          onToggleFavorite: () => onToggleFavorite(application),
           onBypass: onBypass,
         );
       },
@@ -306,8 +320,10 @@ class _ProcessRow extends StatefulWidget {
     required this.route,
     required this.routeTarget,
     required this.traffic,
+    required this.favorite,
     required this.onRouteChanged,
     required this.onPickLocation,
+    required this.onToggleFavorite,
     required this.onBypass,
   });
 
@@ -315,8 +331,10 @@ class _ProcessRow extends StatefulWidget {
   final ApplicationRoute route;
   final String? routeTarget;
   final ApplicationTrafficData traffic;
+  final bool favorite;
   final ValueChanged<ApplicationRoute> onRouteChanged;
   final ValueChanged<String> onPickLocation;
+  final VoidCallback onToggleFavorite;
   final VoidCallback onBypass;
 
   @override
@@ -377,12 +395,25 @@ class _ProcessRowState extends State<_ProcessRow> {
                       onChanged: widget.onRouteChanged,
                       onPickLocation: widget.onPickLocation,
                     );
+                    final favoriteButton = IconButton(
+                      tooltip: widget.favorite
+                          ? 'Remove from favorites'
+                          : 'Add to favorites',
+                      onPressed: widget.onToggleFavorite,
+                      icon: Icon(
+                        widget.favorite
+                            ? Icons.star_rounded
+                            : Icons.star_border_rounded,
+                        color: widget.favorite ? premiumAmber : null,
+                      ),
+                    );
                     if (narrow) {
                       return Column(
                         children: [
                           Row(
                             children: [
                               Expanded(child: identity),
+                              favoriteButton,
                               _ExpandButton(expanded: _expanded),
                             ],
                           ),
@@ -415,6 +446,7 @@ class _ProcessRowState extends State<_ProcessRow> {
                           Row(
                             children: [
                               Expanded(child: identity),
+                              favoriteButton,
                               _ExpandButton(expanded: _expanded),
                             ],
                           ),
@@ -441,6 +473,7 @@ class _ProcessRowState extends State<_ProcessRow> {
                         const SizedBox(width: 20),
                         controls,
                         const SizedBox(width: 4),
+                        favoriteButton,
                         IconButton(
                           tooltip: 'Bypass TUN',
                           onPressed: widget.onBypass,
@@ -633,7 +666,6 @@ class _TrafficLabel extends StatelessWidget {
         ),
       );
 }
-
 
 class _ExpandButton extends StatelessWidget {
   const _ExpandButton({required this.expanded});
