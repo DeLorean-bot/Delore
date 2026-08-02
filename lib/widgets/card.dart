@@ -110,19 +110,21 @@ class CommonCard extends StatelessWidget {
       return BorderSide.none;
     }
     final hoverColor = isSelected
-        ? colorScheme.primary.opacity80
-        : colorScheme.primary.opacity60;
+        ? premiumMint.withValues(alpha: 0.42)
+        : colorScheme.outline.withValues(alpha: 0.62);
     if (states.contains(WidgetState.hovered) ||
         states.contains(WidgetState.focused) ||
         states.contains(WidgetState.pressed)) {
       return BorderSide(
         color: hoverColor,
+        width: 1,
       );
     }
     return BorderSide(
       color: isSelected
-          ? colorScheme.primary
-          : colorScheme.surfaceContainerHighest,
+          ? premiumMint.withValues(alpha: 0.28)
+          : colorScheme.outlineVariant.withValues(alpha: 0.48),
+      width: isSelected ? 0.9 : 0.8,
     );
   }
 
@@ -130,12 +132,12 @@ class CommonCard extends StatelessWidget {
     final colorScheme = context.colorScheme;
     if (type == CommonCardType.filled) {
       if (isSelected) {
-        return colorScheme.primary.withValues(alpha: 0.13);
+        return premiumMint.withValues(alpha: 0.052);
       }
       return colorScheme.surfaceContainer.withValues(alpha: 0.72);
     }
     if (isSelected) {
-      return colorScheme.primary.withValues(alpha: 0.11);
+      return premiumMint.withValues(alpha: 0.042);
     }
     return colorScheme.surfaceContainerLow.withValues(alpha: 0.72);
   }

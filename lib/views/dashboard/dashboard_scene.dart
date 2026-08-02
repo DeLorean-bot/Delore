@@ -2,19 +2,17 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flclashx/common/common.dart';
-import 'package:flclashx/common/process_icon.dart';
 import 'package:flclashx/enum/enum.dart';
 import 'package:flclashx/models/models.dart';
 import 'package:flclashx/providers/providers.dart';
 import 'package:flclashx/state.dart';
-import 'package:flclashx/views/dashboard/dashboard_flows.dart';
-import 'package:flclashx/views/proxies/common.dart' show delayTest;
 import 'package:flclashx/views/dashboard/widgets/hero_connect.dart'
     show
         DashboardUtilityBar,
         HeroConnect,
         RouteXWorldMapBackdrop,
         resolveActiveServerCountryCode;
+import 'package:flclashx/views/proxies/common.dart' show delayTest;
 import 'package:flclashx/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -438,156 +436,156 @@ class _ConnectBar extends ConsumerWidget {
             Flexible(
               fit: compact ? FlexFit.loose : FlexFit.tight,
               child: Row(
-              children: [
-            // Status indicator, not a second control: the labelled button
-            // at the other end of the bar already toggles the connection,
-            // and having both do it read as two connect buttons.
-            AnimatedContainer(
-                duration: RouteXMotion.resolve(context, RouteXMotion.base),
-                curve: RouteXMotion.curve,
-                width: 56,
-                height: 56,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isRunning
-                      ? premiumMint
-                      : premiumMint.withValues(alpha: 0.10),
-                  border: Border.all(
-                    color: isRunning
-                        ? Colors.transparent
-                        : premiumMint.withValues(alpha: 0.55),
-                    width: 2,
-                  ),
-                  boxShadow: isRunning
-                      ? [
-                          BoxShadow(
-                            color: premiumMint.withValues(alpha: 0.32),
-                            blurRadius: 28,
-                            spreadRadius: 1,
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Icon(
-                  Icons.power_settings_new_rounded,
-                  size: 26,
-                  color: isRunning ? const Color(0xFF07110E) : premiumMint,
-                ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    isRunning
-                        ? (isRussian ? 'Подключено' : 'Connected')
-                        : (isRussian ? 'Отключено' : 'Disconnected'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  Text(
-                    isRunning
-                        ? utils.getTimeText(runTime)
-                        : (isRussian
-                            ? 'Нажмите, чтобы подключиться'
-                            : 'Tap to connect'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.textTheme.bodySmall?.copyWith(
-                      color: context.colorScheme.onSurfaceVariant,
-                      fontFamily: isRunning
-                          ? FontFamily.jetBrainsMono.value
+                  // Status indicator, not a second control: the labelled button
+                  // at the other end of the bar already toggles the connection,
+                  // and having both do it read as two connect buttons.
+                  AnimatedContainer(
+                    duration: RouteXMotion.resolve(context, RouteXMotion.base),
+                    curve: RouteXMotion.curve,
+                    width: 56,
+                    height: 56,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isRunning
+                          ? premiumMint
+                          : premiumMint.withValues(alpha: 0.10),
+                      border: Border.all(
+                        color: isRunning
+                            ? Colors.transparent
+                            : premiumMint.withValues(alpha: 0.55),
+                        width: 2,
+                      ),
+                      boxShadow: isRunning
+                          ? [
+                              BoxShadow(
+                                color: premiumMint.withValues(alpha: 0.32),
+                                blurRadius: 28,
+                                spreadRadius: 1,
+                              ),
+                            ]
                           : null,
+                    ),
+                    child: Icon(
+                      Icons.power_settings_new_rounded,
+                      size: 26,
+                      color: isRunning ? const Color(0xFF09090A) : premiumMint,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          isRunning
+                              ? (isRussian ? 'Подключено' : 'Connected')
+                              : (isRussian ? 'Отключено' : 'Disconnected'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        Text(
+                          isRunning
+                              ? utils.getTimeText(runTime)
+                              : (isRussian
+                                  ? 'Нажмите, чтобы подключиться'
+                                  : 'Tap to connect'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.textTheme.bodySmall?.copyWith(
+                            color: context.colorScheme.onSurfaceVariant,
+                            fontFamily: isRunning
+                                ? FontFamily.jetBrainsMono.value
+                                : null,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-              ],
-            ),
-            ),
             if (compact) const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-            Flexible(
-              flex: compact ? 1 : 0,
-              child: RouteXFocusableTap(
-              borderRadius: 14,
-              onTap: () =>
-                  globalState.appController.toPage(PageLabel.proxies),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  color: Colors.white.withValues(alpha: 0.05),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.08),
+                Flexible(
+                  flex: compact ? 1 : 0,
+                  child: RouteXFocusableTap(
+                    borderRadius: 14,
+                    onTap: () =>
+                        globalState.appController.toPage(PageLabel.proxies),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        color: Colors.white.withValues(alpha: 0.05),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (code != null) ...[
+                            _Flag(code: code, size: 18),
+                            const SizedBox(width: 8),
+                          ],
+                          Flexible(
+                            child: Text(
+                              code?.toUpperCase() ??
+                                  (isRussian ? 'Выбрать' : 'Choose'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.expand_more_rounded,
+                            size: 18,
+                            color: context.colorScheme.onSurfaceVariant,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (code != null) ...[
-                      _Flag(code: code, size: 18),
-                      const SizedBox(width: 8),
-                    ],
-                    Flexible(
+                const SizedBox(width: 10),
+                Flexible(
+                  flex: compact ? 1 : 0,
+                  child: RouteXFocusableTap(
+                    borderRadius: 14,
+                    onTap: isReady ? toggle : null,
+                    child: Container(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        color: Colors.white.withValues(alpha: 0.07),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.10),
+                        ),
+                      ),
                       child: Text(
-                        code?.toUpperCase() ??
-                            (isRussian ? 'Выбрать' : 'Choose'),
+                        isRunning
+                            ? (isRussian ? 'Отключить' : 'Disconnect')
+                            : (isRussian ? 'Подключить' : 'Connect'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: context.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w600),
+                            ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.expand_more_rounded,
-                      size: 18,
-                      color: context.colorScheme.onSurfaceVariant,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            ),
-            const SizedBox(width: 10),
-            Flexible(
-              flex: compact ? 1 : 0,
-              child: RouteXFocusableTap(
-                borderRadius: 14,
-                onTap: isReady ? toggle : null,
-                child: Container(
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 18, vertical: 12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    color: Colors.white.withValues(alpha: 0.07),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.10),
-                    ),
-                  ),
-                  child: Text(
-                    isRunning
-                        ? (isRussian ? 'Отключить' : 'Disconnect')
-                        : (isRussian ? 'Подключить' : 'Connect'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
-              ),
-            ),
               ],
             ),
           ],

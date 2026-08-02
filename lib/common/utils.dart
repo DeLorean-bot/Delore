@@ -14,8 +14,8 @@ class Utils {
   Color? getDelayColor(int? delay) {
     if (delay == null) return null;
     if (delay < 0) return Colors.red;
-    if (delay < 600) return Colors.green;
-    return const Color(0xFFC57F0A);
+    if (delay < 600) return const Color(0xFFF2F3F5);
+    return const Color(0xFF888E96);
   }
 
   String get id {
@@ -191,14 +191,16 @@ class Utils {
     if (patch1 != patch2) {
       return patch1.compareTo(patch2);
     }
-    final build1 = version1.contains('+') ? int.parse(version1.split('+')[1]) : 0;
-    final build2 = version2.contains('+') ? int.parse(version2.split('+')[1]) : 0;
+    final build1 =
+        version1.contains('+') ? int.parse(version1.split('+')[1]) : 0;
+    final build2 =
+        version2.contains('+') ? int.parse(version2.split('+')[1]) : 0;
     return build1.compareTo(build2);
   }
 
   String getPinyin(String value) => value.isNotEmpty
-        ? PinyinHelper.getFirstWordPinyin(value.substring(0, 1))
-        : "";
+      ? PinyinHelper.getFirstWordPinyin(value.substring(0, 1))
+      : "";
 
   String? getFileNameForDisposition(String? disposition) {
     if (disposition == null) return null;
@@ -218,7 +220,8 @@ class Utils {
     return parameters[fileNameKey];
   }
 
-  FlutterView getScreen() => WidgetsBinding.instance.platformDispatcher.views.first;
+  FlutterView getScreen() =>
+      WidgetsBinding.instance.platformDispatcher.views.first;
 
   List<String> parseReleaseBody(String? body) {
     if (body == null) return [];

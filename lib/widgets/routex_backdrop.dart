@@ -3,8 +3,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// The detail layer of the RouteX backdrop: a slow multi-blob mesh, a
-/// faint grain and a vignette, painted over the app's base gradient.
+/// The detail layer of the RouteX backdrop: a slow monochrome light field,
+/// faint optical threads, grain and a vignette over the app's base gradient.
 ///
 /// This belongs in `LiquidGlassView.backgroundWidget` and **only**
 /// there. On Skia a lens refracts the captured background, so anything
@@ -37,14 +37,20 @@ class RouteXBackdrop extends StatefulWidget {
 
 class _RouteXBackdropState extends State<RouteXBackdrop>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 24),
-  );
+  late final AnimationController _controller;
 
   bool get _motionEnabled =>
       widget.active &&
       !(MediaQuery.maybeOf(context)?.disableAnimations ?? false);
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 24),
+    );
+  }
 
   @override
   void didChangeDependencies() {
@@ -86,7 +92,7 @@ class _RouteXBackdropState extends State<RouteXBackdrop>
               phase: _controller.value,
               dark: dark,
               detail: widget.detail,
-              intensity: widget.active ? 1 : 0.34,
+              intensity: widget.active ? 1 : 0.22,
             ),
             size: Size.infinite,
           ),
@@ -96,8 +102,8 @@ class _RouteXBackdropState extends State<RouteXBackdrop>
   }
 }
 
-/// Paints the RouteX mesh: five very soft mint/blue/amber blobs, a
-/// deterministic grain and a vignette. Shared with the developer glass
+/// Paints the RouteX mesh: five soft monochrome highlights, a sparse optical
+/// field, deterministic grain and a vignette. Shared with the developer glass
 /// playground so the tuned backdrop and the shipped one cannot drift.
 class RouteXMeshPainter extends CustomPainter {
   const RouteXMeshPainter({
@@ -168,6 +174,23 @@ class RouteXMeshPainter extends CustomPainter {
         color: color.withValues(alpha: alpha * gain),
       );
     }
+    routeXPaintChromeRefractionField(
+      canvas,
+      size,
+      phase: phase,
+      strength: 0.075 * detail.clamp(0.0, 2.0),
+    );
+    // A black backdrop needs low-frequency detail for the lens to bend. These
+    // threads are intentionally below normal reading contrast: outside glass
+    // they register as texture, while the refracted edge displaces and curves
+    // them enough to reveal the material. Keeping them monochrome avoids the
+    // generic colourful "AI glassmorphism" look.
+    routeXPaintOpticalThreads(
+      canvas,
+      size,
+      phase: phase,
+      strength: 0.048 * detail.clamp(0.0, 2.0) * math.max(intensity, 0.7),
+    );
     routeXPaintGrain(
       canvas,
       size,
@@ -182,6 +205,92 @@ class RouteXMeshPainter extends CustomPainter {
       old.dark != dark ||
       old.detail != detail ||
       old.intensity != intensity;
+}
+
+/// Sharp low-contrast detail placed behind navigation chrome. Refraction is a
+/// displacement of existing pixels; an almost uniform black surface cannot
+/// reveal that displacement. These lines live in the captured background (not
+/// on the glass), so their visible curvature is produced by the lens shader.
+void routeXPaintChromeRefractionField(
+  Canvas canvas,
+  Size size, {
+  required double phase,
+  required double strength,
+}) {
+  if (strength <= 0 || size.isEmpty) return;
+  final desktop = size.width >= 720;
+  final regions = desktop
+      ? <Rect>[
+          Rect.fromLTWH(0, 0, math.min(252, size.width), size.height),
+          Rect.fromLTWH(248, 0, math.max(0, size.width - 248), 92),
+        ]
+      : <Rect>[
+          Rect.fromLTWH(0, 38, size.width, 74),
+          Rect.fromLTWH(0, math.max(0, size.height - 96), size.width, 96),
+        ];
+  final paint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 0.8
+    ..isAntiAlias = true;
+  final drift = math.sin(phase * math.pi) * 5;
+
+  for (final region in regions) {
+    canvas.save();
+    canvas.clipRect(region);
+    paint.color = Colors.white.withValues(alpha: strength);
+    for (double x = region.left - 40; x <= region.right + 40; x += 44) {
+      final path = Path()..moveTo(x + drift, region.top - 12);
+      for (double y = region.top; y <= region.bottom + 12; y += 24) {
+        final bend = math.sin(y / 46 + x / 90 + phase * math.pi) * 3.5;
+        path.lineTo(x + drift + bend, y);
+      }
+      canvas.drawPath(path, paint);
+    }
+    paint.color = Colors.white.withValues(alpha: strength * 0.52);
+    for (double y = region.top; y <= region.bottom; y += 38) {
+      canvas.drawLine(
+        Offset(region.left, y + drift * 0.3),
+        Offset(region.right, y - drift * 0.3),
+        paint,
+      );
+    }
+    canvas.restore();
+  }
+}
+
+void routeXPaintOpticalThreads(
+  Canvas canvas,
+  Size size, {
+  required double phase,
+  required double strength,
+}) {
+  if (strength <= 0 || size.isEmpty) return;
+  final paint = Paint()
+    ..color = Colors.white.withValues(alpha: strength)
+    ..strokeWidth = 0.65
+    ..style = PaintingStyle.stroke
+    ..isAntiAlias = true;
+  final shift = math.sin(phase * math.pi) * 9;
+  const spacing = 76.0;
+
+  for (double y = -spacing; y < size.height + spacing; y += spacing) {
+    final path = Path()..moveTo(0, y + shift);
+    for (double x = 0; x <= size.width; x += 48) {
+      final wave = math.sin((x / 180) + (y / 240) + phase * math.pi) * 5;
+      path.lineTo(x, y + shift + wave);
+    }
+    canvas.drawPath(path, paint);
+  }
+
+  paint.color = Colors.white.withValues(alpha: strength * 0.58);
+  for (double x = 38; x < size.width; x += spacing * 1.45) {
+    final path = Path()..moveTo(x - shift * 0.35, 0);
+    for (double y = 0; y <= size.height; y += 48) {
+      final wave = math.cos((y / 210) + (x / 280) - phase * math.pi) * 4;
+      path.lineTo(x - shift * 0.35 + wave, y);
+    }
+    canvas.drawPath(path, paint);
+  }
 }
 
 /// Draws one very soft radial blob. [center] is in unit coordinates,

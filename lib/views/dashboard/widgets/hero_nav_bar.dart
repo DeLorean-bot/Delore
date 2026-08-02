@@ -92,7 +92,7 @@ class HeroNavBar extends ConsumerWidget {
 
 /// The primary destinations with a spring-driven, jelly-deforming
 /// selection lens.
-class _JellyPrimaryTabs extends StatelessWidget {
+class _JellyPrimaryTabs extends ConsumerWidget {
   const _JellyPrimaryTabs({
     required this.items,
     required this.current,
@@ -102,32 +102,80 @@ class _JellyPrimaryTabs extends StatelessWidget {
   final PageLabel current;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final selectedIndex = items.indexWhere((item) => item.label == current);
-    return LayoutBuilder(
-      builder: (context, constraints) => Stack(
+    return LayoutBuilder(builder: (context, constraints) {
+      final itemWidth = constraints.maxWidth / items.length;
+
+      void reorder(int oldIndex, int newIndex) {
+        final reordered = [...items];
+        final item = reordered.removeAt(oldIndex);
+        reordered.insert(newIndex, item);
+        ref.read(navigationOrderProvider.notifier).reorderVisible(
+              reordered.map((entry) => entry.label).toList(growable: false),
+            );
+      }
+
+      return Stack(
         clipBehavior: Clip.none,
         children: [
-          RouteXJellySelection(
+          RouteXSlidingSelection(
             index: (selectedIndex < 0 ? 0 : selectedIndex).toDouble(),
             extent: constraints.maxWidth / items.length,
             crossExtent: constraints.maxHeight,
             child: const _LiquidLens(),
           ),
-          Row(
-            children: [
-              for (final item in items)
-                Expanded(
-                  child: _LiquidNavItem(
-                    item: item,
-                    selected: item.label == current,
+          ReorderableListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.zero,
+            physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
+            itemCount: items.length,
+            onReorderItem: reorder,
+            proxyDecorator: (child, index, animation) => AnimatedBuilder(
+              animation: animation,
+              builder: (context, _) => Transform.scale(
+                scale: 1 + (0.045 * animation.value),
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: RouteXGlassSurface(
+                    variant: RouteXGlassVariant.control,
+                    radius: 22,
+                    child: child,
                   ),
                 ),
-            ],
+              ),
+            ),
+            itemBuilder: (context, index) {
+              final item = items[index];
+              final tab = SizedBox(
+                width: itemWidth,
+                child: _LiquidNavItem(
+                  item: item,
+                  selected: item.label == current,
+                  draggableHint: true,
+                ),
+              );
+              if (system.isDesktop) {
+                return ReorderableDragStartListener(
+                  key: ValueKey(item.label),
+                  index: index,
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.grab,
+                    child: tab,
+                  ),
+                );
+              }
+              return ReorderableDelayedDragStartListener(
+                key: ValueKey(item.label),
+                index: index,
+                child: tab,
+              );
+            },
           ),
         ],
-      ),
-    );
+      );
+    });
   }
 }
 
@@ -173,11 +221,13 @@ class _LiquidNavItem extends StatefulWidget {
     required this.item,
     required this.selected,
     this.iconOnly = false,
+    this.draggableHint = false,
   });
 
   final NavigationItem item;
   final bool selected;
   final bool iconOnly;
+  final bool draggableHint;
 
   @override
   State<_LiquidNavItem> createState() => _LiquidNavItemState();
@@ -203,12 +253,21 @@ class _LiquidNavItemState extends State<_LiquidNavItem> {
       selected: widget.selected,
       button: true,
       label: _label,
+      hint: widget.draggableHint
+          ? (Localizations.localeOf(context).languageCode == 'ru'
+              ? 'Удерживайте и перетащите, чтобы изменить порядок'
+              : 'Hold and drag to reorder')
+          : null,
       child: Tooltip(
-        message: _label,
+        message: widget.draggableHint
+            ? (Localizations.localeOf(context).languageCode == 'ru'
+                ? '$_label · удерживайте и перетащите'
+                : '$_label · hold and drag')
+            : _label,
         child: Material(
           type: MaterialType.transparency,
           child: InkWell(
-            borderRadius: BorderRadius.circular(22),
+            customBorder: const StadiumBorder(),
             onHighlightChanged: (value) {
               if (_pressed != value) setState(() => _pressed = value);
             },

@@ -83,16 +83,20 @@ NavigationItemsState navigationsState(Ref ref) {
 NavigationItemsState currentNavigationsState(Ref ref) {
   final viewWidth = ref.watch(viewWidthProvider);
   final navigationItemsState = ref.watch(navigationsStateProvider);
+  final navigationOrder = ref.watch(navigationOrderProvider);
   final navigationItemMode = switch (viewWidth <= maxMobileWidth) {
     true => NavigationItemMode.mobile,
     false => NavigationItemMode.desktop,
   };
   return NavigationItemsState(
-    value: navigationItemsState.value
-        .where(
-          (element) => element.modes.contains(navigationItemMode),
-        )
-        .toList(),
+    value: applyNavigationOrder(
+      navigationItemsState.value
+          .where(
+            (element) => element.modes.contains(navigationItemMode),
+          )
+          .toList(),
+      navigationOrder,
+    ),
   );
 }
 

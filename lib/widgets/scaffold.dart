@@ -490,9 +490,9 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
   Widget _buildPremiumBackdrop() {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final background = context.colorScheme.surfaceContainerLowest;
-    final topColor = dark ? const Color(0xFF0A1017) : const Color(0xFFF3FAFA);
+    final topColor = dark ? const Color(0xFF101013) : const Color(0xFFF3FAFA);
     final bottomColor =
-        dark ? const Color(0xFF070A10) : const Color(0xFFF5F7FC);
+        dark ? const Color(0xFF060607) : const Color(0xFFF5F7FC);
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -844,7 +844,7 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
       // and made the whole app visibly laggy on-device. 2.0 stays the
       // cap everywhere: for a *blurred* surface the softness past 2x is
       // in the noise next to the cost of capturing it live.
-      pixelRatio: MediaQuery.devicePixelRatioOf(context).clamp(1.0, 2.0),
+      pixelRatio: 1,
       // Live, on every screen. Once the page moved into the capture this
       // stopped being an optimisation: a single snapshot means the
       // refraction shows the first frame of a list you are still
@@ -858,10 +858,15 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
       // "wildly laggy": every scroll frame paid for a full backdrop
       // redraw. medium keeps the glass visibly live without doing that
       // 2.5x more often than it needs to.
-      refreshRate: system.isMobile
-          ? LiquidGlassRefreshRate.medium
-          : LiquidGlassRefreshRate.high,
+      refreshRate: isDashboard && !system.isMobile
+          ? LiquidGlassRefreshRate.high
+          : LiquidGlassRefreshRate.medium,
       useSync: true,
+      // On Skia, capture only the actual sidebar/app-bar/nav rectangles.
+      // Together they cover a small fraction of a fullscreen window; taking
+      // one full 1920x1080 snapshot for every glass refresh wastes most of the
+      // raster work on pixels no lens can ever sample.
+      regionCapture: true,
       child: chromeLayer,
     );
   }

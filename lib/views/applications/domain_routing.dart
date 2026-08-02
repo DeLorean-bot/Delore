@@ -199,6 +199,7 @@ class _DomainRoutingBodyState extends ConsumerState<DomainRoutingBody> {
 
   @override
   Widget build(BuildContext context) {
+    final isRussian = Localizations.localeOf(context).languageCode == 'ru';
     ref.listen(currentProfileIdProvider, (previous, next) {
       if (previous != next) unawaited(_load());
     });
@@ -217,9 +218,10 @@ class _DomainRoutingBodyState extends ConsumerState<DomainRoutingBody> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _entries.isEmpty
-                    ? const NullStatus(
-                        label: 'Добавьте сайт, чтобы направить его трафик '
-                            'через нужный сервер отдельно от остальных',
+                    ? NullStatus(
+                        label: isRussian
+                            ? 'Добавьте сайт, чтобы выбрать для него отдельный маршрут'
+                            : 'Add a site to choose a separate route for it',
                       )
                     : CommonScrollBar(
                         controller: _scrollController,
@@ -266,43 +268,46 @@ class _AddDomainRow extends StatelessWidget {
   final VoidCallback onSubmit;
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: context.colorScheme.surfaceContainerLow.withValues(
-            alpha: 0.68,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: context.colorScheme.outlineVariant.withValues(alpha: 0.52),
-          ),
+  Widget build(BuildContext context) {
+    final isRussian = Localizations.localeOf(context).languageCode == 'ru';
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerLow.withValues(
+          alpha: 0.68,
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 44,
-                child: TextField(
-                  controller: controller,
-                  style: const TextStyle(fontSize: 13),
-                  onSubmitted: (_) => onSubmit(),
-                  decoration: const InputDecoration(
-                    hintText: 'youtube.com',
-                    prefixIcon: Icon(Icons.public_rounded, size: 18),
-                    contentPadding: EdgeInsets.symmetric(vertical: 9),
-                  ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: context.colorScheme.outlineVariant.withValues(alpha: 0.52),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 44,
+              child: TextField(
+                controller: controller,
+                style: const TextStyle(fontSize: 13),
+                onSubmitted: (_) => onSubmit(),
+                decoration: const InputDecoration(
+                  hintText: 'youtube.com',
+                  prefixIcon: Icon(Icons.public_rounded, size: 18),
+                  contentPadding: EdgeInsets.symmetric(vertical: 9),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
-            FilledButton.icon(
-              onPressed: onSubmit,
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Добавить'),
-            ),
-          ],
-        ),
-      );
+          ),
+          const SizedBox(width: 8),
+          FilledButton.icon(
+            onPressed: onSubmit,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: Text(isRussian ? 'Добавить' : 'Add'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _DomainRow extends StatelessWidget {

@@ -525,8 +525,8 @@ class _CoreStatusItemState extends State<_CoreStatusItem> {
   }
 
   Color get _statusColor => switch (_state) {
-        _CoreState.running => Colors.green,
-        _CoreState.restarting => Colors.orange,
+        _CoreState.running => premiumMint,
+        _CoreState.restarting => premiumAmber,
         _CoreState.stopped => Colors.red,
       };
 

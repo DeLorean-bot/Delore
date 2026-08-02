@@ -62,61 +62,71 @@ class ProxyRouteControl extends StatelessWidget {
   final String defaultLabel;
 
   @override
-  Widget build(BuildContext context) => Container(
-        width: width,
-        height: 44,
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-          color: context.colorScheme.surfaceContainerLowest
-              .withValues(alpha: 0.66),
-          borderRadius: BorderRadius.circular(11),
-          border: Border.all(
-            color: context.colorScheme.outlineVariant.withValues(alpha: 0.45),
+  Widget build(BuildContext context) {
+    final isRussian = Localizations.localeOf(context).languageCode == 'ru';
+    final proxyLabel = switch (route) {
+      ApplicationRoute.rule => isRussian ? 'Правила' : 'Rules',
+      ApplicationRoute.proxy =>
+        routeTarget == null ? 'Proxy' : stripLocationFlagPrefix(routeTarget!),
+      ApplicationRoute.direct =>
+        routeTarget == null ? 'Proxy' : stripLocationFlagPrefix(routeTarget!),
+    };
+    return Container(
+      width: width,
+      height: 44,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color:
+            context.colorScheme.surfaceContainerLowest.withValues(alpha: 0.66),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(
+          color: context.colorScheme.outlineVariant.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: CommonPopupBox(
+              targetBuilder: (open) => Tooltip(
+                message: route != ApplicationRoute.direct
+                    ? 'Нажмите ещё раз, чтобы выбрать локацию'
+                    : '',
+                child: RouteOption(
+                  label: proxyLabel,
+                  selected: route != ApplicationRoute.direct,
+                  color: route == ApplicationRoute.rule
+                      ? premiumAmber
+                      : premiumMint,
+                  onPressed: () {
+                    if (route != ApplicationRoute.direct) {
+                      open(offset: const Offset(0, 8));
+                    } else {
+                      onChanged(ApplicationRoute.proxy);
+                    }
+                  },
+                ),
+              ),
+              popup: LocationPickerPanel(
+                currentTarget: routeTarget,
+                isDefault: route == ApplicationRoute.rule,
+                defaultLabel: defaultLabel,
+                onPicked: onPickLocation,
+                onClear: () => onChanged(ApplicationRoute.rule),
+              ),
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: CommonPopupBox(
-                targetBuilder: (open) => Tooltip(
-                  message: route != ApplicationRoute.direct
-                      ? 'Нажмите ещё раз, чтобы выбрать локацию'
-                      : '',
-                  child: RouteOption(
-                    label: routeTarget == null
-                        ? 'Proxy'
-                        : stripLocationFlagPrefix(routeTarget!),
-                    selected: route != ApplicationRoute.direct,
-                    color: premiumMint,
-                    onPressed: () {
-                      if (route != ApplicationRoute.direct) {
-                        open(offset: const Offset(0, 8));
-                      } else {
-                        onChanged(ApplicationRoute.proxy);
-                      }
-                    },
-                  ),
-                ),
-                popup: LocationPickerPanel(
-                  currentTarget: routeTarget,
-                  isDefault: route == ApplicationRoute.rule,
-                  defaultLabel: defaultLabel,
-                  onPicked: onPickLocation,
-                  onClear: () => onChanged(ApplicationRoute.rule),
-                ),
-              ),
+          Expanded(
+            child: RouteOption(
+              label: 'Direct',
+              selected: route == ApplicationRoute.direct,
+              color: premiumBlue,
+              onPressed: () => onChanged(ApplicationRoute.direct),
             ),
-            Expanded(
-              child: RouteOption(
-                label: 'Direct',
-                selected: route == ApplicationRoute.direct,
-                color: premiumBlue,
-                onPressed: () => onChanged(ApplicationRoute.direct),
-              ),
-            ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// The location picker's popup body — opened from the Proxy slot of an

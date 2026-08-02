@@ -75,6 +75,7 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
 
   @override
   Widget build(BuildContext context) {
+    final isRussian = Localizations.localeOf(context).languageCode == 'ru';
     return Column(
       children: [
         Padding(
@@ -89,16 +90,22 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
               onValueChanged: (value) {
                 if (value != null) _selectTab(value);
               },
-              children: const {
+              children: {
                 _AppsTab.apps: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Text('Приложения'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  child: Text(isRussian ? 'Приложения' : 'Applications'),
                 ),
                 _AppsTab.sites: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Text('Сайты'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  child: Text(isRussian ? 'Сайты' : 'Sites'),
                 ),
-                _AppsTab.browser: Padding(
+                _AppsTab.browser: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Text('Browser'),
                 ),
@@ -637,7 +644,8 @@ class _NetworkStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = online ? Colors.green : context.colorScheme.outline;
+    final color =
+        online ? context.colorScheme.onSurface : context.colorScheme.outline;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

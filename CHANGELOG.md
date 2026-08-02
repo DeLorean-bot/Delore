@@ -1,5 +1,20 @@
 ## v0.5.4
 
+**Interface and navigation**
+
+* Reworked the shared dark interface around a neutral black, graphite and white Liquid Glass system, without the previous coloured tint
+* Navigation glass now refracts the captured app backdrop on Windows, with restrained non-overshooting motion instead of jelly stretching
+* The desktop sidebar keeps the same transparent material when expanded or collapsed; hover, pressed and selected states now follow the same capsule geometry
+* Navigation items can be reordered by dragging in both the expanded and collapsed desktop sidebar and in the compact bottom bar; the chosen order is saved locally
+* Updated the expanded and collapsed dashboard screenshots
+
+**Interface fixes**
+
+* Fixed a dashboard animation lifecycle crash when leaving the home screen
+* Fixed Applications, Sites, Browser and empty connection labels in English and Russian
+* Renamed the proxy selection page to Locations and corrected the default application route label to Rules
+* Reduced Liquid Glass capture work outside the dashboard and enabled region capture to keep the effect responsive on Windows
+
 **Browser Bridge**
 
 * Added a live Browser tab next to Apps and Sites, showing the real title, domain, favicon, browser and active state of every open tab

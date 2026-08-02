@@ -39,7 +39,7 @@ class Window {
     await windowManager.ensureInitialized();
     final windowOptions = WindowOptions(
       size: Size(props.width, props.height),
-      backgroundColor: const Color(0xFF080B10),
+      backgroundColor: const Color(0xFF080809),
       // Lock the minimum window size to 380×600 so it can't be shrunk below that
       // in either dimension — only grown.
       minimumSize: const Size(380, 600),

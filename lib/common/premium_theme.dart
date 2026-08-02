@@ -96,7 +96,14 @@ extension RouteXGlassVariantDefaults on RouteXGlassVariant {
   /// card, which composites normally and cannot feed back.
   bool get refracts {
     if (ImageFilter.isShaderFilterSupported) {
-      return true;
+      return switch (this) {
+        RouteXGlassVariant.navigation ||
+        RouteXGlassVariant.selection ||
+        RouteXGlassVariant.dialog ||
+        RouteXGlassVariant.control =>
+          true,
+        RouteXGlassVariant.panel => false,
+      };
     }
     return switch (this) {
       RouteXGlassVariant.navigation || RouteXGlassVariant.selection => true,
@@ -165,8 +172,11 @@ LiquidGlassStyle routeXGlassStyle(
   RouteXGlassVariant variant, {
   double? radius,
   bool capsule = false,
+  double tintAlphaFactor = 1,
+  double blurFactor = 1,
 }) {
   final dark = Theme.of(context).brightness == Brightness.dark;
+  final highContrast = MediaQuery.highContrastOf(context);
   // Every dark-mode tint below was a white overlay at low alpha — the
   // material equivalent of breathing frost onto the glass. That reads as
   // grey wash no matter how low the alpha goes, because white-over-dark
@@ -176,7 +186,8 @@ LiquidGlassStyle routeXGlassStyle(
   // whole surface is the rim catching light — which is what actually
   // reads as "glass", not "frost". Light theme is untouched: white haze
   // is the correct move there.
-  final (Color tint, double blur, double borderWidth) = switch (variant) {
+  final (Color baseTint, double blur, double baseBorderWidth) =
+      switch (variant) {
     // On iOS the bar is see-through enough to read content sliding under
     // it, but that content is a couple of lines of a chat list scrolling
     // smoothly. Ours can be a Logs page appending dense multi-line error
@@ -191,8 +202,8 @@ LiquidGlassStyle routeXGlassStyle(
     // subtle. Lower tint, higher sigma: more of the scrolling content
     // shows through blurred, which is the actual visual cue for glass.
     RouteXGlassVariant.navigation => (
-        dark ? const Color(0x26000000) : const Color(0x38FFFFFF),
-        22.0,
+        dark ? const Color(0x0AFFFFFF) : const Color(0x20FFFFFF),
+        3.0,
         0.35,
       ),
     // The selection reads as a lift in brightness, not as an outlined
@@ -202,7 +213,7 @@ LiquidGlassStyle routeXGlassStyle(
     // dark mode — a black tint here would make the "selected" pill
     // recede instead of stand out.
     RouteXGlassVariant.selection => (
-        dark ? const Color(0x14FFFFFF) : const Color(0x33FFFFFF),
+        dark ? const Color(0x0CFFFFFF) : const Color(0x2AFFFFFF),
         0.0,
         0.3,
       ),
@@ -222,6 +233,12 @@ LiquidGlassStyle routeXGlassStyle(
         0.35,
       ),
   };
+  final tint = highContrast
+      ? (dark ? const Color(0xA6000000) : const Color(0xA6FFFFFF))
+      : baseTint.withValues(
+          alpha: baseTint.a * tintAlphaFactor.clamp(0.0, 1.0),
+        );
+  final borderWidth = highContrast ? 0.8 : baseBorderWidth;
   final refraction = switch (variant) {
     // The official navigation pill: standard distortion, not optical.
     RouteXGlassVariant.selection => const LiquidGlassRefraction(
@@ -242,9 +259,9 @@ LiquidGlassStyle routeXGlassStyle(
         magnification: 1,
         chromaticAberration: 0,
         refractionType: OpticalRefraction(
-          refraction: 2.0,
-          refractionWidth: 90,
-          depth: 0.95,
+          refraction: 1.5,
+          refractionWidth: 24,
+          depth: 0.7,
         ),
       ),
     // Less displacement: text sits directly on this surface.
@@ -287,20 +304,29 @@ LiquidGlassStyle routeXGlassStyle(
     // and the edge reads as torn. A circular corner is the one shape
     // where the shader, the clip and the shadow are all the same analytic
     // curve, so the edge resolves cleanly. Smoothness beats the squircle.
-    shape: LiquidGlassShape.roundedRectangle(
-      cornerRadius: radius ?? variant.defaultRadius,
-      clipQuality: LiquidGlassClipQuality.roundedRectangle,
-      // The shader's band is `borderWidth * 2 + 2` logical pixels wide in
-      // optical mode, so even 0.8 was a 3.6 px stroke. These values are
-      // deliberately near the floor.
-      borderWidth: borderWidth,
-      lightIntensity: 0.9,
-      lightDirection: _routeXLightDirection,
-      borderType: _routeXOpticalRim,
-    ),
+    shape: capsule
+        ? LiquidGlassShape.roundedRectangle(
+            cornerRadius: radius ?? variant.defaultRadius,
+            clipQuality: LiquidGlassClipQuality.roundedRectangle,
+            borderWidth: borderWidth,
+            lightIntensity: 0.9,
+            lightDirection: _routeXLightDirection,
+            borderType: _routeXOpticalRim,
+          )
+        : LiquidGlassShape.continuousRoundedRectangle(
+            cornerRadius: radius ?? variant.defaultRadius,
+            clipQuality: LiquidGlassClipQuality.exact,
+            borderWidth: borderWidth,
+            lightIntensity: 0.9,
+            lightDirection: _routeXLightDirection,
+            borderType: _routeXOpticalRim,
+          ),
     appearance: LiquidGlassAppearance(
       saturation: variant == RouteXGlassVariant.selection ? 1 : 1.05,
-      blur: LiquidGlassBlur(sigmaX: blur, sigmaY: blur),
+      blur: LiquidGlassBlur(
+        sigmaX: blur * blurFactor.clamp(0.0, 1.0),
+        sigmaY: blur * blurFactor.clamp(0.0, 1.0),
+      ),
       color: tint,
     ),
     refraction: refraction,
@@ -318,6 +344,8 @@ class RouteXGlassSurface extends StatelessWidget {
     this.shadowOffset = const Offset(0, 8),
     this.expand = true,
     this.capsule = false,
+    this.tintAlphaFactor = 1,
+    this.blurFactor = 1,
   });
 
   final Widget child;
@@ -332,6 +360,8 @@ class RouteXGlassSurface extends StatelessWidget {
   /// side). Capsules get the analytic stadium silhouette rather than the
   /// traced continuous one — same shape, no faceting.
   final bool capsule;
+  final double tintAlphaFactor;
+  final double blurFactor;
 
   @override
   Widget build(BuildContext context) {
@@ -365,6 +395,8 @@ class RouteXGlassSurface extends StatelessWidget {
         variant: variant,
         radius: effectiveRadius,
         capsule: capsule,
+        tintAlphaFactor: tintAlphaFactor,
+        blurFactor: blurFactor,
         child: expand ? SizedBox.expand(child: child) : child,
       ),
     );
@@ -378,12 +410,16 @@ class _RouteXSurfaceBody extends StatelessWidget {
     required this.variant,
     required this.radius,
     required this.capsule,
+    this.tintAlphaFactor = 1,
+    this.blurFactor = 1,
     required this.child,
   });
 
   final RouteXGlassVariant variant;
   final double radius;
   final bool capsule;
+  final double tintAlphaFactor;
+  final double blurFactor;
   final Widget child;
 
   @override
@@ -393,6 +429,8 @@ class _RouteXSurfaceBody extends StatelessWidget {
       variant,
       radius: radius,
       capsule: capsule,
+      tintAlphaFactor: tintAlphaFactor,
+      blurFactor: blurFactor,
     );
     if (variant.refracts) {
       return LiquidGlassLens(style: style, child: child);
@@ -453,9 +491,9 @@ ThemeData buildPremiumTheme({
 }) {
   final dark = brightness == Brightness.dark;
   final background = dark
-      ? (pureBlack ? const Color(0xFF040507) : const Color(0xFF080B10))
+      ? (pureBlack ? const Color(0xFF030304) : const Color(0xFF080809))
       : const Color(0xFFF2F6F7);
-  final surface = dark ? const Color(0xFF0C1016) : const Color(0xFFF9FBFC);
+  final surface = dark ? const Color(0xFF0D0D0F) : const Color(0xFFF9FBFC);
   final scheme = ColorScheme.fromSeed(
     seedColor: seed,
     brightness: brightness,
@@ -464,16 +502,16 @@ ThemeData buildPremiumTheme({
     surface: surface,
   ).copyWith(
     surfaceContainerLowest:
-        dark ? const Color(0xFF080B10) : const Color(0xFFFFFFFF),
+        dark ? const Color(0xFF080809) : const Color(0xFFFFFFFF),
     surfaceContainerLow:
-        dark ? const Color(0xFF0E131A) : const Color(0xFFF3F7F8),
-    surfaceContainer: dark ? const Color(0xFF141A22) : const Color(0xFFEDF3F4),
+        dark ? const Color(0xFF111113) : const Color(0xFFF3F7F8),
+    surfaceContainer: dark ? const Color(0xFF171719) : const Color(0xFFEDF3F4),
     surfaceContainerHigh:
-        dark ? const Color(0xFF19212B) : const Color(0xFFE5EDEF),
+        dark ? const Color(0xFF1D1D20) : const Color(0xFFE5EDEF),
     surfaceContainerHighest:
-        dark ? const Color(0xFF222C37) : const Color(0xFFDCE7E9),
-    outline: dark ? const Color(0xFF4C5866) : const Color(0xFF9AABAF),
-    outlineVariant: dark ? const Color(0xFF2A3541) : const Color(0xFFC8D5D8),
+        dark ? const Color(0xFF27272B) : const Color(0xFFDCE7E9),
+    outline: dark ? const Color(0xFF5A5A61) : const Color(0xFF9AABAF),
+    outlineVariant: dark ? const Color(0xFF343438) : const Color(0xFFC8D5D8),
   );
   final base = ThemeData(
     useMaterial3: true,
@@ -613,7 +651,7 @@ ThemeData buildPremiumTheme({
       ),
       thumbColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
-            ? const Color(0xFF07110E)
+            ? const Color(0xFF09090A)
             : scheme.onSurfaceVariant,
       ),
     ),
@@ -662,7 +700,7 @@ ThemeData buildPremiumTheme({
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: scheme.primary,
-        foregroundColor: const Color(0xFF07110E),
+        foregroundColor: const Color(0xFF09090A),
         minimumSize: const Size(44, 44),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
@@ -686,7 +724,7 @@ ThemeData buildPremiumTheme({
       elevation: 0,
       highlightElevation: 0,
       backgroundColor: scheme.primary,
-      foregroundColor: const Color(0xFF07110E),
+      foregroundColor: const Color(0xFF09090A),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17)),
     ),
     snackBarTheme: SnackBarThemeData(

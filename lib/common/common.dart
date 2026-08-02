@@ -23,6 +23,7 @@ export 'lock.dart';
 export 'measure.dart';
 export 'mixin.dart';
 export 'navigation.dart';
+export 'navigation_order.dart';
 export 'navigator.dart';
 export 'network.dart';
 export 'num.dart';

@@ -227,7 +227,8 @@ class _ActiveConnectionsBodyState extends ConsumerState<ActiveConnectionsBody>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.query != widget.query ||
         !listEquals(oldWidget.keywords, widget.keywords)) {
-      _connectionsStateNotifier.value = _connectionsStateNotifier.value.copyWith(
+      _connectionsStateNotifier.value =
+          _connectionsStateNotifier.value.copyWith(
         query: widget.query,
         keywords: widget.keywords,
       );
@@ -296,9 +297,12 @@ class _ActiveConnectionsBodyState extends ConsumerState<ActiveConnectionsBody>
         builder: (_, state, __) {
           final connections = state.list;
           if (connections.isEmpty) {
+            final isRussian =
+                Localizations.localeOf(context).languageCode == 'ru';
             return NullStatus(
-              label: appLocalizations
-                  .nullTip(appLocalizations.connectionsActive),
+              label: isRussian
+                  ? 'Нет активных подключений'
+                  : 'No active connections',
             );
           }
           return CommonScrollBar(

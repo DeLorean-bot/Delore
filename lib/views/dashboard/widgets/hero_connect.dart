@@ -2,11 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 import 'dart:ui' show ImageFilter;
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flclashx/clash/clash.dart';
 import 'package:flclashx/common/common.dart';
 import 'package:flclashx/common/process_icon.dart';
 import 'package:flclashx/enum/enum.dart';
@@ -257,7 +255,6 @@ class HeroConnect extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 /// Top-level so both [HeroConnect] and [DashboardUtilityBar] can open it.
@@ -688,7 +685,7 @@ class _ConnectCircleState extends ConsumerState<_ConnectCircle>
     } else if (isRunning) {
       ring = Colors.transparent;
       fill = premiumMint;
-      glyph = const Color(0xFF07110E);
+      glyph = const Color(0xFF09090A);
     } else {
       ring = premiumMint.withValues(alpha: 0.55);
       fill = premiumMint.withValues(alpha: 0.08);
@@ -710,9 +707,8 @@ class _ConnectCircleState extends ConsumerState<_ConnectCircle>
             : _hovered
                 ? 1.07
                 : 1.0;
-    final glowAlpha = isRunning
-        ? (hoverActive ? 0.48 : 0.32)
-        : (hoverActive ? 0.22 : 0.0);
+    final glowAlpha =
+        isRunning ? (hoverActive ? 0.48 : 0.32) : (hoverActive ? 0.22 : 0.0);
     final glowBlur = isRunning ? (hoverActive ? 44.0 : 36.0) : 28.0;
 
     return Column(
@@ -797,14 +793,13 @@ class _ConnectCircleState extends ConsumerState<_ConnectCircle>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: fill,
-                            border:
-                                Border.all(color: borderColor, width: 2.5),
+                            border: Border.all(color: borderColor, width: 2.5),
                             boxShadow: glowAlpha <= 0
                                 ? null
                                 : [
                                     BoxShadow(
-                                      color: premiumMint
-                                          .withValues(alpha: glowAlpha),
+                                      color: premiumMint.withValues(
+                                          alpha: glowAlpha),
                                       blurRadius: glowBlur,
                                       spreadRadius: 2,
                                     ),
@@ -1041,8 +1036,7 @@ class RouteXWorldMapBackdrop extends StatefulWidget {
   final bool showMarkers;
 
   @override
-  State<RouteXWorldMapBackdrop> createState() =>
-      _RouteXWorldMapBackdropState();
+  State<RouteXWorldMapBackdrop> createState() => _RouteXWorldMapBackdropState();
 }
 
 /// Same resolution `_LegacyHeroConnect` used: the group named in the
@@ -1080,14 +1074,15 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
   // 8s per cycle. This used to be 2400s, which made every "animation"
   // driven by it advance about one part in 2400 per second — the packets
   // crawled a pixel every few seconds and the route looked frozen.
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 8),
-  );
+  late final AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    );
     // Behind another page the map is static scenery under a heavy blur:
     // no packets to see, no markers to place. Animating and polling for it
     // meant every page paid for a full-screen animated blur every frame,
@@ -1151,9 +1146,8 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
     return IgnorePointer(
       child: TweenAnimationBuilder<double>(
         tween: Tween(begin: 0, end: widget.blurred ? 14.0 : 0.0),
-        duration: reduceMotion
-            ? Duration.zero
-            : const Duration(milliseconds: 420),
+        duration:
+            reduceMotion ? Duration.zero : const Duration(milliseconds: 420),
         curve: RouteXMotion.curve,
         builder: (context, sigma, child) => sigma < 0.05
             // ImageFiltered with a ~0 sigma still costs a full-screen
@@ -1164,110 +1158,115 @@ class _RouteXWorldMapBackdropState extends State<RouteXWorldMapBackdrop>
                 child: child,
               ),
         child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Opacity(
-            opacity: 0.16,
-            child: SvgPicture.asset(
-              'assets/images/world_map.svg',
-              fit: BoxFit.cover,
-              colorFilter: const ColorFilter.mode(
-                Colors.white,
-                BlendMode.srcIn,
+          fit: StackFit.expand,
+          children: [
+            Opacity(
+              opacity: widget.blurred ? 0.055 : 0.16,
+              child: SvgPicture.asset(
+                'assets/images/world_map.svg',
+                fit: BoxFit.cover,
+                colorFilter: const ColorFilter.mode(
+                  Colors.white,
+                  BlendMode.srcIn,
+                ),
               ),
             ),
-          ),
-          // Scenery mode stops here: a static image the compositor can
-          // cache, instead of a per-frame repaint under a blur.
-          if (widget.blurred)
-            const SizedBox.shrink()
-          else
-          // The line's origin is the user's own detected location, not a
-          // fixed screen position — a fixed point lands wherever it
-          // lands geographically (an earlier version put it in open
-          // ocean off Africa for a user in Russia). Same IP-geolocation
-          // signal the location panel already shows the flag/IP from.
-          ValueListenableBuilder(
-            valueListenable: detectionState.state,
-            builder: (_, networkState, __) {
-              final homeCode = networkState.ipInfo?.countryCode;
-              final homeLatLon = homeCode == null
-                  ? null
-                  : countryCentroids[homeCode.toUpperCase()];
-              return ValueListenableBuilder<List<AppFlow>>(
-                valueListenable: dashboardFlows.state,
-                builder: (_, flows, __) => LayoutBuilder(
-                  builder: (context, constraints) {
-                    final mapSize =
-                        Size(constraints.maxWidth, constraints.maxHeight);
-                    // Busiest few only — enough to read as "your traffic,
-                    // going places" without the map becoming a tangle.
-                    final candidates = [
-                      for (final flow in _stablePlot(flows))
-                        if (flow.countryCode != null &&
-                            countryCentroids[flow.countryCode!.toUpperCase()] !=
-                                null)
-                          (
-                            flow: flow,
-                            latLon: countryCentroids[
-                                flow.countryCode!.toUpperCase()]!,
-                          ),
-                    ];
+            // Scenery mode stops here: a static image the compositor can
+            // cache, instead of a per-frame repaint under a blur.
+            if (widget.blurred)
+              const SizedBox.shrink()
+            else
+              // The line's origin is the user's own detected location, not a
+              // fixed screen position — a fixed point lands wherever it
+              // lands geographically (an earlier version put it in open
+              // ocean off Africa for a user in Russia). Same IP-geolocation
+              // signal the location panel already shows the flag/IP from.
+              ValueListenableBuilder(
+                valueListenable: detectionState.state,
+                builder: (_, networkState, __) {
+                  final homeCode = networkState.ipInfo?.countryCode;
+                  final homeLatLon = homeCode == null
+                      ? null
+                      : countryCentroids[homeCode.toUpperCase()];
+                  return ValueListenableBuilder<List<AppFlow>>(
+                    valueListenable: dashboardFlows.state,
+                    builder: (_, flows, __) => LayoutBuilder(
+                      builder: (context, constraints) {
+                        final mapSize =
+                            Size(constraints.maxWidth, constraints.maxHeight);
+                        // Busiest few only — enough to read as "your traffic,
+                        // going places" without the map becoming a tangle.
+                        final candidates = [
+                          for (final flow in _stablePlot(flows))
+                            if (flow.countryCode != null &&
+                                countryCentroids[
+                                        flow.countryCode!.toUpperCase()] !=
+                                    null)
+                              (
+                                flow: flow,
+                                latLon: countryCentroids[
+                                    flow.countryCode!.toUpperCase()]!,
+                              ),
+                        ];
 
-                    // Several apps usually exit through the same country, so
-                    // their markers would stack into one illegible blob.
-                    // Fan the collisions out around the shared point instead.
-                    final placed = <({AppFlow flow, Offset latLon, Offset at})>[];
-                    for (final c in candidates) {
-                      var at = projectLatLon(c.latLon, mapSize);
-                      var attempt = 0;
-                      while (placed.any((p) => (p.at - at).distance < 96) &&
-                          attempt < 8) {
-                        attempt++;
-                        final angle = attempt * (math.pi * 2 / 6);
-                        final radius = 52.0 + 26 * (attempt ~/ 6);
-                        at = projectLatLon(c.latLon, mapSize) +
-                            Offset(math.cos(angle), math.sin(angle)) * radius;
-                      }
-                      placed.add((flow: c.flow, latLon: c.latLon, at: at));
-                    }
+                        // Several apps usually exit through the same country, so
+                        // their markers would stack into one illegible blob.
+                        // Fan the collisions out around the shared point instead.
+                        final placed =
+                            <({AppFlow flow, Offset latLon, Offset at})>[];
+                        for (final c in candidates) {
+                          var at = projectLatLon(c.latLon, mapSize);
+                          var attempt = 0;
+                          while (placed.any((p) => (p.at - at).distance < 96) &&
+                              attempt < 8) {
+                            attempt++;
+                            final angle = attempt * (math.pi * 2 / 6);
+                            final radius = 52.0 + 26 * (attempt ~/ 6);
+                            at = projectLatLon(c.latLon, mapSize) +
+                                Offset(math.cos(angle), math.sin(angle)) *
+                                    radius;
+                          }
+                          placed.add((flow: c.flow, latLon: c.latLon, at: at));
+                        }
 
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        RepaintBoundary(
-                          child: AnimatedBuilder(
-                          animation: _controller,
-                          builder: (context, _) => CustomPaint(
-                            painter: _WorldMapPainter(
-                              t: reduceMotion ? 0 : _controller.value,
-                              activeLatLon:
-                                  placed.isEmpty ? activeLatLon : null,
-                              homeLatLon: homeLatLon,
-                              appLatLons: [for (final e in placed) e.latLon],
-                              appPoints: [for (final e in placed) e.at],
+                        return Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            RepaintBoundary(
+                              child: AnimatedBuilder(
+                                animation: _controller,
+                                builder: (context, _) => CustomPaint(
+                                  painter: _WorldMapPainter(
+                                    t: reduceMotion ? 0 : _controller.value,
+                                    activeLatLon:
+                                        placed.isEmpty ? activeLatLon : null,
+                                    homeLatLon: homeLatLon,
+                                    appLatLons: [
+                                      for (final e in placed) e.latLon
+                                    ],
+                                    appPoints: [for (final e in placed) e.at],
+                                  ),
+                                  size: mapSize,
+                                ),
+                              ),
                             ),
-                            size: mapSize,
-                          ),
-                          ),
-                        ),
-                        if (widget.showMarkers)
-                          for (final e in placed)
-                          Positioned(
-                            left: e.at.dx - 78,
-                            top: e.at.dy - 62,
-                            width: 156,
-                            child: _AppMapLabel(flow: e.flow),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+                            if (widget.showMarkers)
+                              for (final e in placed)
+                                Positioned(
+                                  left: e.at.dx - 78,
+                                  top: e.at.dy - 62,
+                                  width: 156,
+                                  child: _AppMapLabel(flow: e.flow),
+                                ),
+                          ],
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1801,7 +1800,7 @@ class _Logo extends StatelessWidget {
       ),
       child: const Icon(
         Icons.route_rounded,
-        color: Color(0xFF07110E),
+        color: Color(0xFF09090A),
         size: 52,
       ),
     );
@@ -1840,7 +1839,7 @@ class _TrafficCard extends StatelessWidget {
     final barColor = progress > 0.9
         ? Colors.red.shade400
         : progress > 0.7
-            ? Colors.orange.shade400
+            ? colorScheme.onSurfaceVariant
             : colorScheme.primary;
 
     int? daysLeft;
@@ -2381,7 +2380,7 @@ class _SignalBars extends StatelessWidget {
       level = 0;
       color = Colors.red.shade400;
     } else {
-      color = utils.getDelayColor(delay) ?? Colors.green;
+      color = utils.getDelayColor(delay) ?? colorScheme.onSurface;
       level = delay! < 150
           ? 4
           : delay! < 300

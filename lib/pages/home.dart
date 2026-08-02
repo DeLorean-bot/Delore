@@ -49,9 +49,9 @@ class HomePage extends StatelessWidget {
               // The Dashboard opens with its own heading, so the chrome
               // bar would just repeat the page name above it.
               showAppBar: !isDashboard,
-              title: Intl.message(
-                pageLabel.name,
-              ),
+              title: pageLabel == PageLabel.proxies
+                  ? appLocalizations.locations
+                  : Intl.message(pageLabel.name),
               sideNavigationBar: sideNavigationBar,
               body: isDashboard ? const DashboardView() : child!,
               bottomNavigationBar: bottomNavigationBar,
@@ -192,6 +192,12 @@ class _PremiumSideNavigation extends ConsumerWidget {
             variant: RouteXGlassVariant.navigation,
             radius: 26,
             shadowOffset: const Offset(5, 8),
+            // Width must not change the material. Using the shared navigation
+            // tint here made the compact rail turn grey while the expanded one
+            // stayed clear. The sidebar is transparent in both states; only its
+            // geometry changes during collapse/expand.
+            tintAlphaFactor: 0,
+            blurFactor: 0.3,
             child: Padding(
               padding: const EdgeInsets.all(6),
               child: Column(
@@ -266,7 +272,7 @@ class _RouteXBrand extends StatelessWidget {
       );
 }
 
-class _DesktopNavigationItems extends StatelessWidget {
+class _DesktopNavigationItems extends ConsumerWidget {
   const _DesktopNavigationItems({
     required this.items,
     required this.selectedIndex,
@@ -280,8 +286,17 @@ class _DesktopNavigationItems extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     const itemExtent = 56.0;
+
+    void reorder(int oldIndex, int newIndex) {
+      final reordered = [...items];
+      final item = reordered.removeAt(oldIndex);
+      reordered.insert(newIndex, item);
+      ref.read(navigationOrderProvider.notifier).reorderVisible(
+            reordered.map((entry) => entry.label).toList(growable: false),
+          );
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
@@ -289,26 +304,49 @@ class _DesktopNavigationItems extends StatelessWidget {
           height: itemExtent * items.length,
           child: Stack(
             children: [
-              RouteXJellySelection(
+              RouteXSlidingSelection(
                 index: selectedIndex.toDouble(),
                 extent: itemExtent,
                 crossExtent: constraints.maxWidth,
                 axis: Axis.vertical,
                 child: _DesktopSelectionLens(expanded: expanded),
               ),
-              Column(
-                children: [
-                  for (var index = 0; index < items.length; index++)
-                    SizedBox(
-                      height: itemExtent,
-                      child: _DesktopNavigationItem(
-                        item: items[index],
-                        selected: index == selectedIndex,
-                        expanded: expanded,
-                        onTap: () => onSelected(index),
-                      ),
+              ReorderableListView.builder(
+                padding: EdgeInsets.zero,
+                physics: const NeverScrollableScrollPhysics(),
+                buildDefaultDragHandles: false,
+                itemCount: items.length,
+                onReorderItem: reorder,
+                proxyDecorator: (child, index, animation) => AnimatedBuilder(
+                  animation: animation,
+                  builder: (context, _) => Transform.scale(
+                    scale: 1 + (0.025 * animation.value),
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: child,
                     ),
-                ],
+                  ),
+                ),
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  final tile = SizedBox(
+                    height: itemExtent,
+                    child: _DesktopNavigationItem(
+                      item: item,
+                      selected: index == selectedIndex,
+                      expanded: expanded,
+                      onTap: () => onSelected(index),
+                    ),
+                  );
+                  return ReorderableDragStartListener(
+                    key: ValueKey(item.label),
+                    index: index,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.grab,
+                      child: tile,
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -358,12 +396,17 @@ class _DesktopNavigationItem extends StatelessWidget {
         selected: selected,
         button: true,
         label: _label,
+        hint: Localizations.localeOf(context).languageCode == 'ru'
+            ? 'Перетащите, чтобы изменить порядок'
+            : 'Drag to reorder',
         child: Tooltip(
-          message: expanded ? '' : _label,
+          message: Localizations.localeOf(context).languageCode == 'ru'
+              ? '$_label · перетащите, чтобы изменить порядок'
+              : '$_label · drag to reorder',
           child: Material(
             type: MaterialType.transparency,
             child: InkWell(
-              borderRadius: BorderRadius.circular(18),
+              customBorder: const StadiumBorder(),
               onTap: onTap,
               overlayColor: WidgetStatePropertyAll(
                 Colors.white.withValues(alpha: 0.035),

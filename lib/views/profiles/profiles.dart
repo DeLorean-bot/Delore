@@ -346,11 +346,11 @@ class _ProfileItemState extends State<ProfileItem> {
           }
           progress = progress.clamp(0.0, 1.0);
 
-          Color progressColor = Colors.green;
+          Color progressColor = context.colorScheme.onSurface;
           if (progress > 0.9) {
             progressColor = Colors.red;
           } else if (progress > 0.7) {
-            progressColor = Colors.orange;
+            progressColor = context.colorScheme.onSurfaceVariant;
           }
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
