@@ -175,7 +175,7 @@ class HeroConnect extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(startButtonSelectorStateProvider);
-    if (!state.hasProfile) return const _EmptyHero();
+    if (!state.hasProfile) return const EmptyHero();
 
     final profile = ref.watch(currentProfileProvider);
     final runTime = ref.watch(runTimeProvider);
@@ -1637,7 +1637,7 @@ class _LegacyHeroConnect extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(startButtonSelectorStateProvider);
-    if (!state.hasProfile) return const _EmptyHero();
+    if (!state.hasProfile) return const EmptyHero();
 
     final isReady = state.isInit;
     final profile = ref.watch(currentProfileProvider);
@@ -2535,8 +2535,13 @@ class _ConnectButton extends ConsumerWidget {
 // ----------------------------------------------------------------------------
 // Empty state (no profile)
 // ----------------------------------------------------------------------------
-class _EmptyHero extends ConsumerWidget {
-  const _EmptyHero();
+/// The no-profile welcome card. Public — painted by [DashboardChromeOverlay]
+/// in CommonScaffold's chrome layer, same reasoning as [DashboardUtilityBar]:
+/// a lens in the page content sits inside the very image its own
+/// LiquidGlassView capture samples, so it can only ever render as a frosted
+/// card there, never the sidebar's actual bent-light look.
+class EmptyHero extends ConsumerWidget {
+  const EmptyHero({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2569,7 +2574,15 @@ class _EmptyHero extends ConsumerWidget {
         ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 680),
-          child: RouteXGlassSurface(
+          child: VisibleGlassEdge(
+            radius: 32,
+            child: RouteXGlassSurface(
+            // Chrome-layer placement (see the class doc) is what lets this
+            // refract for real; mobile stays on the cheaper `panel` look —
+            // same tradeoff as every other dashboard chrome surface.
+            variant: system.isMobile
+                ? RouteXGlassVariant.panel
+                : RouteXGlassVariant.navigation,
             expand: false,
             radius: 32,
             child: Padding(
@@ -2693,6 +2706,7 @@ class _EmptyHero extends ConsumerWidget {
                 ],
               ),
             ),
+          ),
           ),
         ),
       ),

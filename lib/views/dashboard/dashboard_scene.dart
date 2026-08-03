@@ -9,7 +9,7 @@ import 'package:flclashx/state.dart';
 import 'package:flclashx/views/dashboard/widgets/hero_connect.dart'
     show
         DashboardUtilityBar,
-        HeroConnect,
+        EmptyHero,
         RouteXWorldMapBackdrop,
         resolveActiveServerCountryCode;
 import 'package:flclashx/views/proxies/common.dart' show delayTest;
@@ -39,26 +39,20 @@ String _bytes(int value, {bool perSecond = false}) {
   return '${v.toStringAsFixed(v >= 100 || i == 0 ? 0 : 1)} ${units[i]}$suffix';
 }
 
-/// The dashboard's content-plane scene: just the world map, full-bleed. The
-/// stat strip, profile switcher and connect bar used to live in here too,
-/// each in a `RouteXGlassSurface` — but a lens in the content plane sits
-/// inside the very image its own `LiquidGlassView` capture samples (see the
-/// "split that makes the glass real" note in `scaffold.dart`), so the best
-/// it could ever render as is a frosted, non-refracting card, never the
-/// sidebar's actual bent-light look. They now live in
-/// [DashboardChromeOverlay], painted by `CommonScaffold` above the capture
-/// alongside the sidebar and app bar, where a lens can refract for real.
-/// This widget only decides whether there's a map to show at all — no
-/// profile falls back to the import prompt instead.
+/// The dashboard's content-plane scene: just the world map, full-bleed,
+/// always — including with no profile, so the empty-state welcome card
+/// (painted separately, see [DashboardChromeOverlay]) has the same map
+/// backdrop behind it as every other dashboard surface. A lens in this
+/// content plane sits inside the very image its own `LiquidGlassView`
+/// capture samples (see the "split that makes the glass real" note in
+/// `scaffold.dart`), so the best a `RouteXGlassSurface` here could ever
+/// render as is a frosted, non-refracting card, never the sidebar's actual
+/// bent-light look — which is why nothing glass lives in this widget at all.
 class DashboardScene extends ConsumerWidget {
   const DashboardScene({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasProfile =
-        ref.watch(startButtonSelectorStateProvider.select((s) => s.hasProfile));
-    if (!hasProfile) return const HeroConnect();
-
     final mapCode = resolveActiveServerCountryCode(ref);
     return RouteXWorldMapBackdrop(activeCode: mapCode);
   }
@@ -66,9 +60,10 @@ class DashboardScene extends ConsumerWidget {
 
 /// Dashboard-only chrome: the stat strip, profile switcher and connect bar,
 /// laid out in the same box `DashboardScene`'s map fills — see
-/// `CommonScaffold.dashboardChrome`'s doc for why they moved here. Renders
-/// nothing (an empty SizedBox) with no profile, matching `DashboardScene`
-/// falling back to [HeroConnect], which supplies its own controls.
+/// `CommonScaffold.dashboardChrome`'s doc for why they moved here. With no
+/// profile, shows the welcome/import-a-profile card instead — same chrome
+/// placement, same reasoning: it's a `RouteXGlassSurface` too, and it gets
+/// to actually refract only up here.
 class DashboardChromeOverlay extends ConsumerWidget {
   const DashboardChromeOverlay({super.key});
 
@@ -76,7 +71,7 @@ class DashboardChromeOverlay extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final hasProfile =
         ref.watch(startButtonSelectorStateProvider.select((s) => s.hasProfile));
-    if (!hasProfile) return const SizedBox.shrink();
+    if (!hasProfile) return const EmptyHero();
 
     return LayoutBuilder(
       builder: (context, constraints) {
