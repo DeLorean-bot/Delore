@@ -290,23 +290,29 @@ void routeXPaintOpticalThreads(
   final shift = math.sin(phase * math.pi) * 9;
   const spacing = 76.0;
 
+  // Straight lines, same reasoning as routeXPaintChromeRefractionField: this
+  // painted layer sits under the dashboard's own map, which is not fully
+  // opaque everywhere (open ocean lets it show through) — a per-point wave
+  // baked into the paint itself was visibly, continuously rippling across
+  // the whole scene, glass or no glass, which reads as the background
+  // itself warping rather than glass bending something behind it. The
+  // whole grid still drifts a little as one piece (`shift`); individual
+  // lines don't independently wave anymore.
   for (double y = -spacing; y < size.height + spacing; y += spacing) {
-    final path = Path()..moveTo(0, y + shift);
-    for (double x = 0; x <= size.width; x += 48) {
-      final wave = math.sin((x / 180) + (y / 240) + phase * math.pi) * 5;
-      path.lineTo(x, y + shift + wave);
-    }
-    canvas.drawPath(path, paint);
+    canvas.drawLine(
+      Offset(0, y + shift),
+      Offset(size.width, y + shift),
+      paint,
+    );
   }
 
   paint.color = Colors.white.withValues(alpha: strength * 0.58);
   for (double x = 38; x < size.width; x += spacing * 1.45) {
-    final path = Path()..moveTo(x - shift * 0.35, 0);
-    for (double y = 0; y <= size.height; y += 48) {
-      final wave = math.cos((y / 210) + (x / 280) - phase * math.pi) * 4;
-      path.lineTo(x - shift * 0.35 + wave, y);
-    }
-    canvas.drawPath(path, paint);
+    canvas.drawLine(
+      Offset(x - shift * 0.35, 0),
+      Offset(x - shift * 0.35, size.height),
+      paint,
+    );
   }
 }
 
