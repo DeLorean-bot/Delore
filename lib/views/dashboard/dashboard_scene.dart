@@ -209,16 +209,37 @@ class _StatsStrip extends ConsumerWidget {
 
     // Narrow windows can't fit five cards side by side without truncating
     // every label, so they scroll horizontally instead of shrinking into
-    // unreadable stubs.
+    // unreadable stubs. At most widths that leaves the last card cut clean
+    // by the window edge, with nothing to say the row keeps going — it
+    // read as a card missing, not a card to scroll to. The edge fade is
+    // the same "there's more" cue iOS uses for horizontally scrolling
+    // chip rows; it fades in on the left too even though nothing's hidden
+    // there yet, which is the standard tradeoff for not tracking scroll
+    // position just to draw a fixed-height row of stat cards.
     if (compact) {
       return SizedBox(
         height: 62,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          itemCount: cards.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
-          itemBuilder: (_, i) => SizedBox(width: 132, child: cards[i]),
+        child: ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              Colors.transparent,
+              Colors.black,
+              Colors.black,
+              Colors.transparent,
+            ],
+            stops: [0.0, 0.05, 0.92, 1.0],
+          ).createShader(bounds),
+          blendMode: BlendMode.dstIn,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            itemCount: cards.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (_, i) => SizedBox(width: 132, child: cards[i]),
+          ),
         ),
       );
     }
