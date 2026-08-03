@@ -1,3 +1,16 @@
+## v0.5.5
+
+**Dashboard**
+
+* The dashboard's stat cards, connect bar and profile switcher now use the sidebar's real refracting glass instead of a flat frosted card — desktop only, mobile keeps the cheaper look
+* Fixed the connect bar losing its bottom-nav-aware padding when it moved to the chrome layer, which could sit it under the mobile navigation bar
+* Added a visible edge to the stat cards, connect bar and profile switcher: the sidebar's glass is tuned nearly invisible against rich map detail, which read as a flat panel over the map's emptier stretches (e.g. under the connect bar)
+* The compact stat row now fades at its trailing edge instead of clipping the last card flush against the window edge, so a card scrolled off-screen reads as "swipe for more" rather than missing
+
+**Fixes**
+
+* Fixed the Windows/macOS/Linux/Android build failing in CI: a reorderable-list API only available on newer Flutter than CI's pinned version had slipped in
+
 ## v0.5.4
 
 **Interface and navigation**
