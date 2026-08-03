@@ -39,9 +39,14 @@ class _RouteXBackdropState extends State<RouteXBackdrop>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
-  bool get _motionEnabled =>
-      widget.active &&
-      !(MediaQuery.maybeOf(context)?.disableAnimations ?? false);
+  // Was `widget.active && !disableAnimations` — the backdrop drifted
+  // continuously on the dashboard by design (orbs sliding, grid position
+  // shifting). Fixing the per-line wave in the two paint functions above
+  // stopped the *shape* distortion, but the orbs and the grid's own slow
+  // slide are separate motion this doesn't touch, and it turns out any
+  // visible motion in the backdrop reads as "the background is changing"
+  // regardless of whether anything is warping. Backdrop is fully static now.
+  bool get _motionEnabled => false;
 
   @override
   void initState() {
