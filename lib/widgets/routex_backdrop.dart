@@ -249,13 +249,19 @@ void routeXPaintChromeRefractionField(
     canvas.save();
     canvas.clipRect(region);
     paint.color = Colors.white.withValues(alpha: strength);
+    // Straight lines, deliberately: the doc comment above says the shader
+    // is what should visibly bend these, but this loop used to add its own
+    // sine wave to every segment (`bend`) — pre-curved before any lens
+    // touched it. Since the painted rect is wider than the actual rounded
+    // card sitting over it (margins, corners), that wave was visible in the
+    // plain map area around the card too, not just inside it, and read as
+    // "the whole background is warping" instead of "the glass bends this."
     for (double x = region.left - 40; x <= region.right + 40; x += 44) {
-      final path = Path()..moveTo(x + drift, region.top - 12);
-      for (double y = region.top; y <= region.bottom + 12; y += 24) {
-        final bend = math.sin(y / 46 + x / 90 + phase * math.pi) * 3.5;
-        path.lineTo(x + drift + bend, y);
-      }
-      canvas.drawPath(path, paint);
+      canvas.drawLine(
+        Offset(x + drift, region.top - 12),
+        Offset(x + drift, region.bottom + 12),
+        paint,
+      );
     }
     paint.color = Colors.white.withValues(alpha: strength * 0.52);
     for (double y = region.top; y <= region.bottom; y += 38) {
