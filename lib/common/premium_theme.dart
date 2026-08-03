@@ -479,8 +479,16 @@ class VisibleGlassEdge extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(radius),
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.14),
+            color: Colors.white.withValues(alpha: 0.32),
+            width: 1.4,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.white.withValues(alpha: 0.05),
+              blurRadius: 1,
+              spreadRadius: 0.5,
+            ),
+          ],
         ),
         child: child,
       );
