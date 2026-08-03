@@ -223,6 +223,17 @@ void routeXPaintChromeRefractionField(
       ? <Rect>[
           Rect.fromLTWH(0, 0, math.min(252, size.width), size.height),
           Rect.fromLTWH(248, 0, math.max(0, size.width - 248), 92),
+          // The dashboard's connect bar lives down here — without this
+          // region the desktop field only reached the sidebar and the app
+          // bar (which the dashboard doesn't even show), leaving the
+          // bottom of the screen an almost uniform black the connect
+          // bar's lens had nothing to bend.
+          Rect.fromLTWH(
+            248,
+            math.max(0, size.height - 130),
+            math.max(0, size.width - 248),
+            130,
+          ),
         ]
       : <Rect>[
           Rect.fromLTWH(0, 38, size.width, 74),
