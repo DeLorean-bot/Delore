@@ -6,6 +6,8 @@ import 'package:flclashx/models/models.dart';
 import 'package:flclashx/providers/providers.dart';
 import 'package:flclashx/state.dart';
 import 'package:flclashx/views/dashboard/dashboard.dart';
+import 'package:flclashx/views/dashboard/dashboard_scene.dart'
+    show DashboardChromeOverlay;
 import 'package:flclashx/views/dashboard/widgets/hero_nav_bar.dart';
 import 'package:flclashx/widgets/routex_jelly_selection.dart';
 import 'package:flclashx/widgets/widgets.dart';
@@ -55,6 +57,8 @@ class HomePage extends StatelessWidget {
               sideNavigationBar: sideNavigationBar,
               body: isDashboard ? const DashboardView() : child!,
               bottomNavigationBar: bottomNavigationBar,
+              dashboardChrome:
+                  isDashboard ? const DashboardChromeOverlay() : null,
             );
           },
           child: const _HomePageView(),
@@ -316,7 +320,7 @@ class _DesktopNavigationItems extends ConsumerWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 buildDefaultDragHandles: false,
                 itemCount: items.length,
-                onReorderItem: reorder,
+                onReorder: reorder,
                 proxyDecorator: (child, index, animation) => AnimatedBuilder(
                   animation: animation,
                   builder: (context, _) => Transform.scale(

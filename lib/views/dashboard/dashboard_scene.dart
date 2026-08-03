@@ -18,6 +18,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+// The real refracting lens (`navigation`) costs a live BackdropFilter sample
+// per surface, on top of the LiquidGlassView capture itself — fine to spend
+// on desktop's spare GPU headroom, not what an already-reported-laggy phone
+// needs five more of at once. Mobile keeps the cheaper frosted `panel` look
+// these widgets always had; only desktop gets the sidebar's actual glass.
+RouteXGlassVariant get _dashboardChromeVariant =>
+    system.isMobile ? RouteXGlassVariant.panel : RouteXGlassVariant.navigation;
+
 String _bytes(int value, {bool perSecond = false}) {
   final suffix = perSecond ? '/s' : '';
   if (value <= 0) return '0 B$suffix';
@@ -31,77 +39,84 @@ String _bytes(int value, {bool perSecond = false}) {
   return '${v.toStringAsFixed(v >= 100 || i == 0 ? 0 : 1)} ${units[i]}$suffix';
 }
 
-/// The dashboard as a full-page scene: a strip of live stats across the top,
-/// the world map showing through the middle (painted by CommonScaffold, one
-/// layer below), the active-app list docked right, and the connect control
-/// spanning the bottom.
-class DashboardScene extends ConsumerStatefulWidget {
+/// The dashboard's content-plane scene: just the world map, full-bleed. The
+/// stat strip, profile switcher and connect bar used to live in here too,
+/// each in a `RouteXGlassSurface` — but a lens in the content plane sits
+/// inside the very image its own `LiquidGlassView` capture samples (see the
+/// "split that makes the glass real" note in `scaffold.dart`), so the best
+/// it could ever render as is a frosted, non-refracting card, never the
+/// sidebar's actual bent-light look. They now live in
+/// [DashboardChromeOverlay], painted by `CommonScaffold` above the capture
+/// alongside the sidebar and app bar, where a lens can refract for real.
+/// This widget only decides whether there's a map to show at all — no
+/// profile falls back to the import prompt instead.
+class DashboardScene extends ConsumerWidget {
   const DashboardScene({super.key});
 
   @override
-  ConsumerState<DashboardScene> createState() => _DashboardSceneState();
-}
-
-class _DashboardSceneState extends ConsumerState<DashboardScene> {
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final hasProfile =
         ref.watch(startButtonSelectorStateProvider.select((s) => s.hasProfile));
     if (!hasProfile) return const HeroConnect();
 
     final mapCode = resolveActiveServerCountryCode(ref);
+    return RouteXWorldMapBackdrop(activeCode: mapCode);
+  }
+}
+
+/// Dashboard-only chrome: the stat strip, profile switcher and connect bar,
+/// laid out in the same box `DashboardScene`'s map fills — see
+/// `CommonScaffold.dashboardChrome`'s doc for why they moved here. Renders
+/// nothing (an empty SizedBox) with no profile, matching `DashboardScene`
+/// falling back to [HeroConnect], which supplies its own controls.
+class DashboardChromeOverlay extends ConsumerWidget {
+  const DashboardChromeOverlay({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasProfile =
+        ref.watch(startButtonSelectorStateProvider.select((s) => s.hasProfile));
+    if (!hasProfile) return const SizedBox.shrink();
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 900;
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            // The dashboard's own sharp copy. It lives in the page content
-            // so the glass panels above can actually blur it, and so the
-            // app markers share its coordinate space; every other page gets
-            // the blurred copy from CommonScaffold instead.
-            Positioned.fill(
-              child: RouteXWorldMapBackdrop(activeCode: mapCode),
-            ),
-            Padding(
-              padding:
-                  EdgeInsets.fromLTRB(wide ? 16 : 10, 8, wide ? 16 : 10, 12),
-              child: Column(
-                children: [
-                  // Past ~1100 the centred stat cards leave enough clear
-                  // space to their left for the utility bar to sit in the
-                  // same band; below that it would collide with them, so it
-                  // takes its own row and pushes the cards down instead.
-                  if (constraints.maxWidth >= 1100)
-                    SizedBox(
-                      height: 56,
-                      child: Stack(
-                        children: [
-                          _StatsStrip(compact: !wide),
-                          const Align(
-                            alignment: Alignment.centerLeft,
-                            child: DashboardUtilityBar(),
-                          ),
-                        ],
+        return Padding(
+          padding:
+              EdgeInsets.fromLTRB(wide ? 16 : 10, 8, wide ? 16 : 10, 12),
+          child: Column(
+            children: [
+              // Past ~1100 the centred stat cards leave enough clear
+              // space to their left for the utility bar to sit in the
+              // same band; below that it would collide with them, so it
+              // takes its own row and pushes the cards down instead.
+              if (constraints.maxWidth >= 1100)
+                SizedBox(
+                  height: 56,
+                  child: Stack(
+                    children: [
+                      _StatsStrip(compact: !wide),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: DashboardUtilityBar(),
                       ),
-                    )
-                  else ...[
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: DashboardUtilityBar(),
-                    ),
-                    const SizedBox(height: 8),
-                    _StatsStrip(compact: !wide),
-                  ],
-                  const SizedBox(height: 12),
-                  const Expanded(child: SizedBox()),
-                  const SizedBox(height: 12),
-                  _ConnectBar(compact: !wide),
-                ],
-              ),
-            ),
-          ],
+                    ],
+                  ),
+                )
+              else ...[
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: DashboardUtilityBar(),
+                ),
+                const SizedBox(height: 8),
+                _StatsStrip(compact: !wide),
+              ],
+              const SizedBox(height: 12),
+              const Expanded(child: SizedBox()),
+              const SizedBox(height: 12),
+              _ConnectBar(compact: !wide),
+            ],
+          ),
         );
       },
     );
@@ -342,7 +357,11 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => RouteXGlassSurface(
-        variant: RouteXGlassVariant.panel,
+        // Painted by DashboardChromeOverlay in CommonScaffold's chrome
+        // layer — above the capture, same as the sidebar — so `navigation`
+        // actually refracts here instead of falling back to a flat blur.
+        // See _dashboardChromeVariant for why mobile stays on `panel`.
+        variant: _dashboardChromeVariant,
         radius: compact ? 13 : 16,
         child: Padding(
           padding: EdgeInsets.symmetric(
@@ -411,7 +430,9 @@ class _ConnectBar extends ConsumerWidget {
     }
 
     return RouteXGlassSurface(
-      variant: RouteXGlassVariant.panel,
+      // See _StatCard: chrome-layer placement is what makes this refract,
+      // and _dashboardChromeVariant for why mobile skips it.
+      variant: _dashboardChromeVariant,
       radius: 22,
       // Sits directly in a Column, so it must size to its content — the
       // default expand:true asks for infinite height here and the bar

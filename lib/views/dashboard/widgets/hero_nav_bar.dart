@@ -131,7 +131,7 @@ class _JellyPrimaryTabs extends ConsumerWidget {
             physics: const NeverScrollableScrollPhysics(),
             buildDefaultDragHandles: false,
             itemCount: items.length,
-            onReorderItem: reorder,
+            onReorder: reorder,
             proxyDecorator: (child, index, animation) => AnimatedBuilder(
               animation: animation,
               builder: (context, _) => Transform.scale(

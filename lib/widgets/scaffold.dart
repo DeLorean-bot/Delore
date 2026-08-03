@@ -37,6 +37,7 @@ class CommonScaffold extends ConsumerStatefulWidget {
     this.floatingActionButton,
     this.disableBackground = false,
     this.showAppBar = true,
+    this.dashboardChrome,
   });
 
   CommonScaffold.open({
@@ -79,6 +80,16 @@ class CommonScaffold extends ConsumerStatefulWidget {
   /// repeating the page name above a card that names it again is noise,
   /// and it costs the top of the viewport.
   final bool showAppBar;
+
+  /// Dashboard-only chrome (stat strip, connect bar, profile switcher):
+  /// painted in the chrome layer, above the capture, instead of inside
+  /// `body`. A `RouteXGlassSurface` in `body` sits in the very image its
+  /// own lens would sample — see the "split that makes the glass real"
+  /// note in `build()` — so it can only ever render as a frosted
+  /// (non-refracting) card. Routing these specific widgets through here
+  /// instead is what lets them refract the map behind them exactly like
+  /// the sidebar does, rather than approximate it with a flatter blur.
+  final Widget? dashboardChrome;
 
   @override
   ConsumerState<CommonScaffold> createState() => CommonScaffoldState();
@@ -756,10 +767,57 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
         : contentScaffold;
 
     // Chrome only. A Stack hit-tests its children and nothing else, so
-    // taps in the empty middle fall through to the page in the capture.
+    // taps in the empty middle fall through to the page in the capture —
+    // true for the app bar and bottom nav below, each a small Positioned
+    // rect. dashboardChrome's own Positioned.fill is the one exception:
+    // Scaffold always paints (and therefore hit-tests) a Material across
+    // its full bounds even at backgroundColor: transparent, so gaps between
+    // its cards no longer pass a tap through to the map. Harmless today —
+    // the map has no tap targets of its own — but worth knowing before
+    // giving it one.
     final chromeColumn = Stack(
       fit: StackFit.expand,
       children: [
+        if (widget.dashboardChrome != null)
+          Positioned.fill(
+            key: const ValueKey('routex-dashboard-chrome'),
+            // A second, identical ghost: on mobile `widget.bottomNavigationBar`
+            // is HeroNavBar, whose real height (content + safe-area inset)
+            // this can't just hardcode. Nesting a nowhere-visible Scaffold
+            // with that same bar as its own ghost gets MediaQuery.padding.bottom
+            // set correctly for the SafeArea below to consume — the exact
+            // mechanism `contentScaffold` already uses, reused rather than
+            // reimplemented. Without it the connect bar sat under wherever
+            // the real HeroNavBar happened to render, since this tree never
+            // goes through `contentScaffold` at all.
+            child: Scaffold(
+              extendBody: true,
+              backgroundColor: Colors.transparent,
+              bottomNavigationBar: widget.bottomNavigationBar == null
+                  ? null
+                  : Visibility(
+                      visible: false,
+                      maintainSize: true,
+                      maintainState: true,
+                      maintainAnimation: true,
+                      child: widget.bottomNavigationBar!,
+                    ),
+              // Reproduces exactly the box `body` lays the page out in —
+              // `SafeArea(minimum: top 18)` then the same width clamp
+              // `pageBody` applies below — so the refracting cards land
+              // pixel-for-pixel where the old in-content ones sat.
+              body: SafeArea(
+                minimum: const EdgeInsets.only(top: 18),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1680),
+                    child: widget.dashboardChrome,
+                  ),
+                ),
+              ),
+            ),
+          ),
         if (widget.showAppBar)
           Positioned(
             // Keyed: without it the Stack matches children by index and

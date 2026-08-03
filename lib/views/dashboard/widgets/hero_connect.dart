@@ -290,6 +290,16 @@ class DashboardUtilityBar extends ConsumerWidget {
     final profile = ref.watch(currentProfileProvider);
     final headers = profile?.providerHeaders ?? const {};
     return RouteXGlassSurface(
+      // Painted by DashboardChromeOverlay in CommonScaffold's chrome layer —
+      // above the capture, same as the sidebar — so `navigation` actually
+      // refracts here instead of falling back to a flat blur. Mobile stays
+      // on the cheaper non-refracting `panel` look instead: a live
+      // BackdropFilter lens per dashboard surface is spare-GPU spend this
+      // page can afford on desktop, not what an already-laggy phone needs
+      // more of.
+      variant: system.isMobile
+          ? RouteXGlassVariant.panel
+          : RouteXGlassVariant.navigation,
       // A Column/Stack child must not ask for infinite height, and the row's
       // Expanded needs a bounded width to divide.
       expand: false,
