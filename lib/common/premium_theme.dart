@@ -459,41 +459,6 @@ class _RouteXSurfaceBody extends StatelessWidget {
   }
 }
 
-/// A crisp, always-visible edge ring around a glass surface, independent of
-/// whatever the lens itself is refracting. `RouteXGlassVariant.navigation`'s
-/// own rim is tuned to be *felt* rather than seen against the sidebar's rich
-/// backdrop (real continents, city-light dots) — over the map's emptier
-/// stretches (open ocean under the dashboard's connect bar, say) the same
-/// lens can end up with nothing to visibly bend and nothing but a whisper
-/// of a border, reading as a flat panel rather than glass. This ring
-/// doesn't depend on what's behind it, so the surface still reads as a
-/// distinct pane even there.
-class VisibleGlassEdge extends StatelessWidget {
-  const VisibleGlassEdge({super.key, required this.radius, required this.child});
-
-  final double radius;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(radius),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.32),
-            width: 1.4,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.white.withValues(alpha: 0.05),
-              blurRadius: 1,
-              spreadRadius: 0.5,
-            ),
-          ],
-        ),
-        child: child,
-      );
-}
-
 /// The moving pill inside a navigation surface.
 class RouteXSelectionGlass extends StatelessWidget {
   const RouteXSelectionGlass({

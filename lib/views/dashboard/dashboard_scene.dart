@@ -372,40 +372,39 @@ class _StatCard extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) => VisibleGlassEdge(
+  Widget build(BuildContext context) => RouteXGlassSurface(
+        // 1:1 with _PremiumSideNavigation in home.dart: same variant, same
+        // tintAlphaFactor/blurFactor. Only radius differs, because it scales
+        // with the surface's own size the same way the sidebar's 26 doesn't
+        // apply to a 44px-tall pill either.
+        variant: _dashboardChromeVariant,
+        tintAlphaFactor: system.isMobile ? 1 : 0,
+        blurFactor: system.isMobile ? 1 : 0.3,
         radius: compact ? 13 : 16,
-        child: RouteXGlassSurface(
-          // Painted by DashboardChromeOverlay in CommonScaffold's chrome
-          // layer — above the capture, same as the sidebar — so `navigation`
-          // actually refracts here instead of falling back to a flat blur.
-          // See _dashboardChromeVariant for why mobile stays on `panel`.
-          variant: _dashboardChromeVariant,
-          radius: compact ? 13 : 16,
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: compact ? 9 : 11,
-              vertical: compact ? 6 : 7,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.textTheme.labelSmall?.copyWith(
-                    color: context.colorScheme.onSurfaceVariant,
-                  ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 9 : 11,
+            vertical: compact ? 6 : 7,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.textTheme.labelSmall?.copyWith(
+                  color: context.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(height: 2),
-                DefaultTextStyle.merge(
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  child: child,
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 2),
+              DefaultTextStyle.merge(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                child: child,
+              ),
+            ],
           ),
         ),
       );
@@ -448,12 +447,11 @@ class _ConnectBar extends ConsumerWidget {
       globalState.appController.updateStatus(!isRunning);
     }
 
-    return VisibleGlassEdge(
-      radius: 22,
-      child: RouteXGlassSurface(
-      // See _StatCard: chrome-layer placement is what makes this refract,
-      // and _dashboardChromeVariant for why mobile skips it.
+    return RouteXGlassSurface(
+      // 1:1 with the sidebar (_PremiumSideNavigation in home.dart).
       variant: _dashboardChromeVariant,
+      tintAlphaFactor: system.isMobile ? 1 : 0,
+      blurFactor: system.isMobile ? 1 : 0.3,
       radius: 22,
       // Sits directly in a Column, so it must size to its content — the
       // default expand:true asks for infinite height here and the bar
@@ -632,7 +630,6 @@ class _ConnectBar extends ConsumerWidget {
             ),
           ],
         ),
-      ),
       ),
     );
   }

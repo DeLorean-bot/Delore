@@ -289,19 +289,17 @@ class DashboardUtilityBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(currentProfileProvider);
     final headers = profile?.providerHeaders ?? const {};
-    return VisibleGlassEdge(
-      radius: RouteXRadius.control,
-      child: RouteXGlassSurface(
-      // Painted by DashboardChromeOverlay in CommonScaffold's chrome layer —
-      // above the capture, same as the sidebar — so `navigation` actually
-      // refracts here instead of falling back to a flat blur. Mobile stays
-      // on the cheaper non-refracting `panel` look instead: a live
-      // BackdropFilter lens per dashboard surface is spare-GPU spend this
-      // page can afford on desktop, not what an already-laggy phone needs
-      // more of.
+    return RouteXGlassSurface(
+      // 1:1 with the sidebar (_PremiumSideNavigation in home.dart): same
+      // variant, same tintAlphaFactor/blurFactor. Mobile stays on the
+      // cheaper non-refracting `panel` look instead: a live BackdropFilter
+      // lens per dashboard surface is spare-GPU spend this page can afford
+      // on desktop, not what an already-laggy phone needs more of.
       variant: system.isMobile
           ? RouteXGlassVariant.panel
           : RouteXGlassVariant.navigation,
+      tintAlphaFactor: system.isMobile ? 1 : 0,
+      blurFactor: system.isMobile ? 1 : 0.3,
       // A Column/Stack child must not ask for infinite height, and the row's
       // Expanded needs a bounded width to divide.
       expand: false,
@@ -323,7 +321,6 @@ class DashboardUtilityBar extends ConsumerWidget {
             menuOffset: const Offset(-12, 13),
           ),
         ),
-      ),
       ),
     );
   }
@@ -2574,15 +2571,15 @@ class EmptyHero extends ConsumerWidget {
         ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 680),
-          child: VisibleGlassEdge(
-            radius: 32,
-            child: RouteXGlassSurface(
-            // Chrome-layer placement (see the class doc) is what lets this
-            // refract for real; mobile stays on the cheaper `panel` look —
-            // same tradeoff as every other dashboard chrome surface.
+          child: RouteXGlassSurface(
+            // 1:1 with the sidebar (_PremiumSideNavigation in home.dart).
+            // Mobile stays on the cheaper `panel` look — same tradeoff as
+            // every other dashboard chrome surface.
             variant: system.isMobile
                 ? RouteXGlassVariant.panel
                 : RouteXGlassVariant.navigation,
+            tintAlphaFactor: system.isMobile ? 1 : 0,
+            blurFactor: system.isMobile ? 1 : 0.3,
             expand: false,
             radius: 32,
             child: Padding(
@@ -2706,7 +2703,6 @@ class EmptyHero extends ConsumerWidget {
                 ],
               ),
             ),
-          ),
           ),
         ),
       ),
