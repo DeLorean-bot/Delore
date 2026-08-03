@@ -377,37 +377,40 @@ class _StatCard extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) => RouteXGlassSurface(
-        // Painted by DashboardChromeOverlay in CommonScaffold's chrome
-        // layer — above the capture, same as the sidebar — so `navigation`
-        // actually refracts here instead of falling back to a flat blur.
-        // See _dashboardChromeVariant for why mobile stays on `panel`.
-        variant: _dashboardChromeVariant,
+  Widget build(BuildContext context) => VisibleGlassEdge(
         radius: compact ? 13 : 16,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 9 : 11,
-            vertical: compact ? 6 : 7,
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.textTheme.labelSmall?.copyWith(
-                  color: context.colorScheme.onSurfaceVariant,
+        child: RouteXGlassSurface(
+          // Painted by DashboardChromeOverlay in CommonScaffold's chrome
+          // layer — above the capture, same as the sidebar — so `navigation`
+          // actually refracts here instead of falling back to a flat blur.
+          // See _dashboardChromeVariant for why mobile stays on `panel`.
+          variant: _dashboardChromeVariant,
+          radius: compact ? 13 : 16,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 9 : 11,
+              vertical: compact ? 6 : 7,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textTheme.labelSmall?.copyWith(
+                    color: context.colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              DefaultTextStyle.merge(
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                child: child,
-              ),
-            ],
+                const SizedBox(height: 2),
+                DefaultTextStyle.merge(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  child: child,
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -450,7 +453,9 @@ class _ConnectBar extends ConsumerWidget {
       globalState.appController.updateStatus(!isRunning);
     }
 
-    return RouteXGlassSurface(
+    return VisibleGlassEdge(
+      radius: 22,
+      child: RouteXGlassSurface(
       // See _StatCard: chrome-layer placement is what makes this refract,
       // and _dashboardChromeVariant for why mobile skips it.
       variant: _dashboardChromeVariant,
@@ -633,6 +638,8 @@ class _ConnectBar extends ConsumerWidget {
           ],
         ),
       ),
+      ),
     );
   }
 }
+

@@ -289,7 +289,9 @@ class DashboardUtilityBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(currentProfileProvider);
     final headers = profile?.providerHeaders ?? const {};
-    return RouteXGlassSurface(
+    return VisibleGlassEdge(
+      radius: RouteXRadius.control,
+      child: RouteXGlassSurface(
       // Painted by DashboardChromeOverlay in CommonScaffold's chrome layer —
       // above the capture, same as the sidebar — so `navigation` actually
       // refracts here instead of falling back to a flat blur. Mobile stays
@@ -321,6 +323,7 @@ class DashboardUtilityBar extends ConsumerWidget {
             menuOffset: const Offset(-12, 13),
           ),
         ),
+      ),
       ),
     );
   }
