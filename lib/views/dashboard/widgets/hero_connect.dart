@@ -664,8 +664,8 @@ class _ConnectCircleState extends ConsumerState<_ConnectCircle>
   void didUpdateWidget(covariant _ConnectCircle oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isRunning != widget.isRunning) {
-      final reduceMotion =
-          MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+      final reduceMotion = WidgetsBinding
+          .instance.platformDispatcher.accessibilityFeatures.disableAnimations;
       if (!reduceMotion) {
         unawaited(_burstController.forward(from: 0));
       }

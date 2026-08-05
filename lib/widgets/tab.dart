@@ -129,7 +129,15 @@ class _CommonTabBarState<T extends Object> extends State<CommonTabBar<T>>
   void didUpdateWidget(CommonTabBar<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!isThumbDragging && highlighted != widget.groupValue) {
-      if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
+      // Not MediaQuery.maybeOf(context): this file's build() methods never
+      // declare a MediaQuery dependency of their own, so a one-off read
+      // from didUpdateWidget left the framework's InheritedWidget
+      // dependency bookkeeping inconsistent on rapid segment switches —
+      // it surfaced as a `_dependents.isEmpty` assertion crash elsewhere
+      // in this codebase (routex_jelly_selection.dart) under the same
+      // pattern. This reads the same signal with no BuildContext at all.
+      if (WidgetsBinding
+          .instance.platformDispatcher.accessibilityFeatures.disableAnimations) {
         thumbController.value = 1;
       } else {
         thumbController.animateWith(_kThumbSpringAnimationSimulation);
@@ -459,7 +467,8 @@ class _SegmentState<T> extends State<_Segment<T>>
           end: widget.shouldScaleContent ? _kMinThumbScale : 1.0,
         ),
       );
-      if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
+      if (WidgetsBinding
+          .instance.platformDispatcher.accessibilityFeatures.disableAnimations) {
         highlightPressScaleController.value = 1;
       } else {
         highlightPressScaleController
@@ -555,8 +564,8 @@ class _SegmentSeparatorState extends State<_SegmentSeparator>
     assert(oldWidget.key == widget.key);
 
     if (oldWidget.highlighted != widget.highlighted) {
-      final reduceMotion =
-          MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+      final reduceMotion = WidgetsBinding
+          .instance.platformDispatcher.accessibilityFeatures.disableAnimations;
       separatorOpacityController.animateTo(
         widget.highlighted ? 0 : 1,
         duration: reduceMotion ? Duration.zero : _kSpringAnimationDuration,

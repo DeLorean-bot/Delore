@@ -112,7 +112,24 @@ class DashboardChromeOverlay extends ConsumerWidget {
                 SizedBox(
                   height: 56,
                   child: Stack(
-                    children: [statsStrip, utilityBar],
+                    children: [
+                      statsStrip,
+                      // The stat cards fill this Stack's full 56px height
+                      // (their glass surfaces default to expand: true);
+                      // DashboardUtilityBar's own surface stays sized to
+                      // its content, so left at its own height it renders
+                      // ~10px shorter and, centered by Align, comes out
+                      // top/bottom-misaligned against the cards next to
+                      // it. Forcing the same 56px here keeps both panels
+                      // sharing one top and bottom edge.
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: SizedBox(
+                          height: 56,
+                          child: DashboardUtilityBar(),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ]
