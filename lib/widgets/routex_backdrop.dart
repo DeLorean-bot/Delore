@@ -179,12 +179,6 @@ class RouteXMeshPainter extends CustomPainter {
         color: color.withValues(alpha: alpha * gain),
       );
     }
-    routeXPaintChromeRefractionField(
-      canvas,
-      size,
-      phase: phase,
-      strength: 0.075 * detail.clamp(0.0, 2.0),
-    );
     // A black backdrop needs low-frequency detail for the lens to bend. These
     // threads are intentionally below normal reading contrast: outside glass
     // they register as texture, while the refracted edge displaces and curves
@@ -212,84 +206,6 @@ class RouteXMeshPainter extends CustomPainter {
       old.intensity != intensity;
 }
 
-/// Sharp low-contrast detail placed behind navigation chrome. Refraction is a
-/// displacement of existing pixels; an almost uniform black surface cannot
-/// reveal that displacement. These lines live in the captured background (not
-/// on the glass), so their visible curvature is produced by the lens shader.
-void routeXPaintChromeRefractionField(
-  Canvas canvas,
-  Size size, {
-  required double phase,
-  required double strength,
-}) {
-  if (strength <= 0 || size.isEmpty) return;
-  final desktop = size.width >= 720;
-  final regions = desktop
-      ? <Rect>[
-          Rect.fromLTWH(0, 0, math.min(252, size.width), size.height),
-          Rect.fromLTWH(248, 0, math.max(0, size.width - 248), 92),
-          // The dashboard's connect bar lives down here — without this
-          // region the desktop field only reached the sidebar and the app
-          // bar (which the dashboard doesn't even show), leaving the
-          // bottom of the screen an almost uniform black the connect
-          // bar's lens had nothing to bend.
-          Rect.fromLTWH(
-            248,
-            math.max(0, size.height - 130),
-            math.max(0, size.width - 248),
-            130,
-          ),
-        ]
-      : <Rect>[
-          Rect.fromLTWH(0, 38, size.width, 74),
-          Rect.fromLTWH(0, math.max(0, size.height - 96), size.width, 96),
-        ];
-  final paint = Paint()
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = 0.8
-    ..isAntiAlias = true;
-  final drift = math.sin(phase * math.pi) * 5;
-
-  for (final region in regions) {
-    canvas.save();
-    canvas.clipRect(region);
-    // Spacing scales with each region's own size instead of a fixed 44/38px,
-    // targeting a roughly constant number of cells regardless of shape. The
-    // sidebar's region is tall and narrow (252 wide), so 44px already reads
-    // as a calm ~6 columns; the connect bar's is short and very wide
-    // (1600+ px), so the same 44px packed in 35+ columns side by side —
-    // dense enough to look like noise, not a match for the sidebar's grid.
-    final colSpacing = math.max(44.0, region.width / 6);
-    final rowSpacing = math.max(30.0, region.height / 16);
-    paint.color = Colors.white.withValues(alpha: strength);
-    // Straight lines, deliberately: the doc comment above says the shader
-    // is what should visibly bend these, but this loop used to add its own
-    // sine wave to every segment (`bend`) — pre-curved before any lens
-    // touched it. Since the painted rect is wider than the actual rounded
-    // card sitting over it (margins, corners), that wave was visible in the
-    // plain map area around the card too, not just inside it, and read as
-    // "the whole background is warping" instead of "the glass bends this."
-    for (double x = region.left - 40;
-        x <= region.right + 40;
-        x += colSpacing) {
-      canvas.drawLine(
-        Offset(x + drift, region.top - 12),
-        Offset(x + drift, region.bottom + 12),
-        paint,
-      );
-    }
-    paint.color = Colors.white.withValues(alpha: strength * 0.52);
-    for (double y = region.top; y <= region.bottom; y += rowSpacing) {
-      canvas.drawLine(
-        Offset(region.left, y + drift * 0.3),
-        Offset(region.right, y - drift * 0.3),
-        paint,
-      );
-    }
-    canvas.restore();
-  }
-}
-
 void routeXPaintOpticalThreads(
   Canvas canvas,
   Size size, {
@@ -305,8 +221,8 @@ void routeXPaintOpticalThreads(
   final shift = math.sin(phase * math.pi) * 9;
   const spacing = 76.0;
 
-  // Straight lines, same reasoning as routeXPaintChromeRefractionField: this
-  // painted layer sits under the dashboard's own map, which is not fully
+  // Straight lines: this painted layer sits under the dashboard's own map,
+  // which is not fully
   // opaque everywhere (open ocean lets it show through) — a per-point wave
   // baked into the paint itself was visibly, continuously rippling across
   // the whole scene, glass or no glass, which reads as the background
