@@ -133,6 +133,12 @@ class _StatsStrip extends ConsumerWidget {
     final sub = profile?.subscriptionInfo;
     final traffics = ref.watch(trafficsProvider);
     final live = traffics.length == 0 ? null : traffics[traffics.length - 1];
+    // Ping/speed/traffic all read as zero/empty when nothing is connected —
+    // full-weight cards of blank numbers compete with Subscription, the one
+    // card that's actually meaningful right now. Dim the three that aren't,
+    // rather than showing every card as equally important regardless of
+    // whether it currently means anything.
+    final isRunning = ref.watch(runTimeProvider) != null;
 
     final days = (sub != null && sub.expire > 0)
         ? DateTime.fromMillisecondsSinceEpoch(sub.expire * 1000)
@@ -233,7 +239,10 @@ class _StatsStrip extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             itemCount: cards.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (_, i) => SizedBox(width: 132, child: cards[i]),
+            itemBuilder: (_, i) => SizedBox(
+              width: 132,
+              child: _emphasized(context, i, isRunning, cards[i]),
+            ),
           ),
         ),
       );
@@ -256,13 +265,28 @@ class _StatsStrip extends ConsumerWidget {
         children: [
           for (var i = 0; i < cards.length; i++) ...[
             if (i > 0) const SizedBox(width: 10),
-            SizedBox(width: 150, child: cards[i]),
+            SizedBox(
+              width: 150,
+              child: _emphasized(context, i, isRunning, cards[i]),
+            ),
           ],
         ],
       ),
     );
   }
 }
+
+/// Ping/Speed/Traffic (indices 0-2) read as empty noise while nothing's
+/// connected; Subscription (index 3) stays relevant regardless. Dims the
+/// former instead of giving every card equal weight no matter what it's
+/// currently saying.
+Widget _emphasized(BuildContext context, int index, bool isRunning, Widget card) =>
+    AnimatedOpacity(
+      duration: RouteXMotion.resolve(context, RouteXMotion.base),
+      curve: RouteXMotion.curve,
+      opacity: (index < 3 && !isRunning) ? 0.55 : 1,
+      child: card,
+    );
 
 TextStyle? _mono(BuildContext context,
         {bool bold = false, bool compact = false}) =>
@@ -427,25 +451,44 @@ class _Flag extends StatelessWidget {
       );
 }
 
-class _ConnectBar extends ConsumerWidget {
+class _ConnectBar extends ConsumerStatefulWidget {
   const _ConnectBar({required this.compact});
 
   final bool compact;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ConnectBar> createState() => _ConnectBarState();
+}
+
+class _ConnectBarState extends ConsumerState<_ConnectBar> {
+  // The actual bring-up (globalState.handleStart) is a real await — on some
+  // platforms a VPN-consent prompt alone can take tens of seconds — and
+  // nothing on screen said so: the button just sat there between tap and
+  // the status flipping. Apple's own rule is blunt about this exact gap —
+  // "confirm meaningful actions, expose ongoing status" — so this tracks
+  // its own pending flag independent of the provider state.
+  bool _pending = false;
+
+  Future<void> _toggle(bool isRunning) async {
+    if (_pending) return;
+    if (Platform.isAndroid) HapticFeedback.mediumImpact();
+    setState(() => _pending = true);
+    try {
+      await globalState.appController.updateStatus(!isRunning);
+    } finally {
+      if (mounted) setState(() => _pending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = widget.compact;
     final isRussian = Localizations.localeOf(context).languageCode == 'ru';
     final state = ref.watch(startButtonSelectorStateProvider);
     final runTime = ref.watch(runTimeProvider);
     final isRunning = runTime != null;
-    final isReady = state.isInit;
+    final isReady = state.isInit && !_pending;
     final code = resolveActiveServerCountryCode(ref);
-
-    void toggle() {
-      if (!isReady) return;
-      if (Platform.isAndroid) HapticFeedback.mediumImpact();
-      globalState.appController.updateStatus(!isRunning);
-    }
 
     return RouteXGlassSurface(
       // 1:1 with the sidebar (_PremiumSideNavigation in home.dart).
@@ -507,10 +550,33 @@ class _ConnectBar extends ConsumerWidget {
                             ]
                           : null,
                     ),
-                    child: Icon(
-                      Icons.power_settings_new_rounded,
-                      size: 26,
-                      color: isRunning ? const Color(0xFF09090A) : premiumMint,
+                    // The only control on this bar that says "something is
+                    // happening" between tap and the tunnel actually coming
+                    // up/down — before this the circle just sat there for
+                    // however long handleStart's await took.
+                    child: AnimatedSwitcher(
+                      duration: RouteXMotion.resolve(context, RouteXMotion.fast),
+                      switchInCurve: RouteXMotion.curve,
+                      switchOutCurve: RouteXMotion.curve,
+                      child: _pending
+                          ? SizedBox(
+                              key: const ValueKey('pending'),
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                color:
+                                    isRunning ? const Color(0xFF09090A) : premiumMint,
+                              ),
+                            )
+                          : Icon(
+                              Icons.power_settings_new_rounded,
+                              key: const ValueKey('power'),
+                              size: 26,
+                              color: isRunning
+                                  ? const Color(0xFF09090A)
+                                  : premiumMint,
+                            ),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -519,21 +585,34 @@ class _ConnectBar extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          isRunning
-                              ? (isRussian ? 'Подключено' : 'Connected')
-                              : (isRussian ? 'Отключено' : 'Disconnected'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700),
+                        AnimatedSwitcher(
+                          duration:
+                              RouteXMotion.resolve(context, RouteXMotion.fast),
+                          switchInCurve: RouteXMotion.curve,
+                          switchOutCurve: RouteXMotion.curve,
+                          transitionBuilder: (child, animation) =>
+                              FadeTransition(opacity: animation, child: child),
+                          child: Text(
+                            _pending
+                                ? (isRussian ? 'Подключение…' : 'Connecting…')
+                                : isRunning
+                                    ? (isRussian ? 'Подключено' : 'Connected')
+                                    : (isRussian ? 'Отключено' : 'Disconnected'),
+                            key: ValueKey(_pending ? 'pending' : isRunning),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
                         ),
                         Text(
-                          isRunning
-                              ? utils.getTimeText(runTime)
-                              : (isRussian
-                                  ? 'Нажмите, чтобы подключиться'
-                                  : 'Tap to connect'),
+                          _pending
+                              ? ''
+                              : isRunning
+                                  ? utils.getTimeText(runTime)
+                                  : (isRussian
+                                      ? 'Нажмите, чтобы подключиться'
+                                      : 'Tap to connect'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: context.textTheme.bodySmall?.copyWith(
@@ -570,26 +649,37 @@ class _ConnectBar extends ConsumerWidget {
                 const SizedBox(width: 10),
                 RouteXFocusableTap(
                   borderRadius: 14,
-                  onTap: isReady ? toggle : null,
-                  child: Container(
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 18, vertical: 12),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      color: Colors.white.withValues(alpha: 0.07),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.10),
+                  onTap: isReady ? () => _toggle(isRunning) : null,
+                  // A raw white-alpha fill here sat directly on the bar's
+                  // own translucent glass — one sheet of glass on another,
+                  // which is exactly what stacked translucency collapses
+                  // into. `control` is the variant this material system
+                  // already has for buttons resting on a panel; use it.
+                  child: RouteXGlassSurface(
+                    variant: RouteXGlassVariant.control,
+                    radius: 14,
+                    expand: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 12),
+                      child: AnimatedSwitcher(
+                        duration:
+                            RouteXMotion.resolve(context, RouteXMotion.fast),
+                        switchInCurve: RouteXMotion.curve,
+                        switchOutCurve: RouteXMotion.curve,
+                        transitionBuilder: (child, animation) =>
+                            FadeTransition(opacity: animation, child: child),
+                        child: Text(
+                          isRunning
+                              ? (isRussian ? 'Отключить' : 'Disconnect')
+                              : (isRussian ? 'Подключить' : 'Connect'),
+                          key: ValueKey(isRunning),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      isRunning
-                          ? (isRussian ? 'Отключить' : 'Disconnect')
-                          : (isRussian ? 'Подключить' : 'Connect'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
@@ -616,38 +706,40 @@ class _LocationChip extends StatelessWidget {
   Widget build(BuildContext context) => RouteXFocusableTap(
         borderRadius: 14,
         onTap: () => globalState.appController.toPage(PageLabel.proxies),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            color: Colors.white.withValues(alpha: 0.05),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.08),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (code != null) ...[
-                _Flag(code: code!, size: 18),
-                const SizedBox(width: 8),
-              ],
-              Flexible(
-                child: Text(
-                  code?.toUpperCase() ?? (isRussian ? 'Выбрать' : 'Choose'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w600),
+        // Same reasoning as the Connect button next to it: a raw
+        // white-alpha fill was a second sheet of translucency stacked on
+        // the bar's own glass. `control` is the tier this material system
+        // already defines for exactly this.
+        child: RouteXGlassSurface(
+          variant: RouteXGlassVariant.control,
+          radius: 14,
+          expand: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (code != null) ...[
+                  _Flag(code: code!, size: 18),
+                  const SizedBox(width: 8),
+                ],
+                Flexible(
+                  child: Text(
+                    code?.toUpperCase() ?? (isRussian ? 'Выбрать' : 'Choose'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              Icon(
-                Icons.expand_more_rounded,
-                size: 18,
-                color: context.colorScheme.onSurfaceVariant,
-              ),
-            ],
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.expand_more_rounded,
+                  size: 18,
+                  color: context.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
           ),
         ),
       );
