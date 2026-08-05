@@ -553,76 +553,43 @@ class _ConnectBar extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Flexible(
-                  flex: compact ? 1 : 0,
-                  child: RouteXFocusableTap(
-                    borderRadius: 14,
-                    onTap: () =>
-                        globalState.appController.toPage(PageLabel.proxies),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        color: Colors.white.withValues(alpha: 0.05),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.08),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (code != null) ...[
-                            _Flag(code: code, size: 18),
-                            const SizedBox(width: 8),
-                          ],
-                          Flexible(
-                            child: Text(
-                              code?.toUpperCase() ??
-                                  (isRussian ? 'Выбрать' : 'Choose'),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: context.textTheme.titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.expand_more_rounded,
-                            size: 18,
-                            color: context.colorScheme.onSurfaceVariant,
-                          ),
-                        ],
+                // Flexible(flex: 1) on both sides used to leave a gap: its
+                // fit is loose, so a child narrower than its 50% share (the
+                // location chip almost always is) just sits at its own
+                // smaller size and leaves the rest of that share as blank
+                // space — the button never actually reached the bar's right
+                // edge. Expanded forces the chip to fill whatever's left
+                // after the button's own natural size, which is what a
+                // full-width row of two unevenly-sized controls needs.
+                compact
+                    ? Expanded(child: _LocationChip(
+                        code: code,
+                        isRussian: isRussian,
+                      ))
+                    : _LocationChip(code: code, isRussian: isRussian),
+                const SizedBox(width: 10),
+                RouteXFocusableTap(
+                  borderRadius: 14,
+                  onTap: isReady ? toggle : null,
+                  child: Container(
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: Colors.white.withValues(alpha: 0.07),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.10),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Flexible(
-                  flex: compact ? 1 : 0,
-                  child: RouteXFocusableTap(
-                    borderRadius: 14,
-                    onTap: isReady ? toggle : null,
-                    child: Container(
-                      alignment: Alignment.center,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        color: Colors.white.withValues(alpha: 0.07),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.10),
-                        ),
-                      ),
-                      child: Text(
-                        isRunning
-                            ? (isRussian ? 'Отключить' : 'Disconnect')
-                            : (isRussian ? 'Подключить' : 'Connect'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
+                    child: Text(
+                      isRunning
+                          ? (isRussian ? 'Отключить' : 'Disconnect')
+                          : (isRussian ? 'Подключить' : 'Connect'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
@@ -633,5 +600,56 @@ class _ConnectBar extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// The server-location pill in the connect bar. Extracted so the compact
+/// layout can wrap it in `Expanded` (fills whatever's left of the row after
+/// the connect button's own size) while the wide layout keeps it sized to
+/// its own content, right-aligned next to the button.
+class _LocationChip extends StatelessWidget {
+  const _LocationChip({required this.code, required this.isRussian});
+
+  final String? code;
+  final bool isRussian;
+
+  @override
+  Widget build(BuildContext context) => RouteXFocusableTap(
+        borderRadius: 14,
+        onTap: () => globalState.appController.toPage(PageLabel.proxies),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: Colors.white.withValues(alpha: 0.05),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.08),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (code != null) ...[
+                _Flag(code: code!, size: 18),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                child: Text(
+                  code?.toUpperCase() ?? (isRussian ? 'Выбрать' : 'Choose'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.expand_more_rounded,
+                size: 18,
+                color: context.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      );
 }
 
