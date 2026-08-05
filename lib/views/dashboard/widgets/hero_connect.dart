@@ -431,6 +431,23 @@ class _ProfileSwitcherState extends ConsumerState<_ProfileSwitcher> {
     final triggerWidth = box?.size.width ?? 160;
     final duration = RouteXMotion.resolve(context, RouteXMotion.fast);
 
+    // The trigger doesn't always sit near the top any more — desktop's
+    // status cluster (this switcher included) can trail near the bottom
+    // of the window, where a menu that only ever opens downward runs off
+    // the window edge into nothing. Open toward whichever side actually
+    // has more room, instead of assuming "down" always has space.
+    final overlayBox =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    final openUpward = box != null && overlayBox != null && () {
+      final triggerTop = box.localToGlobal(Offset.zero, ancestor: overlayBox).dy;
+      final spaceAbove = triggerTop;
+      final spaceBelow = overlayBox.size.height - (triggerTop + box.size.height);
+      return spaceAbove > spaceBelow;
+    }();
+    final baseOffset = widget.menuOffset ?? const Offset(0, 8);
+    final offset =
+        openUpward ? Offset(baseOffset.dx, -baseOffset.dy) : baseOffset;
+
     _overlayEntry = OverlayEntry(
       builder: (overlayContext) => Stack(
         children: [
@@ -445,11 +462,13 @@ class _ProfileSwitcherState extends ConsumerState<_ProfileSwitcher> {
             // Left-aligned, not centred: the trigger is left-aligned text, so
             // centring the menu under it pushed the menu off to one side —
             // worse now the bar sits against the window's left edge.
-            targetAnchor: Alignment.bottomLeft,
-            followerAnchor: Alignment.topLeft,
-            offset: widget.menuOffset ?? const Offset(0, 8),
+            targetAnchor:
+                openUpward ? Alignment.topLeft : Alignment.bottomLeft,
+            followerAnchor:
+                openUpward ? Alignment.bottomLeft : Alignment.topLeft,
+            offset: offset,
             child: Align(
-              alignment: Alignment.topLeft,
+              alignment: openUpward ? Alignment.bottomLeft : Alignment.topLeft,
               child: ConstrainedBox(
                 constraints: BoxConstraints(minWidth: triggerWidth),
                 child: TweenAnimationBuilder<double>(
@@ -460,7 +479,9 @@ class _ProfileSwitcherState extends ConsumerState<_ProfileSwitcher> {
                     opacity: value,
                     child: Transform.scale(
                       scale: 0.92 + 0.08 * value,
-                      alignment: Alignment.topCenter,
+                      alignment: openUpward
+                          ? Alignment.bottomCenter
+                          : Alignment.topCenter,
                       child: child,
                     ),
                   ),

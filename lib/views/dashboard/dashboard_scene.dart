@@ -77,13 +77,17 @@ class DashboardChromeOverlay extends ConsumerWidget {
     // favors the bottom of the screen, and every other primary action in
     // this app already lives down there (HeroNavBar). Desktop is the
     // opposite: people drag windows around, so the bottom edge is the
-    // least reliable place to find something, and Apple's own layout
-    // guidance says so explicitly — critical controls don't belong at
-    // the bottom of a window, and the most important item belongs
-    // nearest the top, ahead of supporting detail. Connect is the one
-    // thing this whole screen exists for, so on desktop it leads —
-    // before the stat strip, not after it — with the map filling what's
-    // left below.
+    // least reliable place to find something. But Apple's own layout
+    // guidance is specifically about *critical* controls — "avoid placing
+    // controls or critical information at the bottom of a window" — not
+    // a blanket ban on anything living down there. Connect is the one
+    // thing this screen exists for, so only Connect moves to lead the
+    // column on desktop; the utility bar and stat strip are supporting
+    // detail, not critical, and stacking all three as glass surfaces at
+    // the top just crowds the map and dilutes which one is actually the
+    // primary action (the same "use sparingly" point the material system
+    // already makes about its own glass). They trail at the bottom
+    // instead, leaving Connect alone up top and the map clear in between.
     final anchorTop = !system.isMobile;
 
     return LayoutBuilder(
@@ -98,15 +102,25 @@ class DashboardChromeOverlay extends ConsumerWidget {
         final statsStrip = _StatsStrip(compact: compact);
         final connectBar = _ConnectBar(compact: compact);
 
-        // Past ~1100 the centred stat cards leave enough clear space to
-        // their left for the utility bar to sit in the same band; below
-        // that it would collide with them, so it takes its own row and
-        // pushes the cards down instead. Only worth merging on mobile's
-        // bottom-anchored layout, which is tight on vertical space —
-        // desktop leads with Connect and has room to spare, so utility
-        // bar and stats each keep their own row there regardless of width.
-        final mergeUtilityIntoStats =
-            !anchorTop && constraints.maxWidth >= 1100;
+        // Past ~1100 there's enough clear space for the utility bar to
+        // share the stat strip's own row instead of taking its own —
+        // keeps the secondary cluster as small a footprint as possible
+        // wherever there's room for it, on both anchor directions.
+        final mergeUtilityIntoStats = constraints.maxWidth >= 1100;
+        final secondaryCluster = mergeUtilityIntoStats
+            ? [
+                SizedBox(
+                  height: 56,
+                  child: Stack(
+                    children: [statsStrip, utilityBar],
+                  ),
+                ),
+              ]
+            : [
+                utilityBar,
+                const SizedBox(height: 8),
+                statsStrip,
+              ];
 
         return Padding(
           padding:
@@ -115,25 +129,12 @@ class DashboardChromeOverlay extends ConsumerWidget {
             children: anchorTop
                 ? [
                     connectBar,
-                    const SizedBox(height: 12),
-                    utilityBar,
-                    const SizedBox(height: 8),
-                    statsStrip,
                     const Expanded(child: SizedBox()),
+                    const SizedBox(height: 12),
+                    ...secondaryCluster,
                   ]
                 : [
-                    if (mergeUtilityIntoStats)
-                      SizedBox(
-                        height: 56,
-                        child: Stack(
-                          children: [statsStrip, utilityBar],
-                        ),
-                      )
-                    else ...[
-                      utilityBar,
-                      const SizedBox(height: 8),
-                      statsStrip,
-                    ],
+                    ...secondaryCluster,
                     const SizedBox(height: 12),
                     const Expanded(child: SizedBox()),
                     const SizedBox(height: 12),
