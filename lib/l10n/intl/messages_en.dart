@@ -107,10 +107,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "Processing app related settings",
     ),
     "application": MessageLookupByLibrary.simpleMessage("Application Settings"),
-    "applications": MessageLookupByLibrary.simpleMessage("Active Apps"),
     "applicationDesc": MessageLookupByLibrary.simpleMessage(
       "Standard application settings",
     ),
+    "applications": MessageLookupByLibrary.simpleMessage("Active Apps"),
     "auto": MessageLookupByLibrary.simpleMessage("Auto"),
     "autoCheckUpdate": MessageLookupByLibrary.simpleMessage(
       "Auto check updates",
@@ -237,6 +237,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "coreUpdateFailed": MessageLookupByLibrary.simpleMessage("Update failed"),
     "coreUpdateSuccess": MessageLookupByLibrary.simpleMessage(
       "Core updated successfully",
+    ),
+    "couldNotGetIpAddress": MessageLookupByLibrary.simpleMessage(
+      "Could not get IP address",
     ),
     "country": MessageLookupByLibrary.simpleMessage("Country"),
     "crashTest": MessageLookupByLibrary.simpleMessage("Crash test"),
@@ -694,6 +697,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "routeAddress": MessageLookupByLibrary.simpleMessage("Route address"),
     "routeAddressDesc": MessageLookupByLibrary.simpleMessage(
       "Config listen route address",
+    ),
+    "routeDoctor": MessageLookupByLibrary.simpleMessage("Route Doctor"),
+    "routeDoctorDesc": MessageLookupByLibrary.simpleMessage(
+      "Find out why a profile, DNS or connection is not working",
     ),
     "routeMode": MessageLookupByLibrary.simpleMessage("Route mode"),
     "routeMode_bypassPrivate": MessageLookupByLibrary.simpleMessage(

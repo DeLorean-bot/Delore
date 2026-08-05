@@ -185,12 +185,11 @@ class _RouteDoctorItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListItem.open(
         leading: const Icon(Icons.health_and_safety_outlined),
-        title: const Text('Route Doctor'),
-        subtitle: const Text(
-            'Find out why a profile, DNS or connection is not working'),
-        delegate: const OpenDelegate(
-          title: 'Route Doctor',
-          widget: RouteDoctorView(),
+        title: Text(appLocalizations.routeDoctor),
+        subtitle: Text(appLocalizations.routeDoctorDesc),
+        delegate: OpenDelegate(
+          title: appLocalizations.routeDoctor,
+          widget: const RouteDoctorView(),
         ),
       );
 }

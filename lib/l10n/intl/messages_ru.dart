@@ -104,10 +104,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "Обработка настроек, связанных с приложением",
     ),
     "application": MessageLookupByLibrary.simpleMessage("Настройки приложения"),
-    "applications": MessageLookupByLibrary.simpleMessage("Приложения"),
     "applicationDesc": MessageLookupByLibrary.simpleMessage(
       "Стандартные настройки приложения",
     ),
+    "applications": MessageLookupByLibrary.simpleMessage("Приложения"),
     "auto": MessageLookupByLibrary.simpleMessage("Авто"),
     "autoCheckUpdate": MessageLookupByLibrary.simpleMessage(
       "Автопроверка обновлений",
@@ -243,6 +243,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Не удалось обновить",
     ),
     "coreUpdateSuccess": MessageLookupByLibrary.simpleMessage("Ядро обновлено"),
+    "couldNotGetIpAddress": MessageLookupByLibrary.simpleMessage(
+      "Не удалось получить IP-адрес",
+    ),
     "country": MessageLookupByLibrary.simpleMessage("Страна"),
     "crashTest": MessageLookupByLibrary.simpleMessage("Тест на сбои"),
     "crashlytics": MessageLookupByLibrary.simpleMessage("Отчёты о сбоях"),
@@ -731,6 +734,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "routeAddress": MessageLookupByLibrary.simpleMessage("Адрес маршрутизации"),
     "routeAddressDesc": MessageLookupByLibrary.simpleMessage(
       "Настройка адреса прослушивания маршрутизации",
+    ),
+    "routeDoctor": MessageLookupByLibrary.simpleMessage(
+      "Диагностика маршрутов",
+    ),
+    "routeDoctorDesc": MessageLookupByLibrary.simpleMessage(
+      "Узнайте, почему профиль, DNS или соединение не работает",
     ),
     "routeMode": MessageLookupByLibrary.simpleMessage("Режим маршрутизации"),
     "routeMode_bypassPrivate": MessageLookupByLibrary.simpleMessage(

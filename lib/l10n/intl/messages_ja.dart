@@ -82,8 +82,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "appAccessControl": MessageLookupByLibrary.simpleMessage("アプリアクセス制御"),
     "appDesc": MessageLookupByLibrary.simpleMessage("アプリ関連設定の処理"),
     "application": MessageLookupByLibrary.simpleMessage("アプリケーション設定"),
-    "applications": MessageLookupByLibrary.simpleMessage("アプリ"),
     "applicationDesc": MessageLookupByLibrary.simpleMessage("標準アプリ設定"),
+    "applications": MessageLookupByLibrary.simpleMessage("アプリ"),
     "auto": MessageLookupByLibrary.simpleMessage("自動"),
     "autoCheckUpdate": MessageLookupByLibrary.simpleMessage("自動更新チェック"),
     "autoCheckUpdateDesc": MessageLookupByLibrary.simpleMessage(
@@ -160,6 +160,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "copySuccess": MessageLookupByLibrary.simpleMessage("コピー成功"),
     "core": MessageLookupByLibrary.simpleMessage("コア"),
     "coreInfo": MessageLookupByLibrary.simpleMessage("コア情報"),
+    "couldNotGetIpAddress": MessageLookupByLibrary.simpleMessage(
+      "IPアドレスを取得できませんでした",
+    ),
     "country": MessageLookupByLibrary.simpleMessage("国"),
     "crashTest": MessageLookupByLibrary.simpleMessage("クラッシュテスト"),
     "crashlytics": MessageLookupByLibrary.simpleMessage("クラッシュレポート"),
@@ -498,6 +501,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "restart": MessageLookupByLibrary.simpleMessage("再起動"),
     "routeAddress": MessageLookupByLibrary.simpleMessage("ルートアドレス"),
     "routeAddressDesc": MessageLookupByLibrary.simpleMessage("ルートアドレスを設定"),
+    "routeDoctor": MessageLookupByLibrary.simpleMessage("ルートドクター"),
+    "routeDoctorDesc": MessageLookupByLibrary.simpleMessage(
+      "プロファイル、DNS、または接続が機能しない理由を確認します",
+    ),
     "routeMode": MessageLookupByLibrary.simpleMessage("ルートモード"),
     "routeMode_bypassPrivate": MessageLookupByLibrary.simpleMessage(
       "プライベートルートをバイパス",

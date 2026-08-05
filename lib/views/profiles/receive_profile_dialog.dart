@@ -165,7 +165,7 @@ class _ReceiveProfileDialogState extends State<ReceiveProfileDialog> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _qrData == null
-                ? const Center(child: Text('Could not get IP address'))
+                ? Center(child: Text(appLocalizations.couldNotGetIpAddress))
                 : _buildBody(context),
       ),
       actions: [

@@ -334,6 +334,36 @@ class AppLocalizations {
     );
   }
 
+  /// `Route Doctor`
+  String get routeDoctor {
+    return Intl.message(
+      'Route Doctor',
+      name: 'routeDoctor',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Find out why a profile, DNS or connection is not working`
+  String get routeDoctorDesc {
+    return Intl.message(
+      'Find out why a profile, DNS or connection is not working',
+      name: 'routeDoctorDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Could not get IP address`
+  String get couldNotGetIpAddress {
+    return Intl.message(
+      'Could not get IP address',
+      name: 'couldNotGetIpAddress',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Update All Geo Files`
   String get updateAllGeoData {
     return Intl.message(
