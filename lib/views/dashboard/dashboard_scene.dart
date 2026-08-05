@@ -73,44 +73,72 @@ class DashboardChromeOverlay extends ConsumerWidget {
         ref.watch(startButtonSelectorStateProvider.select((s) => s.hasProfile));
     if (!hasProfile) return const EmptyHero();
 
+    // Bottom-anchored actions are the right call on mobile — thumb reach
+    // favors the bottom of the screen, and every other primary action in
+    // this app already lives down there (HeroNavBar). Desktop is the
+    // opposite: people drag windows around, so the bottom edge is the
+    // least reliable place to find something, and Apple's own layout
+    // guidance says so explicitly — critical controls don't belong at
+    // the bottom of a window, and the most important item belongs
+    // nearest the top, ahead of supporting detail. Connect is the one
+    // thing this whole screen exists for, so on desktop it leads —
+    // before the stat strip, not after it — with the map filling what's
+    // left below.
+    final anchorTop = !system.isMobile;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 900;
+        final compact = !wide;
+
+        final utilityBar = const Align(
+          alignment: Alignment.centerLeft,
+          child: DashboardUtilityBar(),
+        );
+        final statsStrip = _StatsStrip(compact: compact);
+        final connectBar = _ConnectBar(compact: compact);
+
+        // Past ~1100 the centred stat cards leave enough clear space to
+        // their left for the utility bar to sit in the same band; below
+        // that it would collide with them, so it takes its own row and
+        // pushes the cards down instead. Only worth merging on mobile's
+        // bottom-anchored layout, which is tight on vertical space —
+        // desktop leads with Connect and has room to spare, so utility
+        // bar and stats each keep their own row there regardless of width.
+        final mergeUtilityIntoStats =
+            !anchorTop && constraints.maxWidth >= 1100;
+
         return Padding(
           padding:
               EdgeInsets.fromLTRB(wide ? 16 : 10, 8, wide ? 16 : 10, 12),
           child: Column(
-            children: [
-              // Past ~1100 the centred stat cards leave enough clear
-              // space to their left for the utility bar to sit in the
-              // same band; below that it would collide with them, so it
-              // takes its own row and pushes the cards down instead.
-              if (constraints.maxWidth >= 1100)
-                SizedBox(
-                  height: 56,
-                  child: Stack(
-                    children: [
-                      _StatsStrip(compact: !wide),
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: DashboardUtilityBar(),
-                      ),
+            children: anchorTop
+                ? [
+                    connectBar,
+                    const SizedBox(height: 12),
+                    utilityBar,
+                    const SizedBox(height: 8),
+                    statsStrip,
+                    const Expanded(child: SizedBox()),
+                  ]
+                : [
+                    if (mergeUtilityIntoStats)
+                      SizedBox(
+                        height: 56,
+                        child: Stack(
+                          children: [statsStrip, utilityBar],
+                        ),
+                      )
+                    else ...[
+                      utilityBar,
+                      const SizedBox(height: 8),
+                      statsStrip,
                     ],
-                  ),
-                )
-              else ...[
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: DashboardUtilityBar(),
-                ),
-                const SizedBox(height: 8),
-                _StatsStrip(compact: !wide),
-              ],
-              const SizedBox(height: 12),
-              const Expanded(child: SizedBox()),
-              const SizedBox(height: 12),
-              _ConnectBar(compact: !wide),
-            ],
+                    const SizedBox(height: 12),
+                    const Expanded(child: SizedBox()),
+                    const SizedBox(height: 12),
+                    connectBar,
+                  ],
           ),
         );
       },
@@ -650,34 +678,38 @@ class _ConnectBarState extends ConsumerState<_ConnectBar> {
                 RouteXFocusableTap(
                   borderRadius: 14,
                   onTap: isReady ? () => _toggle(isRunning) : null,
-                  // A raw white-alpha fill here sat directly on the bar's
-                  // own translucent glass — one sheet of glass on another,
-                  // which is exactly what stacked translucency collapses
-                  // into. `control` is the variant this material system
-                  // already has for buttons resting on a panel; use it.
-                  child: RouteXGlassSurface(
-                    variant: RouteXGlassVariant.control,
-                    radius: 14,
-                    expand: false,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 12),
-                      child: AnimatedSwitcher(
-                        duration:
-                            RouteXMotion.resolve(context, RouteXMotion.fast),
-                        switchInCurve: RouteXMotion.curve,
-                        switchOutCurve: RouteXMotion.curve,
-                        transitionBuilder: (child, animation) =>
-                            FadeTransition(opacity: animation, child: child),
-                        child: Text(
-                          isRunning
-                              ? (isRussian ? 'Отключить' : 'Disconnect')
-                              : (isRussian ? 'Подключить' : 'Connect'),
-                          key: ValueKey(isRunning),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w700),
+                  // The one primary action in this bar — everything else
+                  // here (location chip, the status circle at rest) stays
+                  // neutral glass so this is the only thing carrying
+                  // background-colour emphasis, the way a single filled
+                  // "Done"-style button reads as *the* action in a group
+                  // of otherwise-equal controls, not one option among many.
+                  child: AnimatedContainer(
+                    duration: RouteXMotion.resolve(context, RouteXMotion.base),
+                    curve: RouteXMotion.curve,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: premiumMint,
+                    ),
+                    child: AnimatedSwitcher(
+                      duration:
+                          RouteXMotion.resolve(context, RouteXMotion.fast),
+                      switchInCurve: RouteXMotion.curve,
+                      switchOutCurve: RouteXMotion.curve,
+                      transitionBuilder: (child, animation) =>
+                          FadeTransition(opacity: animation, child: child),
+                      child: Text(
+                        isRunning
+                            ? (isRussian ? 'Отключить' : 'Disconnect')
+                            : (isRussian ? 'Подключить' : 'Connect'),
+                        key: ValueKey(isRunning),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF09090A),
                         ),
                       ),
                     ),
