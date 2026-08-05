@@ -282,6 +282,8 @@ class ListItem<T> extends StatelessWidget {
         child: openDelegate.widget,
       );
       return OpenContainer(
+        transitionDuration:
+            RouteXMotion.resolve(context, const Duration(milliseconds: 300)),
         closedBuilder: (_, action) {
           void openAction() {
             final isMobile = globalState.appState.viewMode == ViewMode.mobile;

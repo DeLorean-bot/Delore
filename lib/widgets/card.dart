@@ -84,7 +84,7 @@ class CommonCard extends StatelessWidget {
     this.type = CommonCardType.plain,
     this.onPressed,
     this.selectWidget,
-    this.radius = 18,
+    this.radius = RouteXRadius.card,
     required this.child,
     this.padding,
     this.enterAnimated = false,
@@ -249,7 +249,7 @@ class SettingsBlock extends StatelessWidget {
               color:
                   context.colorScheme.surfaceContainer.withValues(alpha: 0.72),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(RouteXRadius.overlay),
                 side: BorderSide(
                   color: context.colorScheme.outlineVariant
                       .withValues(alpha: 0.55),

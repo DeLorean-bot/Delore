@@ -289,7 +289,7 @@ class _LiquidNavItemState extends State<_LiquidNavItem> {
             child: AnimatedScale(
               scale: _pressed ? 0.96 : 1,
               duration: reduceMotion ? Duration.zero : RouteXMotion.press,
-              curve: Curves.easeOut,
+              curve: RouteXMotion.curve,
               child: widget.iconOnly
                   ? Center(
                       child: Icon(

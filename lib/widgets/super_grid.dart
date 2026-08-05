@@ -119,12 +119,12 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
 
     _fakeDragWidgetController = AnimationController.unbounded(
       vsync: this,
-      duration: commonDuration,
+      duration: RouteXMotion.navigation,
     );
 
     _shakeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 120),
+      duration: RouteXMotion.press,
     );
 
     _shakeAnimation = Tween<double>(
@@ -139,7 +139,7 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
 
     _transformController = AnimationController(
       vsync: this,
-      duration: commonDuration,
+      duration: RouteXMotion.navigation,
     );
 
     _initState();
@@ -637,7 +637,7 @@ class _DeletableContainerState extends State<_DeletableContainer>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: commonDuration,
+      duration: RouteXMotion.navigation,
     );
     _scaleAnimation = Tween(begin: 1.0, end: 0.4).animate(
       CurvedAnimation(

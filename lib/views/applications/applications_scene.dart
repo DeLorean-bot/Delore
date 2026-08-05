@@ -296,7 +296,7 @@ class _Header extends StatelessWidget {
             ),
             icon: AnimatedRotation(
               turns: refreshing ? 1 : 0,
-              duration: const Duration(milliseconds: 700),
+              duration: RouteXMotion.navigation,
               child: const Icon(
                 Icons.refresh_rounded,
                 color: Color(0xFFB5BFCA),

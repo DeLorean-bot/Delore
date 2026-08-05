@@ -86,7 +86,7 @@ class _HomePageView extends ConsumerWidget {
       duration: duration,
       reverseDuration: RouteXMotion.resolve(context, RouteXMotion.fast),
       switchInCurve: RouteXMotion.curve,
-      switchOutCurve: Curves.easeIn,
+      switchOutCurve: RouteXMotion.curve,
       transitionBuilder: (child, animation) => FadeTransition(
         opacity: animation,
         child: SlideTransition(

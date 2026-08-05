@@ -906,7 +906,7 @@ class _PortDialogState extends ConsumerState<_PortDialog> {
         child: Padding(
           padding: const EdgeInsets.only(top: 8),
           child: AnimatedSize(
-            duration: midDuration,
+            duration: RouteXMotion.resolve(context, midDuration),
             curve: Curves.easeOutQuad,
             alignment: Alignment.topCenter,
             child: Column(

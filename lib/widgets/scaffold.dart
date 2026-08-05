@@ -946,7 +946,7 @@ class _RouteXSceneTransition extends StatelessWidget {
       tween: Tween(end: active ? 0 : 1),
       duration: RouteXMotion.resolve(
         context,
-        const Duration(milliseconds: 280),
+        RouteXMotion.base,
       ),
       curve: RouteXMotion.curve,
       builder: (context, progress, _) => Stack(

@@ -1,3 +1,4 @@
+import 'package:flclashx/common/common.dart';
 import 'package:flutter/material.dart';
 
 /// Slides a fixed-shape glass selection between navigation slots.
@@ -28,9 +29,8 @@ class RouteXSlidingSelection extends StatelessWidget {
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: index, end: index),
-      duration:
-          reduceMotion ? Duration.zero : const Duration(milliseconds: 220),
-      curve: const Cubic(0.16, 1, 0.3, 1),
+      duration: reduceMotion ? Duration.zero : RouteXMotion.base,
+      curve: RouteXMotion.curve,
       builder: (context, value, child) => Transform.translate(
         offset:
             horizontal ? Offset(extent * value, 0) : Offset(0, extent * value),

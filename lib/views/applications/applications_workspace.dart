@@ -487,7 +487,8 @@ class _ProcessRowState extends State<_ProcessRow> {
               ),
             ),
             AnimatedCrossFade(
-              duration: const Duration(milliseconds: 180),
+              duration:
+                  RouteXMotion.resolve(context, const Duration(milliseconds: 180)),
               crossFadeState: _expanded
                   ? CrossFadeState.showSecond
                   : CrossFadeState.showFirst,

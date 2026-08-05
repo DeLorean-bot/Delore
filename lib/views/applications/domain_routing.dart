@@ -439,7 +439,7 @@ class _DomainIcon extends StatelessWidget {
           width: 26,
           height: 26,
           fit: BoxFit.contain,
-          fadeInDuration: const Duration(milliseconds: 150),
+          fadeInDuration: RouteXMotion.fast,
           placeholder: (_, __) => const Icon(Icons.public_rounded, size: 20),
           errorWidget: (_, __, ___) =>
               const Icon(Icons.public_rounded, size: 20),

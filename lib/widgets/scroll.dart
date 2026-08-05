@@ -72,8 +72,8 @@ class _ScrollToEndBoxState<T> extends State<ScrollToEndBox<T>> {
       final offset = globalState.cacheScrollPosition[widget.tag] ?? -1;
       if (offset < 0) {
         widget.controller.animateTo(
-          duration: kThemeAnimationDuration,
           widget.controller.position.maxScrollExtent,
+          duration: RouteXMotion.resolve(context, kThemeAnimationDuration),
           curve: Curves.easeOut,
         );
       }

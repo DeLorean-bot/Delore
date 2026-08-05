@@ -106,9 +106,11 @@ class _FadeScaleEnterBoxState extends State<FadeScaleEnterBox>
   @override
   void initState() {
     super.initState();
+    final reduceMotion = WidgetsBinding
+        .instance.platformDispatcher.accessibilityFeatures.disableAnimations;
     _controller = AnimationController(
       vsync: this,
-      duration: commonDuration,
+      duration: reduceMotion ? Duration.zero : commonDuration,
     );
     _animation = Tween<double>(
       begin: 0,
@@ -151,7 +153,7 @@ class FadeScaleEnterTransition extends StatelessWidget {
     curve: const Interval(0.0, 0.3),
   );
   static final Animatable<double> _scaleInTransition = Tween<double>(
-    begin: 0.70,
+    begin: 0.94,
     end: 1.00,
   ).chain(CurveTween(curve: Easing.legacyDecelerate));
 

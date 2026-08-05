@@ -276,6 +276,7 @@ class _ProxyFavoriteButtonState extends State<_ProxyFavoriteButton> {
   @override
   Widget build(BuildContext context) => AnimatedOpacity(
         duration: RouteXMotion.fast,
+        curve: RouteXMotion.curve,
         opacity: _favorite ? 1 : (_loaded ? 0.48 : 0),
         child: IconButton(
           tooltip: _favorite ? 'Remove from favorites' : 'Add to favorites',

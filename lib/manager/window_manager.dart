@@ -380,7 +380,7 @@ class _WindowControlButtonState extends State<_WindowControlButton> {
       child: GestureDetector(
         onTap: widget.onPressed,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: RouteXMotion.fast,
           width: 46,
           height: kHeaderHeight,
           decoration: BoxDecoration(

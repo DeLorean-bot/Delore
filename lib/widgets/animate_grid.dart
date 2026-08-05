@@ -1,3 +1,4 @@
+import 'package:flclashx/common/common.dart';
 import 'package:flutter/material.dart';
 
 typedef AnimatedGridBuilder<T> = Widget Function(BuildContext, T item);
@@ -11,8 +12,8 @@ class AnimateGrid<T> extends StatelessWidget {
     required this.keyBuilder,
     required this.builder,
     this.gap = 8,
-    this.duration = const Duration(milliseconds: 300),
-    this.curve = Curves.easeOut,
+    this.duration = RouteXMotion.navigation,
+    this.curve = RouteXMotion.curve,
     this.columns = 2,
   });
   final int columns;

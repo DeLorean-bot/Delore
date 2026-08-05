@@ -8,9 +8,11 @@ class CommonPopupRoute<T> extends PopupRoute<T> {
     required this.barrierLabel,
     required this.builder,
     required this.offsetNotifier,
+    required this.reduceMotion,
   });
   final WidgetBuilder builder;
   ValueNotifier<Offset> offsetNotifier;
+  final bool reduceMotion;
 
   @override
   String? barrierLabel;
@@ -34,10 +36,10 @@ class CommonPopupRoute<T> extends PopupRoute<T> {
   Widget buildTransitions(BuildContext context, Animation<double> animation,
       Animation<double> secondaryAnimation, Widget child) {
     const align = Alignment.topRight;
-    final animationValue = CurvedAnimation(
+    final curved = CurvedAnimation(
       parent: animation,
-      curve: Curves.easeIn,
-    ).value;
+      curve: RouteXMotion.curve,
+    );
     return SafeArea(
       child: ValueListenableBuilder(
         valueListenable: offsetNotifier,
@@ -54,14 +56,14 @@ class CommonPopupRoute<T> extends PopupRoute<T> {
             ),
           ),
         child: AnimatedBuilder(
-          animation: animation,
+          animation: curved,
           builder: (_, child) => Opacity(
-              opacity: 0.1 + 0.9 * animationValue,
+              opacity: 0.1 + 0.9 * curved.value,
               child: Transform.scale(
                 alignment: align,
-                scale: 0.7 + 0.3 * animationValue,
+                scale: 0.92 + 0.08 * curved.value,
                 child: Transform.translate(
-                  offset: const Offset(0, -10) * (1 - animationValue),
+                  offset: const Offset(0, -10) * (1 - curved.value),
                   child: child,
                 ),
               ),
@@ -75,7 +77,8 @@ class CommonPopupRoute<T> extends PopupRoute<T> {
   }
 
   @override
-  Duration get transitionDuration => const Duration(milliseconds: 150);
+  Duration get transitionDuration =>
+      reduceMotion ? Duration.zero : const Duration(milliseconds: 150);
 }
 
 class PopupController extends ValueNotifier<bool> {
@@ -123,6 +126,7 @@ class _CommonPopupBoxState extends State<CommonPopupBox> {
         barrierLabel: utils.id,
         builder: (context) => widget.popup,
         offsetNotifier: _targetOffsetValueNotifier,
+        reduceMotion: MediaQuery.maybeOf(context)?.disableAnimations ?? false,
       ),
     )
         .then((_) {

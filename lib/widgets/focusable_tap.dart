@@ -30,6 +30,11 @@ class RouteXFocusableTap extends StatefulWidget {
 class _RouteXFocusableTapState extends State<RouteXFocusableTap> {
   bool _focused = false;
   bool _hovered = false;
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed != value) setState(() => _pressed = value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,10 +86,21 @@ class _RouteXFocusableTapState extends State<RouteXFocusableTap> {
           child: AnimatedOpacity(
             opacity: _hovered && enabled ? 1 : 0.88,
             duration: RouteXMotion.resolve(context, RouteXMotion.fast),
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: widget.onTap,
-              child: widget.child,
+            child: AnimatedScale(
+              // Press-down only, never past the control's original
+              // footprint — safe from the overflow issue noted above,
+              // which was specific to scaling up.
+              scale: _pressed && enabled ? 0.97 : 1,
+              duration: RouteXMotion.resolve(context, RouteXMotion.press),
+              curve: RouteXMotion.curve,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: widget.onTap,
+                onTapDown: enabled ? (_) => _setPressed(true) : null,
+                onTapUp: enabled ? (_) => _setPressed(false) : null,
+                onTapCancel: enabled ? () => _setPressed(false) : null,
+                child: widget.child,
+              ),
             ),
           ),
         ),

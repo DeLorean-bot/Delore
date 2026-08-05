@@ -62,12 +62,16 @@ class SideSheet extends StatefulWidget {
   @override
   State<SideSheet> createState() => _SideSheetState();
 
-  static AnimationController createAnimationController(TickerProvider vsync) => AnimationController(
-      duration: _bottomSheetEnterDuration,
-      reverseDuration: _bottomSheetExitDuration,
+  static AnimationController createAnimationController(TickerProvider vsync) {
+    final reduceMotion = WidgetsBinding
+        .instance.platformDispatcher.accessibilityFeatures.disableAnimations;
+    return AnimationController(
+      duration: reduceMotion ? Duration.zero : _bottomSheetEnterDuration,
+      reverseDuration: reduceMotion ? Duration.zero : _bottomSheetExitDuration,
       debugLabel: 'SideSheet',
       vsync: vsync,
     );
+  }
 }
 
 class _SideSheetState extends State<SideSheet> {

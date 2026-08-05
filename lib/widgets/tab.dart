@@ -129,7 +129,11 @@ class _CommonTabBarState<T extends Object> extends State<CommonTabBar<T>>
   void didUpdateWidget(CommonTabBar<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!isThumbDragging && highlighted != widget.groupValue) {
-      thumbController.animateWith(_kThumbSpringAnimationSimulation);
+      if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
+        thumbController.value = 1;
+      } else {
+        thumbController.animateWith(_kThumbSpringAnimationSimulation);
+      }
       thumbAnimatable = null;
       highlighted = widget.groupValue;
     }
@@ -455,8 +459,12 @@ class _SegmentState<T> extends State<_Segment<T>>
           end: widget.shouldScaleContent ? _kMinThumbScale : 1.0,
         ),
       );
-      highlightPressScaleController
-          .animateWith(_kThumbSpringAnimationSimulation);
+      if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
+        highlightPressScaleController.value = 1;
+      } else {
+        highlightPressScaleController
+            .animateWith(_kThumbSpringAnimationSimulation);
+      }
     }
   }
 
@@ -547,9 +555,11 @@ class _SegmentSeparatorState extends State<_SegmentSeparator>
     assert(oldWidget.key == widget.key);
 
     if (oldWidget.highlighted != widget.highlighted) {
+      final reduceMotion =
+          MediaQuery.maybeOf(context)?.disableAnimations ?? false;
       separatorOpacityController.animateTo(
         widget.highlighted ? 0 : 1,
-        duration: _kSpringAnimationDuration,
+        duration: reduceMotion ? Duration.zero : _kSpringAnimationDuration,
         curve: Curves.ease,
       );
     }

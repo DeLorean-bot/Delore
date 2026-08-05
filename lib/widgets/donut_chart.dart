@@ -59,11 +59,20 @@ class _DonutChartState extends State<DonutChart>
     );
   }
 
+  List<DonutChartData> _currentInterpolatedData(List<DonutChartData> newData) {
+    if (_oldData.length != newData.length) return _oldData;
+    return DonutChartPainter(
+      _oldData,
+      newData,
+      _animationController.value,
+    ).interpolatedData;
+  }
+
   @override
   void didUpdateWidget(DonutChart oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.data != widget.data) {
-      _oldData = oldWidget.data;
+      _oldData = _currentInterpolatedData(oldWidget.data);
       _animationController.forward(from: 0);
     }
   }

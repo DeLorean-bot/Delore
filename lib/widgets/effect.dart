@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:flclashx/common/common.dart';
 import 'package:flutter/material.dart';
 
 class EffectGestureDetector extends StatefulWidget {
@@ -18,41 +19,29 @@ class EffectGestureDetector extends StatefulWidget {
   State<EffectGestureDetector> createState() => _EffectGestureDetectorState();
 }
 
-class _EffectGestureDetectorState extends State<EffectGestureDetector>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+class _EffectGestureDetectorState extends State<EffectGestureDetector> {
   double _scale = 1;
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  void _setPressed(bool pressed) {
+    if (_scale != (pressed ? 0.95 : 1)) {
+      setState(() => _scale = pressed ? 0.95 : 1);
+    }
   }
 
   @override
   Widget build(BuildContext context) => AnimatedScale(
       scale: _scale,
-      duration: kThemeAnimationDuration,
-      curve: Curves.easeOut,
+      duration: RouteXMotion.resolve(context, RouteXMotion.press),
+      curve: RouteXMotion.curve,
       child: GestureDetector(
         onLongPress: widget.onLongPress,
-        onLongPressStart: (_) {
-          setState(() {
-            _scale = 0.95;
-          });
-        },
+        onLongPressStart: (_) => _setPressed(true),
+        onLongPressEnd: (_) => _setPressed(false),
+        onLongPressCancel: () => _setPressed(false),
         onTap: widget.onTap,
-        onLongPressEnd: (_) {
-          setState(() {
-            _scale = 1;
-          });
-        },
+        onTapDown: (_) => _setPressed(true),
+        onTapUp: (_) => _setPressed(false),
+        onTapCancel: () => _setPressed(false),
         child: widget.child,
       ),
     );
@@ -80,11 +69,13 @@ class _CommonExpandIconState extends State<CommonExpandIcon>
     super.initState();
 
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 200),
+      duration: RouteXMotion.fast,
       vsync: this,
     );
     _iconTurns = _animationController.drive(
-      Tween<double>(begin: 0.0, end: 0.5),
+      CurveTween(curve: RouteXMotion.curve).chain(
+        Tween<double>(begin: 0.0, end: 0.5),
+      ),
     );
     if (widget.expand) {
       _animationController.value = 1.0;
