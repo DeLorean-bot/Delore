@@ -104,6 +104,9 @@ class _JellyPrimaryTabs extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedIndex = items.indexWhere((item) => item.label == current);
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final duration = reduceMotion ? Duration.zero : RouteXMotion.navigation;
     return LayoutBuilder(builder: (context, constraints) {
       final itemWidth = constraints.maxWidth / items.length;
 
@@ -119,11 +122,19 @@ class _JellyPrimaryTabs extends ConsumerWidget {
       return Stack(
         clipBehavior: Clip.none,
         children: [
-          RouteXSlidingSelection(
-            index: (selectedIndex < 0 ? 0 : selectedIndex).toDouble(),
-            extent: constraints.maxWidth / items.length,
-            crossExtent: constraints.maxHeight,
-            child: const _LiquidLens(),
+          // Hidden rather than left at index 0: without this, navigating to
+          // the detached Tools/Settings slot left this lens parked under the
+          // first primary tab (Главная), which then read as still selected.
+          AnimatedOpacity(
+            opacity: selectedIndex < 0 ? 0 : 1,
+            duration: duration,
+            curve: RouteXMotion.curve,
+            child: RouteXSlidingSelection(
+              index: (selectedIndex < 0 ? 0 : selectedIndex).toDouble(),
+              extent: constraints.maxWidth / items.length,
+              crossExtent: constraints.maxHeight,
+              child: const _LiquidLens(),
+            ),
           ),
           ReorderableListView.builder(
             scrollDirection: Axis.horizontal,
