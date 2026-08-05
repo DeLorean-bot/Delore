@@ -253,6 +253,14 @@ void routeXPaintChromeRefractionField(
   for (final region in regions) {
     canvas.save();
     canvas.clipRect(region);
+    // Spacing scales with each region's own size instead of a fixed 44/38px,
+    // targeting a roughly constant number of cells regardless of shape. The
+    // sidebar's region is tall and narrow (252 wide), so 44px already reads
+    // as a calm ~6 columns; the connect bar's is short and very wide
+    // (1600+ px), so the same 44px packed in 35+ columns side by side —
+    // dense enough to look like noise, not a match for the sidebar's grid.
+    final colSpacing = math.max(44.0, region.width / 6);
+    final rowSpacing = math.max(30.0, region.height / 16);
     paint.color = Colors.white.withValues(alpha: strength);
     // Straight lines, deliberately: the doc comment above says the shader
     // is what should visibly bend these, but this loop used to add its own
@@ -261,7 +269,9 @@ void routeXPaintChromeRefractionField(
     // card sitting over it (margins, corners), that wave was visible in the
     // plain map area around the card too, not just inside it, and read as
     // "the whole background is warping" instead of "the glass bends this."
-    for (double x = region.left - 40; x <= region.right + 40; x += 44) {
+    for (double x = region.left - 40;
+        x <= region.right + 40;
+        x += colSpacing) {
       canvas.drawLine(
         Offset(x + drift, region.top - 12),
         Offset(x + drift, region.bottom + 12),
@@ -269,7 +279,7 @@ void routeXPaintChromeRefractionField(
       );
     }
     paint.color = Colors.white.withValues(alpha: strength * 0.52);
-    for (double y = region.top; y <= region.bottom; y += 38) {
+    for (double y = region.top; y <= region.bottom; y += rowSpacing) {
       canvas.drawLine(
         Offset(region.left, y + drift * 0.3),
         Offset(region.right, y - drift * 0.3),
