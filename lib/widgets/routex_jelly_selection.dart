@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 
-/// Apple's own critically-damped default for a moving/repositioning UI
-/// element (damping 1.0, response 0.4s — see the "Move / reposition"
-/// row in the apple-design skill's spring table), translated from the
-/// response/damping-ratio model into Flutter's mass/stiffness/damping:
-/// `angularFrequency = 2*pi/response`, `stiffness = mass*angularFrequency^2`,
-/// `damping = 2*dampingRatio*sqrt(mass*stiffness)`. No bounce — a selection
-/// lens settling into place isn't a momentum-driven gesture, so overshoot
-/// would read as sloppy rather than physical.
+/// Apple's own spring for a sliding selection thumb — the exact constants
+/// `CupertinoSlidingSegmentedControl` ships, already ported into this
+/// codebase at `tab.dart`'s `_kThumbSpringAnimationSimulation`. Critically
+/// damped (ratio 1.0, so no overshoot) with a response of ~0.28s.
+///
+/// A slower spring was tried first, using the apple-design skill's
+/// "Move / reposition" row (response 0.4s). That row is for repositioning
+/// a large object like a PiP window; on a small selection lens its long
+/// asymptotic tail read as lag, and because this lens is a live glass
+/// surface, every extra frame of tail is another frame of BackdropFilter.
+/// Apple's own value for *this specific interaction* is the right one.
 const SpringDescription _kSelectionSpring = SpringDescription(
   mass: 1,
-  stiffness: 246.74,
-  damping: 31.42,
+  stiffness: 503.551,
+  damping: 44.8799,
 );
 
 /// Slides a fixed-shape glass selection between navigation slots.
