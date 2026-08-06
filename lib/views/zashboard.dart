@@ -218,7 +218,7 @@ class _ZashboardWebViewPageState extends State<ZashboardWebViewPage> {
         actions: [
           IconButton(
             tooltip: appLocalizations.update,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: _controller.reload,
           ),
           IconButton(

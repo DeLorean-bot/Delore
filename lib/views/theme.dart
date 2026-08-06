@@ -417,7 +417,7 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
                         iconSize: 32,
                         icon: Icon(
                           color: context.colorScheme.primary,
-                          Icons.add,
+                          Icons.add_rounded,
                         ),
                       ),
                     )

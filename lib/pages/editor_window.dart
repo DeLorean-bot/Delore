@@ -227,7 +227,7 @@ class _EditorWindowState extends State<_EditorWindow> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.save, size: 18),
+                    : const Icon(Icons.save_rounded, size: 18),
                 label: Text(widget.saveLabel),
               ),
             ),

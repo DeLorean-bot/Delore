@@ -266,7 +266,7 @@ class _WindowHeaderState extends State<WindowHeader> {
         // Close button - red hover
         _buildWindowButton(
           icon: Icon(
-            Icons.close,
+            Icons.close_rounded,
             size: 18,
             color: colorScheme.onSurface.withValues(alpha: 0.8),
           ),

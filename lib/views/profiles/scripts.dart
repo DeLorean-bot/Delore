@@ -75,6 +75,7 @@ class _ScriptsViewState extends ConsumerState<ScriptsView> {
                 ),
                 trailing: CommonPopupBox(
                   targetBuilder: (open) => IconButton(
+                      tooltip: appLocalizations.more,
                       onPressed: () {
                         open();
                       },
@@ -232,7 +233,7 @@ class _ScriptsViewState extends ConsumerState<ScriptsView> {
       disableBackground: true,
       floatingActionButton: FloatingActionButton(
         onPressed: _handleToEditor,
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add_rounded),
       ),
       body: _buildContent(),
       title: appLocalizations.script,

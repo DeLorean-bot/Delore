@@ -257,7 +257,7 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
                             _handleSave(ref, newOverrideData);
                           },
                           icon: const Icon(
-                            Icons.save,
+                            Icons.save_rounded,
                           ),
                         ),
                       );

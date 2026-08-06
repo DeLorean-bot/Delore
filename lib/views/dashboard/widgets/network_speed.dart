@@ -48,7 +48,7 @@ class _NetworkSpeedState extends State<NetworkSpeed> {
         onPressed: () {},
         info: Info(
           label: appLocalizations.networkSpeed,
-          iconData: Icons.speed_sharp,
+          iconData: Icons.speed_rounded,
         ),
         child: Consumer(
           builder: (_, ref, __) {

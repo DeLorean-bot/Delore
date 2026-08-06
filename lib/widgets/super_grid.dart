@@ -706,7 +706,7 @@ class _DeletableContainerState extends State<_DeletableContainer>
                   padding: const EdgeInsets.all(2),
                   onPressed: _handleDel,
                   icon: const Icon(
-                    Icons.close,
+                    Icons.close_rounded,
                   ),
                 ),
               ),

@@ -296,7 +296,7 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
     if (_isEdit) {
       return IconButton(
         onPressed: _appBarState.value.editState?.onExit,
-        icon: const Icon(Icons.close),
+        icon: const Icon(Icons.close_rounded),
       );
     }
     return _isSearch
@@ -337,7 +337,7 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
       return genActions([
         IconButton(
           onPressed: _handleClear,
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close_rounded),
         ),
       ]);
     }
@@ -351,7 +351,7 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
           ),
         );
       },
-      icon: const Icon(Icons.search),
+      icon: const Icon(Icons.search_rounded),
     );
 
     if (!hasSearch) {

@@ -123,7 +123,7 @@ class _ProfilesViewState extends State<ProfilesView> with PageMixin {
         tooltip: appLocalizations.addProfile,
         onPressed: _handleShowAddExtendPage,
         child: const Icon(
-          Icons.add,
+          Icons.add_rounded,
         ),
       );
 
@@ -507,7 +507,7 @@ class _ProfileItemState extends State<ProfileItem> {
                               ),
                               if (widget.profile.type == ProfileType.url) ...[
                                 PopupMenuItemData(
-                                  icon: Icons.sync_alt_sharp,
+                                  icon: Icons.sync_alt_rounded,
                                   label: appLocalizations.sync,
                                   onPressed: updateProfile,
                                 ),
@@ -550,6 +550,7 @@ class _ProfileItemState extends State<ProfileItem> {
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(20),
                               child: IconButton(
+                                tooltip: appLocalizations.more,
                                 onPressed: open,
                                 icon: const Icon(Icons.more_vert),
                               ),
@@ -631,7 +632,7 @@ class _ReorderableProfilesSheetState extends State<ReorderableProfilesSheet> {
               globalState.appController.setProfiles(profiles);
             },
             icon: const Icon(
-              Icons.save,
+              Icons.save_rounded,
             ),
           )
         ],

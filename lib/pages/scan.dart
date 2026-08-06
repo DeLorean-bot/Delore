@@ -94,7 +94,7 @@ class _ScanPageState extends State<ScanPage> {
           AppBar(
             backgroundColor: Colors.transparent,
             leading: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white),
+              icon: const Icon(Icons.close_rounded, color: Colors.white),
               onPressed: () => Navigator.of(context).pop(),
             ),
             actions: [

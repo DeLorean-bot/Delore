@@ -219,7 +219,7 @@ class SelectIcon extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(4),
           child: const Icon(
-            Icons.check,
+            Icons.check_rounded,
             size: 16,
           ),
         ),

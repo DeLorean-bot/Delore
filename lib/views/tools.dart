@@ -311,7 +311,7 @@ class _SettingItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final appLocale = AppLocalizations.of(context);
     return ListItem.open(
-      leading: const Icon(Icons.settings),
+      leading: const Icon(Icons.settings_rounded),
       title: Text(appLocale.application),
       subtitle: Text(appLocale.applicationDesc),
       delegate: OpenDelegate(
@@ -393,7 +393,7 @@ class _RuntimeConfigSheetState extends ConsumerState<_RuntimeConfigSheet> {
       actions: [
         IconButton(
           onPressed: _findController.findMode,
-          icon: const Icon(Icons.search),
+          icon: const Icon(Icons.search_rounded),
         ),
       ],
       body: CodeEditor(

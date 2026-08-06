@@ -169,7 +169,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                         ? () => widget.onSave!(
                             context, _titleController.text, _controller.text)
                         : null,
-                    icon: const Icon(Icons.save_sharp),
+                    icon: const Icon(Icons.save_rounded),
                   ),
                 ),
               ),
@@ -180,11 +180,12 @@ class _EditorPageState extends ConsumerState<EditorPage> {
               ),
             IconButton(
               onPressed: _findController.findMode,
-              icon: const Icon(Icons.search),
+              icon: const Icon(Icons.search_rounded),
             ),
             _wrapController(
               (_) => CommonPopupBox(
                 targetBuilder: (open) => IconButton(
+                  tooltip: appLocalizations.more,
                   onPressed: () {
                     open(offset: const Offset(-20, 20));
                   },
@@ -343,7 +344,7 @@ class FindPanel extends StatelessWidget implements PreferredSizeWidget {
                 style: const ButtonStyle(
                   padding: WidgetStatePropertyAll(EdgeInsets.zero),
                 ),
-                icon: const Icon(Icons.close, size: 16),
+                icon: const Icon(Icons.close_rounded, size: 16),
               ),
             ],
           ),

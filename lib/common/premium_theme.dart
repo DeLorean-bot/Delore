@@ -38,10 +38,26 @@ abstract final class RouteXRadius {
   static double capsule(double shorterSide) => shorterSide / 2;
 }
 
+/// One icon family for the whole navigation: outline glyphs of a single
+/// stroke weight.
+///
+/// This was mixed before — `grid_view_rounded` and `language_rounded` are
+/// solid-filled shapes, so Applications and Locations sat as heavy blocks
+/// between the hairline outlines of Dashboard, Profiles and Logs. An icon
+/// set has to hold one level of detail and one stroke weight to read as a
+/// set at all, and the primary navigation is exactly where a mismatch is
+/// most visible.
+///
+/// Selection is *not* communicated by swapping to a filled variant here:
+/// the navigation already states it twice, with the sliding glass pill and
+/// the accent tint. A third signal would be redundant, and the two
+/// stroke-built glyphs in this set (Connections' arrows, Settings' sliders)
+/// have no meaningful filled form to swap to, so half the set couldn't
+/// participate anyway.
 IconData routeXNavigationIcon(PageLabel label) => switch (label) {
       PageLabel.dashboard => Icons.home_outlined,
-      PageLabel.applications => Icons.grid_view_rounded,
-      PageLabel.proxies => Icons.language_rounded,
+      PageLabel.applications => Icons.grid_view_outlined,
+      PageLabel.proxies => Icons.language_outlined,
       PageLabel.profiles => Icons.person_outline_rounded,
       PageLabel.connections => Icons.swap_horiz_rounded,
       PageLabel.requests => Icons.rule_folder_outlined,

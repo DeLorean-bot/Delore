@@ -240,7 +240,7 @@ class _AccessViewState extends ConsumerState<AccessView> {
                       },
                       decoration: InputDecoration(
                         hintText: appLocale.search,
-                        prefixIcon: const Icon(Icons.search, size: 20),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 20),
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(
                             vertical: 8, horizontal: 12),

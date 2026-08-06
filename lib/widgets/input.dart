@@ -260,7 +260,7 @@ class ListInputPage extends StatelessWidget {
           onPressed: () async {
             _handleAddOrEdit();
           },
-          child: const Icon(Icons.add),
+          child: const Icon(Icons.add_rounded),
         ),
       ),
       child: items.isEmpty
@@ -403,7 +403,7 @@ class MapInputPage extends StatelessWidget {
           onPressed: () async {
             _handleAddOrEdit();
           },
-          child: const Icon(Icons.add),
+          child: const Icon(Icons.add_rounded),
         ),
       ),
       child: items.isEmpty

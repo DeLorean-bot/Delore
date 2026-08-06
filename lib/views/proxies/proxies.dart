@@ -91,6 +91,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> with PageMixin {
         ],
         CommonPopupBox(
           targetBuilder: (open) => IconButton(
+            tooltip: appLocalizations.more,
             onPressed: () {
               open(
                 offset: const Offset(0, 20),
@@ -103,7 +104,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> with PageMixin {
           popup: CommonPopupMenu(
             items: [
               PopupMenuItemData(
-                icon: Icons.tune,
+                icon: Icons.tune_rounded,
                 label: appLocalizations.settings,
                 onPressed: () {
                   showSheet(
