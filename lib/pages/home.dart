@@ -396,18 +396,9 @@ class _DesktopNavigationItem extends StatelessWidget {
       : Intl.message(item.label.name);
 
   @override
-  Widget build(BuildContext context) => Semantics(
-        selected: selected,
-        button: true,
-        label: _label,
-        hint: Localizations.localeOf(context).languageCode == 'ru'
-            ? 'Перетащите, чтобы изменить порядок'
-            : 'Drag to reorder',
-        child: Tooltip(
-          message: Localizations.localeOf(context).languageCode == 'ru'
-              ? '$_label · перетащите, чтобы изменить порядок'
-              : '$_label · drag to reorder',
-          child: Material(
+  Widget build(BuildContext context) {
+    final isRussian = Localizations.localeOf(context).languageCode == 'ru';
+    final tile = Material(
             type: MaterialType.transparency,
             child: InkWell(
               customBorder: const StadiumBorder(),
@@ -458,9 +449,33 @@ class _DesktopNavigationItem extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-        ),
-      );
+          );
+
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: _label,
+      hint: isRussian
+          ? 'Перетащите, чтобы изменить порядок'
+          : 'Drag to reorder',
+      // Only the collapsed rail gets a tooltip. Expanded, the label is
+      // already sitting right there in the row — a help tag that repeats
+      // a visible label is noise, and Apple's guidance is that a tooltip
+      // explains a control whose purpose isn't already obvious. It also
+      // kept a live OverlayEntry churning on every pass of the cursor
+      // across the nav during rapid switching, next to the overlay
+      // ReorderableListView already runs for its drag proxy.
+      child: expanded
+          ? tile
+          : Tooltip(
+              message: _label,
+              // Long enough that clicking through the nav quickly never
+              // spawns one; a genuine "what is this icon?" hover still does.
+              waitDuration: const Duration(milliseconds: 600),
+              child: tile,
+            ),
+    );
+  }
 }
 
 class _RoutingStatus extends StatelessWidget {

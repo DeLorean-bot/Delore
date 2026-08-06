@@ -260,22 +260,7 @@ class _LiquidNavItemState extends State<_LiquidNavItem> {
     final muted = context.colorScheme.onSurface.withValues(alpha: 0.86);
     final selectedColor = context.colorScheme.onSurface;
 
-    return Semantics(
-      selected: widget.selected,
-      button: true,
-      label: _label,
-      hint: widget.draggableHint
-          ? (Localizations.localeOf(context).languageCode == 'ru'
-              ? 'Удерживайте и перетащите, чтобы изменить порядок'
-              : 'Hold and drag to reorder')
-          : null,
-      child: Tooltip(
-        message: widget.draggableHint
-            ? (Localizations.localeOf(context).languageCode == 'ru'
-                ? '$_label · удерживайте и перетащите'
-                : '$_label · hold and drag')
-            : _label,
-        child: Material(
+    final tile = Material(
           type: MaterialType.transparency,
           child: InkWell(
             customBorder: const StadiumBorder(),
@@ -327,8 +312,29 @@ class _LiquidNavItemState extends State<_LiquidNavItem> {
                     ),
             ),
           ),
-        ),
-      ),
+        );
+
+    final isRussian = Localizations.localeOf(context).languageCode == 'ru';
+    return Semantics(
+      selected: widget.selected,
+      button: true,
+      label: _label,
+      hint: widget.draggableHint
+          ? (isRussian
+              ? 'Удерживайте и перетащите, чтобы изменить порядок'
+              : 'Hold and drag to reorder')
+          : null,
+      // Only the icon-only slot gets a tooltip. The labelled tabs print
+      // their name directly under the glyph, so a help tag repeating it
+      // adds nothing — and it kept spawning an OverlayEntry every time
+      // the pointer crossed the bar while switching tabs.
+      child: widget.iconOnly
+          ? Tooltip(
+              message: _label,
+              waitDuration: const Duration(milliseconds: 600),
+              child: tile,
+            )
+          : tile,
     );
   }
 }
