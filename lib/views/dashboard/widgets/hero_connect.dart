@@ -415,6 +415,32 @@ class _ProfileSwitcherState extends ConsumerState<_ProfileSwitcher> {
   final _triggerKey = GlobalKey();
   OverlayEntry? _overlayEntry;
 
+  /// Whether the menu opens above the trigger rather than below it.
+  ///
+  /// Cached in state rather than computed inside `build`, because it needs
+  /// the trigger's laid-out position — which doesn't exist until after the
+  /// frame it's first built in — and because the chevron in `build` and
+  /// the menu placement in [_open] have to agree. A downward chevron over
+  /// a menu that opens upward is exactly the kind of small mismatch that
+  /// makes an interface feel careless.
+  bool _openUpward = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshDirection());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Resizing the window moves the trigger relative to the window edges,
+    // so which side has room can flip without this widget's own state
+    // changing at all. MediaQuery is what changes on resize, and
+    // didChangeDependencies is where it's legal to react to it.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshDirection());
+  }
+
   @override
   void dispose() {
     _overlayEntry?.remove();
@@ -426,24 +452,33 @@ class _ProfileSwitcherState extends ConsumerState<_ProfileSwitcher> {
     _overlayEntry = null;
   }
 
+  /// Measures space above vs. below the trigger and caches the result.
+  ///
+  /// Deliberately measured against the window itself (`View.of`) rather
+  /// than by looking up an `Overlay`: reading the Overlay from `build`
+  /// registers this widget as a dependent of the very Overlay that
+  /// [_open] then inserts into, so opening the menu rebuilt a dependent
+  /// mid-update and tripped an assertion inside the Overlay's own
+  /// bookkeeping. Window geometry gives the same answer with nothing to
+  /// depend on.
+  void _refreshDirection() {
+    if (!mounted) return;
+    final box = _triggerKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final view = View.of(context);
+    final windowHeight = view.physicalSize.height / view.devicePixelRatio;
+    final triggerTop = box.localToGlobal(Offset.zero).dy;
+    final spaceAbove = triggerTop;
+    final spaceBelow = windowHeight - (triggerTop + box.size.height);
+    final next = spaceAbove > spaceBelow;
+    if (next != _openUpward) setState(() => _openUpward = next);
+  }
+
   void _open(List<Profile> profiles, String? currentId) {
     final box = _triggerKey.currentContext?.findRenderObject() as RenderBox?;
     final triggerWidth = box?.size.width ?? 160;
     final duration = RouteXMotion.resolve(context, RouteXMotion.fast);
-
-    // The trigger doesn't always sit near the top any more — desktop's
-    // status cluster (this switcher included) can trail near the bottom
-    // of the window, where a menu that only ever opens downward runs off
-    // the window edge into nothing. Open toward whichever side actually
-    // has more room, instead of assuming "down" always has space.
-    final overlayBox =
-        Overlay.of(context).context.findRenderObject() as RenderBox?;
-    final openUpward = box != null && overlayBox != null && () {
-      final triggerTop = box.localToGlobal(Offset.zero, ancestor: overlayBox).dy;
-      final spaceAbove = triggerTop;
-      final spaceBelow = overlayBox.size.height - (triggerTop + box.size.height);
-      return spaceAbove > spaceBelow;
-    }();
+    final openUpward = _openUpward;
     final baseOffset = widget.menuOffset ?? const Offset(0, 8);
     final offset =
         openUpward ? Offset(baseOffset.dx, -baseOffset.dy) : baseOffset;
@@ -566,7 +601,9 @@ class _ProfileSwitcherState extends ConsumerState<_ProfileSwitcher> {
             ),
             const SizedBox(width: 4),
             Icon(
-              Icons.expand_more_rounded,
+              _openUpward
+                  ? Icons.expand_less_rounded
+                  : Icons.expand_more_rounded,
               size: 20,
               color: context.colorScheme.onSurfaceVariant,
             ),
