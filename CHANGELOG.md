@@ -1,45 +1,34 @@
 ## v0.5.6
 
-**A more deliberate Delore**
+**New look**
 
-* Rebuilt the interface hierarchy around one clear primary action: Connect now leads the dashboard, while profile and live statistics stay available without competing for attention
-* Unified the dark appearance around true black, white and restrained graphite; removed the remaining grey wash and coloured glass tints
-* Refined both compact and expanded layouts so the same controls, spacing and visual hierarchy survive window resizing
-* Standardized navigation, selectors, sheets and status surfaces around the same restrained Liquid Glass language
+* Reworked Delore around a cleaner black-and-white Liquid Glass style across navigation, selectors, menus, sheets and status panels
+* Rebuilt the dashboard hierarchy: Connect is now the clear main action, while the profile switcher and live statistics stay compact and easy to reach
+* Refined both expanded and compact layouts so controls keep consistent spacing and proportions when the window changes size
+* Redesigned the profile switcher, add-profile panel and bottom statistics bar to match the rest of the interface
 
-**Motion and navigation**
+**Applications and browser**
 
-* Replaced fixed selection curves with an interruptible, critically damped navigation spring that continues from its current on-screen position
-* Fixed the selection lens getting stuck after repeated navigation and corrected several animation lifecycle crashes
-* Normalized navigation icons to one outlined family and removed redundant tooltips from already-labelled controls
-* Navigation order remains customizable by drag and drop in both expanded and collapsed desktop modes
-* Restored immediate press feedback and added clear progress feedback while Delore is connecting
-* Respects Reduce Motion throughout the redesigned interface without removing useful state feedback
+* Simplified the Applications section to two useful views: native applications and live browser tabs; the duplicate Sites view is gone
+* Improved Browser Bridge setup with clear actions for Chromium-based browsers and Firefox
+* Added consistent loading, scanning and empty states to Applications, Browser, Active Connections and Connection Log
+* Application details now open smoothly, and real Windows app icons load without freezing navigation or scrolling
 
-**Applications and browser routing**
+**Smoother and faster**
 
-* Simplified Applications to two distinct workspaces: native applications and live browser tabs; removed the duplicate Sites tab
-* Reworked the Browser Bridge empty state into a compact setup flow with direct Chromium-family and Firefox actions
-* Added one consistent monochrome loading and empty-state design to Applications, Browser, Active Connections and Connection Log
-* Application details now expand with a single smooth size transition instead of overlapping cross-fades
-* Windows executable icons are extracted on a worker isolate, keeping navigation and scrolling responsive while real icons arrive progressively
+* Pages now open without the noticeable pause on the first click and remain ready when you return to them
+* Fixed the startup flash that could briefly show several pages at once
+* Navigation selection now moves smoothly, can be interrupted naturally and no longer gets stuck after repeated switching
+* Kept full-quality live glass effects while reducing unnecessary background work
+* Added immediate button feedback and a visible connecting state instead of a silent delay
 
-**Performance and stability**
+**Fixes and polish**
 
-* Heavy pages are warmed after the first frame and retained in memory, avoiding page construction on the first navigation click
-* Hidden cached pages are kept strictly offstage, fixing the startup flash where several screens could briefly appear at once
-* Preserved full-rate live Liquid Glass on the desktop dashboard while avoiding unnecessary rebuilds in navigation state
-* Isolated cached pages with repaint and ticker boundaries so inactive screens do not animate or repaint in the background
-* Fixed four unsafe MediaQuery lifecycle reads that could crash during navigation or window changes
-* Pinned release builders to verified SDK revisions: stable Flutter 3.44.9 for standard targets and the last successful ARM snapshot for native Windows and Linux ARM64 builds
-
-**Polish and fixes**
-
-* Redesigned the dashboard profile switcher, its menu, the bottom statistics strip and add-profile sheet to use the shared black-glass system
-* Fixed the profile switcher chevron pointing in the wrong direction when its menu opens upward
-* Fixed compact connect-bar spacing and the bottom navigation keeping Home highlighted while Settings was open
-* Localized Route Doctor and IP-address validation messages that previously remained in English
-* Improved accessibility labels for icon-only and overflow controls
+* Navigation items can be reordered by dragging in both expanded and collapsed desktop modes
+* Unified navigation icons and improved labels for icon-only controls
+* Fixed several crashes related to navigation, resizing and animation state
+* Fixed the profile menu arrow, compact connect-bar spacing and incorrect Home highlighting while Settings was open
+* Completed missing Russian translations and improved Reduce Motion support
 
 ## v0.5.5
 
