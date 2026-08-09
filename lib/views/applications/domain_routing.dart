@@ -216,12 +216,21 @@ class _DomainRoutingBodyState extends ConsumerState<DomainRoutingBody> {
           const SizedBox(height: 12),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const RouteXStatusState(
+                    title: 'Loading sites',
+                    detail: 'Restoring your saved routing rules.',
+                    loading: true,
+                    icon: Icons.language_rounded,
+                  )
                 : _entries.isEmpty
                     ? NullStatus(
                         label: isRussian
                             ? 'Добавьте сайт, чтобы выбрать для него отдельный маршрут'
                             : 'Add a site to choose a separate route for it',
+                        detail: isRussian
+                            ? 'Введите домен выше — YAML редактировать не понадобится.'
+                            : 'Enter a domain above — no YAML editing required.',
+                        icon: Icons.language_rounded,
                       )
                     : CommonScrollBar(
                         controller: _scrollController,

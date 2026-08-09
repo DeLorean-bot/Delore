@@ -1,3 +1,45 @@
+## v0.5.6
+
+**A more deliberate Delore**
+
+* Rebuilt the interface hierarchy around one clear primary action: Connect now leads the dashboard, while profile and live statistics stay available without competing for attention
+* Unified the dark appearance around true black, white and restrained graphite; removed the remaining grey wash and coloured glass tints
+* Refined both compact and expanded layouts so the same controls, spacing and visual hierarchy survive window resizing
+* Standardized navigation, selectors, sheets and status surfaces around the same restrained Liquid Glass language
+
+**Motion and navigation**
+
+* Replaced fixed selection curves with an interruptible, critically damped navigation spring that continues from its current on-screen position
+* Fixed the selection lens getting stuck after repeated navigation and corrected several animation lifecycle crashes
+* Normalized navigation icons to one outlined family and removed redundant tooltips from already-labelled controls
+* Navigation order remains customizable by drag and drop in both expanded and collapsed desktop modes
+* Restored immediate press feedback and added clear progress feedback while Delore is connecting
+* Respects Reduce Motion throughout the redesigned interface without removing useful state feedback
+
+**Applications and browser routing**
+
+* Simplified Applications to two distinct workspaces: native applications and live browser tabs; removed the duplicate Sites tab
+* Reworked the Browser Bridge empty state into a compact setup flow with direct Chromium-family and Firefox actions
+* Added one consistent monochrome loading and empty-state design to Applications, Browser, Active Connections and Connection Log
+* Application details now expand with a single smooth size transition instead of overlapping cross-fades
+* Windows executable icons are extracted on a worker isolate, keeping navigation and scrolling responsive while real icons arrive progressively
+
+**Performance and stability**
+
+* Heavy pages are warmed after the first frame and retained in memory, avoiding page construction on the first navigation click
+* Hidden cached pages are kept strictly offstage, fixing the startup flash where several screens could briefly appear at once
+* Preserved full-rate live Liquid Glass on the desktop dashboard while avoiding unnecessary rebuilds in navigation state
+* Isolated cached pages with repaint and ticker boundaries so inactive screens do not animate or repaint in the background
+* Fixed four unsafe MediaQuery lifecycle reads that could crash during navigation or window changes
+
+**Polish and fixes**
+
+* Redesigned the dashboard profile switcher, its menu, the bottom statistics strip and add-profile sheet to use the shared black-glass system
+* Fixed the profile switcher chevron pointing in the wrong direction when its menu opens upward
+* Fixed compact connect-bar spacing and the bottom navigation keeping Home highlighted while Settings was open
+* Localized Route Doctor and IP-address validation messages that previously remained in English
+* Improved accessibility labels for icon-only and overflow controls
+
 ## v0.5.5
 
 **Dashboard**

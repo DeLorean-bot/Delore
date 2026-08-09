@@ -17,16 +17,14 @@ import 'package:path/path.dart' as p;
 import 'applications_scene.dart';
 import 'applications_workspace.dart';
 import 'browser_tabs.dart';
-import 'domain_routing.dart';
 
-enum _AppsTab { apps, sites, browser }
+enum _AppsTab { apps, browser }
 
-/// The merged "Applications" page: an Apps/Sites segmented switch over an
-/// IndexedStack of the two bodies, mirroring how Connections merges its own
+/// The merged "Applications" page: native apps and live browser tabs in one
+/// workspace, mirroring how Connections merges its own
 /// Active/Log tabs. Owns only the shared refresh action — process discovery
 /// (Apps) has always had its own inline search box in [ApplicationsWorkspace]'s
-/// toolbar rather than the floating app-bar's search, and Sites follows the
-/// same convention rather than introduce a second, inconsistent pattern.
+/// toolbar rather than the floating app-bar's search.
 class ApplicationsView extends ConsumerStatefulWidget {
   const ApplicationsView({super.key});
 
@@ -49,7 +47,6 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
               icon: const Icon(Icons.refresh_rounded),
             ),
           ],
-        _AppsTab.sites => const [],
         _AppsTab.browser => const [],
       };
 
@@ -98,13 +95,6 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
                   ),
                   child: Text(isRussian ? 'Приложения' : 'Applications'),
                 ),
-                _AppsTab.sites: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  child: Text(isRussian ? 'Сайты' : 'Sites'),
-                ),
                 _AppsTab.browser: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Text('Browser'),
@@ -120,9 +110,6 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
               _AppRoutingBody(
                 key: _appsKey,
                 active: _visible && _tab == _AppsTab.apps,
-              ),
-              DomainRoutingBody(
-                active: _visible && _tab == _AppsTab.sites,
               ),
               BrowserTabsBody(
                 active: _visible && _tab == _AppsTab.browser,

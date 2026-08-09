@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flclashx/common/common.dart';
@@ -5,7 +6,6 @@ import 'package:flclashx/enum/enum.dart';
 import 'package:flclashx/models/models.dart';
 import 'package:flclashx/providers/providers.dart';
 import 'package:flclashx/state.dart';
-import 'package:flclashx/views/dashboard/dashboard.dart';
 import 'package:flclashx/views/dashboard/dashboard_scene.dart'
     show DashboardChromeOverlay;
 import 'package:flclashx/views/dashboard/widgets/hero_nav_bar.dart';
@@ -55,7 +55,9 @@ class HomePage extends StatelessWidget {
                   ? appLocalizations.locations
                   : Intl.message(pageLabel.name),
               sideNavigationBar: sideNavigationBar,
-              body: isDashboard ? const DashboardView() : child!,
+              // Keep the page host mounted even on Dashboard. Visited heavy
+              // pages retain state instead of being rediscovered every time.
+              body: child!,
               bottomNavigationBar: bottomNavigationBar,
               dashboardChrome:
                   isDashboard ? const DashboardChromeOverlay() : null,
@@ -66,41 +68,81 @@ class HomePage extends StatelessWidget {
       );
 }
 
-class _HomePageView extends ConsumerWidget {
+class _HomePageView extends ConsumerStatefulWidget {
   const _HomePageView();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_HomePageView> createState() => _HomePageViewState();
+}
+
+class _HomePageViewState extends ConsumerState<_HomePageView> {
+  final Set<PageLabel> _visited = {};
+  bool _warmupScheduled = false;
+
+  void _scheduleWarmup(List<NavigationItem> navigationItems) {
+    if (_warmupScheduled) return;
+    _warmupScheduled = true;
+    final pages = navigationItems.where((item) => item.keep).toList();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Spread first construction across idle gaps. This keeps the first frame
+      // responsive while making the first real visit reuse an already-mounted
+      // page instead of building discovery, lists and selectors under the tap.
+      for (final item in pages) {
+        if (!mounted || _visited.contains(item.label)) continue;
+        await Future<void>.delayed(const Duration(milliseconds: 90));
+        if (!mounted) return;
+        setState(() => _visited.add(item.label));
+        await WidgetsBinding.instance.endOfFrame;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final navigationItems = ref.watch(currentNavigationsStateProvider).value;
     final currentLabel = ref.watch(currentPageLabelProvider);
     final currentItem = navigationItems.firstWhere(
       (item) => item.label == currentLabel,
       orElse: () => navigationItems.first,
     );
-    final duration = RouteXMotion.resolve(context, RouteXMotion.base);
-    final currentView = currentLabel == PageLabel.dashboard
-        ? const DashboardView()
-        : currentItem.view;
+    if (currentItem.keep) _visited.add(currentLabel);
+    _scheduleWarmup(navigationItems);
+    final duration = RouteXMotion.resolve(context, RouteXMotion.fast);
 
-    return AnimatedSwitcher(
-      duration: duration,
-      reverseDuration: RouteXMotion.resolve(context, RouteXMotion.fast),
-      switchInCurve: RouteXMotion.curve,
-      switchOutCurve: RouteXMotion.curve,
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0.012, 0),
-            end: Offset.zero,
-          ).animate(animation),
-          child: child,
-        ),
-      ),
-      child: KeyedSubtree(
-        key: ValueKey(currentLabel),
-        child: currentView,
-      ),
+    Widget page(NavigationItem item, {required bool active}) => Positioned.fill(
+          child: IgnorePointer(
+            ignoring: !active,
+            // Offstage is the hard paint boundary. Cached pages stay mounted
+            // but can never leak into either the viewport or the glass capture
+            // while the idle warm-up inserts them behind the current page.
+            child: Offstage(
+              offstage: !active,
+              child: AnimatedOpacity(
+                opacity: active ? 1 : 0,
+                duration: duration,
+                curve: RouteXMotion.curve,
+                child: AnimatedSlide(
+                  offset: active ? Offset.zero : const Offset(-0.012, 0),
+                  duration: duration,
+                  curve: RouteXMotion.curve,
+                  child: TickerMode(
+                    enabled: active,
+                    child: RepaintBoundary(child: item.view),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        for (final item in navigationItems)
+          if (item.keep && _visited.contains(item.label))
+            page(item, active: item.label == currentLabel),
+        if (!currentItem.keep) page(currentItem, active: true),
+      ],
     );
   }
 }
@@ -138,7 +180,9 @@ class CommonNavigationBar extends ConsumerWidget {
         ),
       );
     }
-    final showLabel = ref.watch(appSettingProvider).showLabel;
+    final showLabel = ref.watch(
+      appSettingProvider.select((setting) => setting.showLabel),
+    );
     return _PremiumSideNavigation(
       items: navigationItems,
       selectedIndex: currentIndex,
@@ -196,11 +240,10 @@ class _PremiumSideNavigation extends ConsumerWidget {
             variant: RouteXGlassVariant.navigation,
             radius: 26,
             shadowOffset: const Offset(5, 8),
-            // Width must not change the material. Using the shared navigation
-            // tint here made the compact rail turn grey while the expanded one
-            // stayed clear. The sidebar is transparent in both states; only its
-            // geometry changes during collapse/expand.
-            tintAlphaFactor: 0,
+            // The shared navigation tint is smoked black in dark mode. Both
+            // widths use the same material so collapsing the rail changes only
+            // geometry, never its colour or perceived thickness.
+            tintAlphaFactor: 1,
             blurFactor: 0.3,
             child: Padding(
               padding: const EdgeInsets.all(6),
@@ -399,65 +442,62 @@ class _DesktopNavigationItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isRussian = Localizations.localeOf(context).languageCode == 'ru';
     final tile = Material(
-            type: MaterialType.transparency,
-            child: InkWell(
-              customBorder: const StadiumBorder(),
-              onTap: onTap,
-              overlayColor: WidgetStatePropertyAll(
-                Colors.white.withValues(alpha: 0.035),
-              ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: expanded ? 14 : 0),
-                child: Row(
-                  mainAxisAlignment: expanded
-                      ? MainAxisAlignment.start
-                      : MainAxisAlignment.center,
-                  children: [
-                    AnimatedScale(
-                      scale: selected ? 1.06 : 1,
-                      duration: RouteXMotion.resolve(
-                        context,
-                        RouteXMotion.base,
-                      ),
-                      curve: RouteXMotion.curve,
-                      child: Icon(
-                        routeXNavigationIcon(item.label),
-                        size: 21,
-                        color: selected
-                            ? premiumMint
-                            : context.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    if (expanded) ...[
-                      const SizedBox(width: 13),
-                      Expanded(
-                        child: Text(
-                          _label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.textTheme.bodyMedium?.copyWith(
-                            color: selected
-                                ? context.colorScheme.onSurface
-                                : context.colorScheme.onSurfaceVariant,
-                            fontWeight:
-                                selected ? FontWeight.w600 : FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+      type: MaterialType.transparency,
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        overlayColor: WidgetStatePropertyAll(
+          Colors.white.withValues(alpha: 0.035),
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: expanded ? 14 : 0),
+          child: Row(
+            mainAxisAlignment:
+                expanded ? MainAxisAlignment.start : MainAxisAlignment.center,
+            children: [
+              AnimatedScale(
+                scale: selected ? 1.06 : 1,
+                duration: RouteXMotion.resolve(
+                  context,
+                  RouteXMotion.base,
+                ),
+                curve: RouteXMotion.curve,
+                child: Icon(
+                  routeXNavigationIcon(item.label),
+                  size: 21,
+                  color: selected
+                      ? premiumMint
+                      : context.colorScheme.onSurfaceVariant,
                 ),
               ),
-            ),
-          );
+              if (expanded) ...[
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Text(
+                    _label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textTheme.bodyMedium?.copyWith(
+                      color: selected
+                          ? context.colorScheme.onSurface
+                          : context.colorScheme.onSurfaceVariant,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
 
     return Semantics(
       selected: selected,
       button: true,
       label: _label,
-      hint: isRussian
-          ? 'Перетащите, чтобы изменить порядок'
-          : 'Drag to reorder',
+      hint:
+          isRussian ? 'Перетащите, чтобы изменить порядок' : 'Drag to reorder',
       // Only the collapsed rail gets a tooltip. Expanded, the label is
       // already sitting right there in the row — a help tag that repeats
       // a visible label is noise, and Apple's guidance is that a tooltip
@@ -618,16 +658,14 @@ class _RoutingModeToggle extends ConsumerWidget {
                     margin: const EdgeInsets.symmetric(vertical: 1.5),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: mode == active
-                          ? premiumMint.withValues(alpha: 0.16)
-                          : Colors.transparent,
+                      color: mode == active ? premiumMint : Colors.transparent,
                       borderRadius: BorderRadius.circular(11),
                     ),
                     child: Icon(
                       _icon(mode),
                       size: 16,
                       color: mode == active
-                          ? premiumMint
+                          ? const Color(0xFF09090A)
                           : context.colorScheme.onSurfaceVariant,
                     ),
                   ),
@@ -661,9 +699,7 @@ class _RoutingModeToggle extends ConsumerWidget {
                   height: 38,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: mode == active
-                        ? premiumMint.withValues(alpha: 0.16)
-                        : Colors.transparent,
+                    color: mode == active ? premiumMint : Colors.transparent,
                     borderRadius: BorderRadius.circular(11),
                   ),
                   child: Row(
@@ -673,7 +709,7 @@ class _RoutingModeToggle extends ConsumerWidget {
                         _icon(mode),
                         size: 15,
                         color: mode == active
-                            ? premiumMint
+                            ? const Color(0xFF09090A)
                             : context.colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 6),
@@ -684,7 +720,7 @@ class _RoutingModeToggle extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                           style: context.textTheme.labelMedium?.copyWith(
                             color: mode == active
-                                ? premiumMint
+                                ? const Color(0xFF09090A)
                                 : context.colorScheme.onSurfaceVariant,
                             fontWeight: mode == active
                                 ? FontWeight.w600

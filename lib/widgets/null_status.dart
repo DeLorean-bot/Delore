@@ -2,69 +2,108 @@ import 'package:flutter/material.dart';
 
 import '../common/common.dart';
 
-class NullStatus extends StatelessWidget {
-  const NullStatus({super.key, required this.label});
-  final String label;
+/// Shared Delore empty/loading language: one compact black glass object with
+/// a restrained monochrome system indicator. There is no decorative orbit or
+/// looping illustration competing with the actual status.
+class RouteXStatusState extends StatelessWidget {
+  const RouteXStatusState({
+    super.key,
+    required this.title,
+    this.detail,
+    this.icon = Icons.radar_rounded,
+    this.loading = false,
+    this.actions = const [],
+  });
+
+  final String title;
+  final String? detail;
+  final IconData icon;
+  final bool loading;
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final entrance = RouteXMotion.resolve(context, RouteXMotion.base);
     return Center(
       child: TweenAnimationBuilder<double>(
         tween: Tween(begin: 0, end: 1),
-        duration:
-            reduceMotion ? Duration.zero : const Duration(milliseconds: 360),
+        duration: entrance,
         curve: RouteXMotion.curve,
         builder: (context, value, child) => Opacity(
           opacity: value,
           child: Transform.translate(
-            offset: Offset(0, 10 * (1 - value)),
+            offset: Offset(0, 6 * (1 - value)),
             child: child,
           ),
         ),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
+          constraints: const BoxConstraints(maxWidth: 430),
           child: RouteXGlassSurface(
             expand: false,
-            radius: 28,
+            variant: RouteXGlassVariant.panel,
+            radius: 24,
+            tintAlphaFactor: 1,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(34, 30, 34, 32),
+              padding: const EdgeInsets.fromLTRB(30, 26, 30, 28),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 62,
-                    height: 62,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          premiumMint.withValues(alpha: 0.22),
-                          premiumBlue.withValues(alpha: 0.14),
-                        ],
-                      ),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.12),
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.route_rounded,
-                      color: premiumMint,
-                      size: 27,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    label,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          height: 1.35,
+                  SizedBox(
+                    width: 54,
+                    height: 54,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black.withValues(alpha: 0.26),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.15),
                         ),
-                    textAlign: TextAlign.center,
+                      ),
+                      child: Center(
+                        child: loading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                  strokeCap: StrokeCap.round,
+                                ),
+                              )
+                            : Icon(icon, size: 23, color: Colors.white),
+                      ),
+                    ),
                   ),
+                  const SizedBox(height: 17),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          height: 1.25,
+                        ),
+                  ),
+                  if (detail != null) ...[
+                    const SizedBox(height: 7),
+                    Text(
+                      detail!,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.58),
+                            height: 1.45,
+                          ),
+                    ),
+                  ],
+                  if (actions.isNotEmpty) ...[
+                    const SizedBox(height: 18),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: actions,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -73,4 +112,24 @@ class NullStatus extends StatelessWidget {
       ),
     );
   }
+}
+
+class NullStatus extends StatelessWidget {
+  const NullStatus({
+    super.key,
+    required this.label,
+    this.detail,
+    this.icon = Icons.radar_rounded,
+  });
+
+  final String label;
+  final String? detail;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => RouteXStatusState(
+        title: label,
+        detail: detail,
+        icon: icon,
+      );
 }

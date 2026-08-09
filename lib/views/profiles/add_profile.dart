@@ -61,40 +61,112 @@ class AddProfileView extends StatelessWidget {
         future: system.isAndroidTV,
         builder: (context, snapshot) {
           final isTV = snapshot.data ?? false;
-          return ListView(
-            // The sheet's glass title bar is painted over the body, and a
-            // bare ListView starts at y=0 beneath it, so the first row —
-            // "QR code" — sat with its top clipped behind the bar.
-            padding: const EdgeInsets.only(top: 12, bottom: 8),
+          final actions = <Widget>[
+            if (isTV)
+              _AddProfileAction(
+                icon: Icons.tv_outlined,
+                title: appLocalizations.addFromPhoneTitle,
+                subtitle: appLocalizations.addFromPhoneSubtitle,
+                onTap: _handleReceiveFromPhone,
+              ),
+            _AddProfileAction(
+              icon: Icons.qr_code_rounded,
+              title: appLocalizations.qrcode,
+              subtitle: appLocalizations.qrcodeDesc,
+              onTap: _toScan,
+            ),
+            _AddProfileAction(
+              icon: Icons.upload_file_rounded,
+              title: appLocalizations.file,
+              subtitle: appLocalizations.fileDesc,
+              onTap: _handleAddProfileFormFile,
+            ),
+            _AddProfileAction(
+              icon: Icons.cloud_download_rounded,
+              title: appLocalizations.url,
+              subtitle: appLocalizations.urlDesc,
+              onTap: _toAdd,
+            ),
+          ];
+          return Column(
             children: [
-              if (isTV)
-                ListItem(
-                  leading: const Icon(Icons.tv_outlined),
-                  title: Text(appLocalizations.addFromPhoneTitle),
-                  subtitle: Text(appLocalizations.addFromPhoneSubtitle),
-                  onTap: _handleReceiveFromPhone,
-                ),
-              ListItem(
-                leading: const Icon(Icons.qr_code_rounded),
-                title: Text(appLocalizations.qrcode),
-                subtitle: Text(appLocalizations.qrcodeDesc),
-                onTap: _toScan,
-              ),
-              ListItem(
-                leading: const Icon(Icons.upload_file_rounded),
-                title: Text(appLocalizations.file),
-                subtitle: Text(appLocalizations.fileDesc),
-                onTap: _handleAddProfileFormFile,
-              ),
-              ListItem(
-                leading: const Icon(Icons.cloud_download_rounded),
-                title: Text(appLocalizations.url),
-                subtitle: Text(appLocalizations.urlDesc),
-                onTap: _toAdd,
-              ),
+              for (var index = 0; index < actions.length; index++) ...[
+                actions[index],
+                if (index != actions.length - 1)
+                  Divider(
+                    height: 1,
+                    indent: 52,
+                    endIndent: 12,
+                    color: context.colorScheme.outlineVariant
+                        .withValues(alpha: 0.24),
+                  ),
+              ],
             ],
           );
         },
+      );
+}
+
+class _AddProfileAction extends StatelessWidget {
+  const _AddProfileAction({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          hoverColor: context.colorScheme.onSurface.withValues(alpha: 0.05),
+          highlightColor: context.colorScheme.onSurface.withValues(alpha: 0.07),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 28,
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: context.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: context.textTheme.bodyMedium),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.textTheme.bodySmall?.copyWith(
+                          color: context.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: context.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
       );
 }
 

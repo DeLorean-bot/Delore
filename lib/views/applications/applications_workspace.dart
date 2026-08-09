@@ -292,7 +292,11 @@ class _ProcessList extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.only(bottom: 8),
       itemCount: applications.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 7),
+      separatorBuilder: (context, _) => Divider(
+        height: 1,
+        indent: 58,
+        color: context.colorScheme.outlineVariant.withValues(alpha: 0.34),
+      ),
       itemBuilder: (_, index) {
         final application = applications[index];
         final key = application.executablePath.toLowerCase();
@@ -358,27 +362,22 @@ class _ProcessRowState extends State<_ProcessRow> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: RouteXMotion.resolve(context, RouteXMotion.fast),
         decoration: BoxDecoration(
           color: context.colorScheme.surfaceContainerLow.withValues(
-            alpha: _hovered ? 0.82 : 0.64,
+            alpha: _hovered ? 0.54 : 0.0,
           ),
-          borderRadius: BorderRadius.circular(RouteXRadius.card),
-          border: Border.all(
-            color: _hovered
-                ? context.colorScheme.outline.withValues(alpha: 0.65)
-                : context.colorScheme.outlineVariant.withValues(alpha: 0.48),
-          ),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
           children: [
             InkWell(
-              borderRadius: BorderRadius.circular(RouteXRadius.card),
+              borderRadius: BorderRadius.circular(10),
               onTap: () => setState(() => _expanded = !_expanded),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
+                  horizontal: 10,
+                  vertical: 10,
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -486,19 +485,20 @@ class _ProcessRowState extends State<_ProcessRow> {
                 ),
               ),
             ),
-            AnimatedCrossFade(
-              duration:
-                  RouteXMotion.resolve(context, const Duration(milliseconds: 180)),
-              crossFadeState: _expanded
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              firstChild: const SizedBox(width: double.infinity),
-              secondChild: _ConnectionDetails(
-                application: widget.application,
-                traffic: widget.traffic,
-                routeColor: _routeColor,
-                route: widget.route,
-                routeTarget: widget.routeTarget,
+            ClipRect(
+              child: AnimatedSize(
+                duration: RouteXMotion.resolve(context, RouteXMotion.base),
+                curve: RouteXMotion.curve,
+                alignment: Alignment.topCenter,
+                child: _expanded
+                    ? _ConnectionDetails(
+                        application: widget.application,
+                        traffic: widget.traffic,
+                        routeColor: _routeColor,
+                        route: widget.route,
+                        routeTarget: widget.routeTarget,
+                      )
+                    : const SizedBox(width: double.infinity),
               ),
             ),
           ],
@@ -587,15 +587,12 @@ class _ExecutableIcon extends StatelessWidget {
   Widget build(BuildContext context) => FutureBuilder<ImageProvider?>(
         future: windowsExecutableIcon(path),
         builder: (_, snapshot) => Container(
-          width: 44,
-          height: 44,
-          padding: const EdgeInsets.all(7),
+          width: 38,
+          height: 38,
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: context.colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: context.colorScheme.outlineVariant.withValues(alpha: 0.62),
-            ),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: snapshot.data == null
               ? const Icon(Icons.window_rounded, size: 20)
@@ -676,7 +673,8 @@ class _ExpandButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AnimatedRotation(
         turns: expanded ? 0.5 : 0,
-        duration: const Duration(milliseconds: 160),
+        duration: RouteXMotion.resolve(context, RouteXMotion.fast),
+        curve: RouteXMotion.curve,
         child: Icon(
           Icons.keyboard_arrow_down_rounded,
           size: 19,
@@ -834,47 +832,17 @@ class _StatusPanel extends StatelessWidget {
   final Future<void> Function()? action;
 
   @override
-  Widget build(BuildContext context) => Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 420),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color:
-                context.colorScheme.surfaceContainerLow.withValues(alpha: 0.68),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: context.colorScheme.outlineVariant.withValues(alpha: 0.52),
+  Widget build(BuildContext context) => RouteXStatusState(
+        title: title,
+        detail: detail,
+        icon: icon ?? Icons.radar_rounded,
+        loading: loading,
+        actions: [
+          if (action != null)
+            OutlinedButton(
+              onPressed: action,
+              child: const Text('Try again'),
             ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (loading)
-                const CircularProgressIndicator(strokeWidth: 2)
-              else
-                Icon(icon, size: 24),
-              const SizedBox(height: 14),
-              Text(title, textAlign: TextAlign.center),
-              if (detail != null) ...[
-                const SizedBox(height: 7),
-                Text(
-                  detail!,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: context.colorScheme.onSurfaceVariant,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-              if (action != null) ...[
-                const SizedBox(height: 14),
-                OutlinedButton(
-                  onPressed: action,
-                  child: const Text('Try again'),
-                ),
-              ],
-            ],
-          ),
-        ),
+        ],
       );
 }

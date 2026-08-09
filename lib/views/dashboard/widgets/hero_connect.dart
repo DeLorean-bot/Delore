@@ -262,6 +262,7 @@ void _openImportSheet(BuildContext context) {
   unawaited(
     showExtend(
       globalState.navigatorKey.currentState!.context,
+      props: const ExtendProps(maxWidth: 390, maxHeight: 272),
       builder: (_, type) => AdaptiveSheetScaffold(
         type: type,
         body: AddProfileView(
@@ -289,38 +290,17 @@ class DashboardUtilityBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(currentProfileProvider);
     final headers = profile?.providerHeaders ?? const {};
-    return RouteXGlassSurface(
-      // 1:1 with the sidebar (_PremiumSideNavigation in home.dart): same
-      // variant, same tintAlphaFactor/blurFactor. Mobile stays on the
-      // cheaper non-refracting `panel` look instead: a live BackdropFilter
-      // lens per dashboard surface is spare-GPU spend this page can afford
-      // on desktop, not what an already-laggy phone needs more of.
-      variant: system.isMobile
-          ? RouteXGlassVariant.panel
-          : RouteXGlassVariant.navigation,
-      tintAlphaFactor: system.isMobile ? 1 : 0,
-      blurFactor: system.isMobile ? 1 : 0.3,
-      // A Column/Stack child must not ask for infinite height, and the row's
-      // Expanded needs a bounded width to divide.
-      expand: false,
-      radius: RouteXRadius.control,
-      child: SizedBox(
-        width: 320,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          child: _HeroUtilityRow(
-            brandName: _decodeBase64(headers['flclashx-servicename']),
-            isUpdating: profile?.isUpdating ?? false,
-            onUpdate: profile == null
-                ? null
-                : () => globalState.appController.updateProfile(profile),
-            onImport: () => _openImportSheet(context),
-            supportUrl: headers['support-url'],
-            // Cancel this panel's own padding so the menu hangs off the
-            // panel's edge, which is the box the user is actually looking at.
-            menuOffset: const Offset(-12, 13),
-          ),
-        ),
+    return SizedBox(
+      width: 320,
+      child: _HeroUtilityRow(
+        brandName: _decodeBase64(headers['flclashx-servicename']),
+        isUpdating: profile?.isUpdating ?? false,
+        onUpdate: profile == null
+            ? null
+            : () => globalState.appController.updateProfile(profile),
+        onImport: () => _openImportSheet(context),
+        supportUrl: headers['support-url'],
+        menuOffset: const Offset(-14, 10),
       ),
     );
   }
@@ -353,25 +333,46 @@ class _HeroUtilityRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _ProfileSwitcher(
-            brandName: brandName,
-            menuOffset: menuOffset,
+          child: RouteXGlassSurface(
+            variant: system.isMobile
+                ? RouteXGlassVariant.panel
+                : RouteXGlassVariant.navigation,
+            tintAlphaFactor: 1,
+            blurFactor: system.isMobile ? 1 : 0.3,
+            shadowOffset: const Offset(0, 4),
+            radius: 22,
+            capsule: true,
+            expand: false,
+            child: SizedBox(
+              height: 44,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: _ProfileSwitcher(
+                    brandName: brandName,
+                    menuOffset: menuOffset,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
+        const SizedBox(width: 8),
         _HeroIconAction(
           icon: Icons.refresh_rounded,
           tooltip: appLocalizations.update,
           busy: isUpdating,
           onTap: onUpdate,
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         _HeroIconAction(
           icon: Icons.add_rounded,
           tooltip: '${appLocalizations.addProfile}',
           onTap: onImport,
         ),
         if (hasSupport) ...[
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           _HeroIconAction(
             icon: Icons.support_agent_rounded,
             tooltip: appLocalizations.support,
@@ -477,6 +478,7 @@ class _ProfileSwitcherState extends ConsumerState<_ProfileSwitcher> {
   void _open(List<Profile> profiles, String? currentId) {
     final box = _triggerKey.currentContext?.findRenderObject() as RenderBox?;
     final triggerWidth = box?.size.width ?? 160;
+    final menuWidth = triggerWidth.clamp(220.0, 320.0).toDouble();
     final duration = RouteXMotion.resolve(context, RouteXMotion.fast);
     final openUpward = _openUpward;
     final baseOffset = widget.menuOffset ?? const Offset(0, 8);
@@ -497,15 +499,14 @@ class _ProfileSwitcherState extends ConsumerState<_ProfileSwitcher> {
             // Left-aligned, not centred: the trigger is left-aligned text, so
             // centring the menu under it pushed the menu off to one side —
             // worse now the bar sits against the window's left edge.
-            targetAnchor:
-                openUpward ? Alignment.topLeft : Alignment.bottomLeft,
+            targetAnchor: openUpward ? Alignment.topLeft : Alignment.bottomLeft,
             followerAnchor:
                 openUpward ? Alignment.bottomLeft : Alignment.topLeft,
             offset: offset,
             child: Align(
               alignment: openUpward ? Alignment.bottomLeft : Alignment.topLeft,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minWidth: triggerWidth),
+              child: SizedBox(
+                width: menuWidth,
                 child: TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0, end: 1),
                   duration: duration,
@@ -520,29 +521,12 @@ class _ProfileSwitcherState extends ConsumerState<_ProfileSwitcher> {
                       child: child,
                     ),
                   ),
-                  child: CommonPopupMenu(
-                    minWidth: triggerWidth,
-                    // This menu lives in an OverlayEntry, not a route, so it
-                    // must close itself — the default Navigator.pop would
-                    // pop the page it is floating above and blank the app.
+                  child: _ProfileGlassMenu(
+                    profiles: profiles,
+                    currentId: currentId,
                     onDismiss: () => setState(_close),
-                    minItemVerticalPadding: 11,
-                    fontSize: 13,
-                    trailingPadding: 20,
-                    items: [
-                      for (final profile in profiles)
-                        PopupMenuItemData(
-                          icon: profile.id == currentId
-                              ? Icons.radio_button_checked_rounded
-                              : Icons.radio_button_unchecked_rounded,
-                          label: profile.label ?? profile.id,
-                          onPressed: profile.id == currentId
-                              ? null
-                              : () => ref
-                                  .read(currentProfileIdProvider.notifier)
-                                  .value = profile.id,
-                        ),
-                    ],
+                    onSelected: (id) =>
+                        ref.read(currentProfileIdProvider.notifier).value = id,
                   ),
                 ),
               ),
@@ -588,30 +572,122 @@ class _ProfileSwitcherState extends ConsumerState<_ProfileSwitcher> {
               ? _open(profiles, selectorState.currentProfileId)
               : _close(),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textStyle,
+        child: SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textStyle,
+                ),
               ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              _openUpward
-                  ? Icons.expand_less_rounded
-                  : Icons.expand_more_rounded,
-              size: 20,
-              color: context.colorScheme.onSurfaceVariant,
-            ),
-          ],
+              const SizedBox(width: 6),
+              AnimatedRotation(
+                turns:
+                    (_openUpward ? 0.5 : 0) + (_overlayEntry == null ? 0 : 0.5),
+                duration: RouteXMotion.resolve(context, RouteXMotion.fast),
+                curve: RouteXMotion.curve,
+                child: Icon(
+                  Icons.expand_more_rounded,
+                  size: 18,
+                  color: context.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+class _ProfileGlassMenu extends StatelessWidget {
+  const _ProfileGlassMenu({
+    required this.profiles,
+    required this.currentId,
+    required this.onSelected,
+    required this.onDismiss,
+  });
+
+  final List<Profile> profiles;
+  final String? currentId;
+  final ValueChanged<String> onSelected;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) => RouteXGlassSurface(
+        variant: RouteXGlassVariant.dialog,
+        radius: 18,
+        shadowOffset: const Offset(0, 12),
+        expand: false,
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final profile in profiles)
+                Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: profile.id == currentId
+                        ? onDismiss
+                        : () {
+                            onDismiss();
+                            onSelected(profile.id);
+                          },
+                    child: AnimatedContainer(
+                      duration:
+                          RouteXMotion.resolve(context, RouteXMotion.fast),
+                      curve: RouteXMotion.curve,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 11,
+                      ),
+                      decoration: BoxDecoration(
+                        color: profile.id == currentId
+                            ? context.colorScheme.onSurface
+                                .withValues(alpha: 0.085)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            profile.id == currentId
+                                ? Icons.check_circle_rounded
+                                : Icons.circle_outlined,
+                            size: 17,
+                            color: profile.id == currentId
+                                ? context.colorScheme.onSurface
+                                : context.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              profile.label ?? profile.id,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.textTheme.bodyMedium?.copyWith(
+                                fontWeight: profile.id == currentId
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
 }
 
 class _HeroIconAction extends StatelessWidget {
@@ -631,33 +707,38 @@ class _HeroIconAction extends StatelessWidget {
   Widget build(BuildContext context) => Tooltip(
         message: tooltip,
         child: _FocusableTap(
-          borderRadius: 18,
+          borderRadius: 22,
           onTap: busy ? null : onTap,
-          child: Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.045),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.08),
+          child: RouteXGlassSurface(
+            variant: system.isMobile
+                ? RouteXGlassVariant.panel
+                : RouteXGlassVariant.navigation,
+            tintAlphaFactor: 1,
+            blurFactor: system.isMobile ? 1 : 0.3,
+            shadowOffset: const Offset(0, 4),
+            radius: 22,
+            capsule: true,
+            expand: false,
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Center(
+                child: busy
+                    ? SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: context.colorScheme.onSurfaceVariant,
+                        ),
+                      )
+                    : Icon(
+                        icon,
+                        size: 18,
+                        color: context.colorScheme.onSurfaceVariant,
+                      ),
               ),
             ),
-            child: busy
-                ? SizedBox(
-                    width: 15,
-                    height: 15,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: context.colorScheme.onSurfaceVariant,
-                    ),
-                  )
-                : Icon(
-                    icon,
-                    size: 17,
-                    color: context.colorScheme.onSurfaceVariant,
-                  ),
           ),
         ),
       );
@@ -2636,7 +2717,7 @@ class EmptyHero extends ConsumerWidget {
             variant: system.isMobile
                 ? RouteXGlassVariant.panel
                 : RouteXGlassVariant.navigation,
-            tintAlphaFactor: system.isMobile ? 1 : 0,
+            tintAlphaFactor: 1,
             blurFactor: system.isMobile ? 1 : 0.3,
             expand: false,
             radius: 32,

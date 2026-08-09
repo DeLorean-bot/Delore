@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flclashx/enum/enum.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
@@ -19,10 +20,16 @@ abstract final class RouteXMotion {
   static const navigation = Duration(milliseconds: 300);
   static const curve = Cubic(0.16, 1, 0.3, 1);
 
-  static Duration resolve(BuildContext context, Duration duration) =>
-      MediaQuery.maybeOf(context)?.disableAnimations ?? false
-          ? Duration.zero
-          : duration;
+  /// Reduced Motion keeps state changes perceivable without moving them
+  /// through space. A zero duration made controls teleport and also removed
+  /// useful feedback; a short dissolve is calmer and still communicates the
+  /// change.
+  static Duration resolve(BuildContext context, Duration duration) {
+    if (!(MediaQuery.maybeOf(context)?.disableAnimations ?? false)) {
+      return duration;
+    }
+    return duration <= press ? duration : press;
+  }
 }
 
 abstract final class RouteXRadius {
@@ -218,7 +225,7 @@ LiquidGlassStyle routeXGlassStyle(
     // subtle. Lower tint, higher sigma: more of the scrolling content
     // shows through blurred, which is the actual visual cue for glass.
     RouteXGlassVariant.navigation => (
-        dark ? const Color(0x0AFFFFFF) : const Color(0x20FFFFFF),
+        dark ? const Color(0x48000000) : const Color(0x20FFFFFF),
         3.0,
         0.35,
       ),
@@ -229,7 +236,7 @@ LiquidGlassStyle routeXGlassStyle(
     // dark mode — a black tint here would make the "selected" pill
     // recede instead of stand out.
     RouteXGlassVariant.selection => (
-        dark ? const Color(0x0CFFFFFF) : const Color(0x2AFFFFFF),
+        dark ? const Color(0x24000000) : const Color(0x2AFFFFFF),
         0.0,
         0.3,
       ),
@@ -507,9 +514,9 @@ ThemeData buildPremiumTheme({
 }) {
   final dark = brightness == Brightness.dark;
   final background = dark
-      ? (pureBlack ? const Color(0xFF030304) : const Color(0xFF080809))
+      ? (pureBlack ? const Color(0xFF020203) : const Color(0xFF040405))
       : const Color(0xFFF2F6F7);
-  final surface = dark ? const Color(0xFF0D0D0F) : const Color(0xFFF9FBFC);
+  final surface = dark ? const Color(0xFF070708) : const Color(0xFFF9FBFC);
   final scheme = ColorScheme.fromSeed(
     seedColor: seed,
     brightness: brightness,
@@ -518,21 +525,26 @@ ThemeData buildPremiumTheme({
     surface: surface,
   ).copyWith(
     surfaceContainerLowest:
-        dark ? const Color(0xFF080809) : const Color(0xFFFFFFFF),
+        dark ? const Color(0xFF040405) : const Color(0xFFFFFFFF),
     surfaceContainerLow:
-        dark ? const Color(0xFF111113) : const Color(0xFFF3F7F8),
-    surfaceContainer: dark ? const Color(0xFF171719) : const Color(0xFFEDF3F4),
+        dark ? const Color(0xFF09090A) : const Color(0xFFF3F7F8),
+    surfaceContainer: dark ? const Color(0xFF0C0C0E) : const Color(0xFFEDF3F4),
     surfaceContainerHigh:
-        dark ? const Color(0xFF1D1D20) : const Color(0xFFE5EDEF),
+        dark ? const Color(0xFF111113) : const Color(0xFFE5EDEF),
     surfaceContainerHighest:
-        dark ? const Color(0xFF27272B) : const Color(0xFFDCE7E9),
-    outline: dark ? const Color(0xFF5A5A61) : const Color(0xFF9AABAF),
-    outlineVariant: dark ? const Color(0xFF343438) : const Color(0xFFC8D5D8),
+        dark ? const Color(0xFF17171A) : const Color(0xFFDCE7E9),
+    outline: dark ? const Color(0xFF48484F) : const Color(0xFF9AABAF),
+    outlineVariant: dark ? const Color(0xFF28282D) : const Color(0xFFC8D5D8),
   );
   final base = ThemeData(
     useMaterial3: true,
     brightness: brightness,
-    fontFamily: 'Segoe UI Variable',
+    // Keep native metrics on every platform. Segoe UI Variable is excellent
+    // on Windows, but forcing it on Android/iOS/Linux causes fallback and
+    // subtly wrong line metrics.
+    fontFamily: defaultTargetPlatform == TargetPlatform.windows
+        ? 'Segoe UI Variable'
+        : null,
     colorScheme: scheme,
     scaffoldBackgroundColor: background,
     visualDensity: VisualDensity.adaptivePlatformDensity,
@@ -593,7 +605,7 @@ ThemeData buildPremiumTheme({
     ),
     dialogTheme: DialogThemeData(
       elevation: 0,
-      backgroundColor: dark ? const Color(0xF5101720) : const Color(0xF5F8FBFC),
+      backgroundColor: dark ? const Color(0xF508080A) : const Color(0xF5F8FBFC),
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(RouteXRadius.overlay),
@@ -605,7 +617,7 @@ ThemeData buildPremiumTheme({
     bottomSheetTheme: BottomSheetThemeData(
       elevation: 0,
       modalElevation: 0,
-      backgroundColor: dark ? const Color(0xF5101720) : const Color(0xF5F8FBFC),
+      backgroundColor: dark ? const Color(0xF508080A) : const Color(0xF5F8FBFC),
       surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
@@ -746,7 +758,7 @@ ThemeData buildPremiumTheme({
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       elevation: 0,
-      backgroundColor: dark ? const Color(0xF5232E39) : const Color(0xF5E1EBED),
+      backgroundColor: dark ? const Color(0xF5101013) : const Color(0xF5E1EBED),
       contentTextStyle: TextStyle(color: scheme.onSurface),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     ),
@@ -756,7 +768,7 @@ ThemeData buildPremiumTheme({
     ),
     tooltipTheme: TooltipThemeData(
       decoration: BoxDecoration(
-        color: dark ? const Color(0xF526313D) : const Color(0xF5DCE7E9),
+        color: dark ? const Color(0xF5121215) : const Color(0xF5DCE7E9),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: scheme.outlineVariant),
       ),

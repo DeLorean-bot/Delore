@@ -28,6 +28,7 @@ class _ProfilesViewState extends State<ProfilesView> with PageMixin {
   void _handleShowAddExtendPage() {
     showExtend(
       globalState.navigatorKey.currentState!.context,
+      props: const ExtendProps(maxWidth: 390, maxHeight: 272),
       builder: (_, type) => AdaptiveSheetScaffold(
         type: type,
         body: AddProfileView(

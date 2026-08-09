@@ -501,9 +501,9 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
   Widget _buildPremiumBackdrop() {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final background = context.colorScheme.surfaceContainerLowest;
-    final topColor = dark ? const Color(0xFF101013) : const Color(0xFFF3FAFA);
+    final topColor = dark ? const Color(0xFF08080A) : const Color(0xFFF3FAFA);
     final bottomColor =
-        dark ? const Color(0xFF060607) : const Color(0xFFF5F7FC);
+        dark ? const Color(0xFF020203) : const Color(0xFFF5F7FC);
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -529,7 +529,7 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
                 center: const Alignment(-0.92, -0.86),
                 radius: 0.92,
                 colors: [
-                  premiumMint.withValues(alpha: dark ? 0.075 : 0.12),
+                  premiumMint.withValues(alpha: dark ? 0.025 : 0.12),
                   Colors.transparent,
                 ],
               ),
@@ -543,7 +543,7 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
                 center: const Alignment(0.72, -1.05),
                 radius: 0.8,
                 colors: [
-                  premiumBlue.withValues(alpha: dark ? 0.09 : 0.13),
+                  premiumBlue.withValues(alpha: dark ? 0.03 : 0.13),
                   Colors.transparent,
                 ],
               ),
@@ -557,7 +557,7 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
                 center: const Alignment(0.38, 1.15),
                 radius: 1,
                 colors: [
-                  premiumBlue.withValues(alpha: dark ? 0.035 : 0.055),
+                  premiumBlue.withValues(alpha: dark ? 0.015 : 0.055),
                   Colors.transparent,
                 ],
               ),
@@ -892,39 +892,29 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
           contentLayer,
         ],
       ),
-      // Capture at the display's own density. A fixed `1` is *below*
-      // native on any scaled Windows desktop (125% / 150%), so the
-      // refracted background was being upscaled — the glass looked like
-      // it was rendered at the wrong resolution because it was. A higher
-      // upper bound was tried for real Android phones (2.6-4.0 density)
-      // but this capture is live — realTimeCapture + high refresh rate —
-      // so raising it to 4.0 quadrupled the pixels blurred every frame
-      // and made the whole app visibly laggy on-device. 2.0 stays the
-      // cap everywhere: for a *blurred* surface the softness past 2x is
-      // in the noise next to the cost of capturing it live.
+      // The package recommends <= 1.0 for a full-screen capture. At 2x the
+      // synchronous Skia path rasterized four times as many pixels every
+      // refresh. Blur hides the lost subpixel detail better than a dropped
+      // frame hides, so 1x is the quality/performance ceiling here.
       pixelRatio: 1,
       // Live, on every screen. Once the page moved into the capture this
       // stopped being an optimisation: a single snapshot means the
       // refraction shows the first frame of a list you are still
       // scrolling, while the blur — a separate BackdropFilterLayer — stays
       // live. The two sources drift apart and the glass looks broken.
-      realTimeCapture:
-          !(MediaQuery.maybeOf(context)?.disableAnimations ?? false),
-      // high = ~60 re-captures/sec, medium = ~24 — desktop GPUs shrug
-      // this off, but re-capturing and re-blurring the full screen 60
-      // times a second is exactly what made real Android hardware feel
-      // "wildly laggy": every scroll frame paid for a full backdrop
-      // redraw. medium keeps the glass visibly live without doing that
-      // 2.5x more often than it needs to.
+      // Material capture is not motion. Keep it live under Reduce Motion so
+      // scrolling content and its refraction never drift into two frames.
+      realTimeCapture: true,
+      // Preserve the full-rate living glass on the animated desktop scene.
+      // Other pages use the balanced capture cadence while their controls and
+      // transitions continue to animate at the display refresh rate.
       refreshRate: isDashboard && !system.isMobile
           ? LiquidGlassRefreshRate.high
           : LiquidGlassRefreshRate.medium,
       useSync: true,
-      // On Skia, capture only the actual sidebar/app-bar/nav rectangles.
-      // Together they cover a small fraction of a fullscreen window; taking
-      // one full 1920x1080 snapshot for every glass refresh wastes most of the
-      // raster work on pixels no lens can ever sample.
-      regionCapture: true,
+      // Region capture only serves the package's positioned-lens API. Our
+      // lenses live in `child`, so the renderer needs one full-frame image.
+      regionCapture: false,
       child: chromeLayer,
     );
   }

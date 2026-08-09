@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -155,9 +156,9 @@ Future<File?> _findIconFile(String name) async {
   return null;
 }
 
-// Win32 icon extraction runs synchronously on the UI thread; serialize it so a
-// single list build can't fire a dozen extractions in one frame (which made the
-// page feel heavy). Each extraction yields a frame, spreading the work out.
+// Serialize extraction so a single list build does not launch a dozen worker
+// isolates at once. Win32 work happens off the UI isolate below; each decoded
+// icon still arrives progressively and is cached for subsequent visits.
 Future<void> _extractQueue = Future.value();
 
 Future<ImageProvider?> _loadWindowsIcon(String exePath) {
@@ -176,7 +177,29 @@ Future<ImageProvider?> _loadWindowsIcon(String exePath) {
 
 // SHGetFileInfo(exe) -> HICON -> GetIconInfo -> GetDIBits(32bpp) -> BGRA pixels ->
 // ui.Image -> PNG bytes.
+typedef _IconPixels = ({Uint8List bytes, int width, int height});
+
 Future<Uint8List?> _extractIconBytes(String exePath) async {
+  // Win32 shell/icon APIs are synchronous. Running them in an isolate keeps
+  // the first Applications frame and navigation spring responsive while the
+  // real icons arrive progressively from the existing cache queue.
+  final pixels = await Isolate.run(() => _extractIconPixels(exePath));
+  if (pixels == null) return null;
+  final completer = Completer<ui.Image>();
+  ui.decodeImageFromPixels(
+    pixels.bytes,
+    pixels.width,
+    pixels.height,
+    ui.PixelFormat.bgra8888,
+    completer.complete,
+  );
+  final image = await completer.future;
+  final png = await image.toByteData(format: ui.ImageByteFormat.png);
+  image.dispose();
+  return png?.buffer.asUint8List();
+}
+
+_IconPixels? _extractIconPixels(String exePath) {
   final pathPtr = exePath.toNativeUtf16();
   final shfi = calloc<SHFILEINFO>();
   var hIcon = 0;
@@ -191,7 +214,7 @@ Future<Uint8List?> _extractIconBytes(String exePath) async {
     if (res == 0) return null;
     hIcon = shfi.ref.hIcon;
     if (hIcon == 0) return null;
-    return await _hIconToPng(hIcon);
+    return _hIconToPixels(hIcon);
   } finally {
     if (hIcon != 0) DestroyIcon(hIcon);
     free(pathPtr);
@@ -199,7 +222,7 @@ Future<Uint8List?> _extractIconBytes(String exePath) async {
   }
 }
 
-Future<Uint8List?> _hIconToPng(int hIcon) async {
+_IconPixels? _hIconToPixels(int hIcon) {
   final iconInfo = calloc<ICONINFO>();
   final bmp = calloc<BITMAP>();
   final bi = calloc<BITMAPINFO>();
@@ -255,18 +278,7 @@ Future<Uint8List?> _hIconToPng(int hIcon) async {
       }
     }
 
-    final completer = Completer<ui.Image>();
-    ui.decodeImageFromPixels(
-      bgra,
-      w,
-      h,
-      ui.PixelFormat.bgra8888,
-      completer.complete,
-    );
-    final image = await completer.future;
-    final png = await image.toByteData(format: ui.ImageByteFormat.png);
-    image.dispose();
-    return png?.buffer.asUint8List();
+    return (bytes: bgra, width: w, height: h);
   } finally {
     if (hdc != 0) ReleaseDC(NULL, hdc);
     if (hbmColor != 0) DeleteObject(hbmColor);

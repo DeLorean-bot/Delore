@@ -303,6 +303,10 @@ class _ActiveConnectionsBodyState extends ConsumerState<ActiveConnectionsBody>
               label: isRussian
                   ? 'Нет активных подключений'
                   : 'No active connections',
+              detail: isRussian
+                  ? 'Новые соединения появятся здесь автоматически.'
+                  : 'New connections will appear here automatically.',
+              icon: Icons.swap_horiz_rounded,
             );
           }
           return CommonScrollBar(

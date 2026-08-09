@@ -111,24 +111,17 @@ class DashboardChromeOverlay extends ConsumerWidget {
             ? [
                 SizedBox(
                   height: 56,
-                  child: Stack(
+                  child: Row(
                     children: [
-                      statsStrip,
-                      // The stat cards fill this Stack's full 56px height
-                      // (their glass surfaces default to expand: true);
-                      // DashboardUtilityBar's own surface stays sized to
-                      // its content, so left at its own height it renders
-                      // ~10px shorter and, centered by Align, comes out
-                      // top/bottom-misaligned against the cards next to
-                      // it. Forcing the same 56px here keeps both panels
-                      // sharing one top and bottom edge.
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: SizedBox(
-                          height: 56,
+                      const SizedBox(
+                        width: 320,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
                           child: DashboardUtilityBar(),
                         ),
                       ),
+                      const Spacer(),
+                      statsStrip,
                     ],
                   ),
                 ),
@@ -140,8 +133,7 @@ class DashboardChromeOverlay extends ConsumerWidget {
               ];
 
         return Padding(
-          padding:
-              EdgeInsets.fromLTRB(wide ? 16 : 10, 8, wide ? 16 : 10, 12),
+          padding: EdgeInsets.fromLTRB(wide ? 16 : 10, 8, wide ? 16 : 10, 12),
           child: Column(
             children: anchorTop
                 ? [
@@ -185,6 +177,8 @@ class _StatsStrip extends ConsumerWidget {
     // rather than showing every card as equally important regardless of
     // whether it currently means anything.
     final isRunning = ref.watch(runTimeProvider) != null;
+    final down = _bytes(live?.down.value.toInt() ?? 0, perSecond: true);
+    final up = _bytes(live?.up.value.toInt() ?? 0, perSecond: true);
 
     final days = (sub != null && sub.expire > 0)
         ? DateTime.fromMillisecondsSinceEpoch(sub.expire * 1000)
@@ -199,12 +193,13 @@ class _StatsStrip extends ConsumerWidget {
         compact: compact,
         label: isRussian ? 'Скорость' : 'Speed',
         child: Row(
+          key: ValueKey('$down|$up'),
           children: [
             const Icon(Icons.arrow_downward_rounded, size: 13),
             const SizedBox(width: 2),
             Flexible(
               child: Text(
-                _bytes(live?.down.value.toInt() ?? 0, perSecond: true),
+                down,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: _mono(context, compact: compact),
@@ -215,7 +210,7 @@ class _StatsStrip extends ConsumerWidget {
             const SizedBox(width: 2),
             Flexible(
               child: Text(
-                _bytes(live?.up.value.toInt() ?? 0, perSecond: true),
+                up,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: _mono(context, compact: compact),
@@ -230,8 +225,11 @@ class _StatsStrip extends ConsumerWidget {
         child: Consumer(
           builder: (_, ref, __) {
             final total = ref.watch(totalTrafficProvider);
+            final value =
+                _bytes(total.up.value.toInt() + total.down.value.toInt());
             return Text(
-              _bytes(total.up.value.toInt() + total.down.value.toInt()),
+              value,
+              key: ValueKey(value),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: _mono(context, bold: true, compact: compact),
@@ -246,6 +244,7 @@ class _StatsStrip extends ConsumerWidget {
           days == null
               ? (isRussian ? 'Безлимит' : 'Unlimited')
               : (isRussian ? '$days дн.' : '$days days'),
+          key: ValueKey(days),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: context.textTheme.bodySmall
@@ -266,28 +265,40 @@ class _StatsStrip extends ConsumerWidget {
     if (compact) {
       return SizedBox(
         height: 62,
-        child: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [
-              Colors.transparent,
-              Colors.black,
-              Colors.black,
-              Colors.transparent,
-            ],
-            stops: [0.0, 0.05, 0.92, 1.0],
-          ).createShader(bounds),
-          blendMode: BlendMode.dstIn,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            itemCount: cards.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (_, i) => SizedBox(
-              width: 132,
-              child: _emphasized(context, i, isRunning, cards[i]),
+        child: RouteXGlassSurface(
+          variant: _dashboardChromeVariant,
+          tintAlphaFactor: 1,
+          blurFactor: system.isMobile ? 1 : 0.3,
+          radius: 18,
+          child: ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                Colors.transparent,
+                Colors.black,
+                Colors.black,
+                Colors.transparent,
+              ],
+              stops: [0.0, 0.05, 0.92, 1.0],
+            ).createShader(bounds),
+            blendMode: BlendMode.dstIn,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              itemCount: cards.length,
+              separatorBuilder: (_, __) => VerticalDivider(
+                width: 1,
+                indent: 12,
+                endIndent: 12,
+                color:
+                    context.colorScheme.outlineVariant.withValues(alpha: 0.42),
+              ),
+              itemBuilder: (_, i) => SizedBox(
+                width: 132,
+                child: _emphasized(context, i, isRunning, cards[i]),
+              ),
             ),
           ),
         ),
@@ -304,19 +315,35 @@ class _StatsStrip extends ConsumerWidget {
     // after layout and correcting with a transform did centre it, but the
     // correction lands a frame late, so the cards jumped into place instead
     // of moving with the sidebar.
+    const cardWidths = [82.0, 176.0, 104.0, 130.0];
     return SizedBox(
       height: 56,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          for (var i = 0; i < cards.length; i++) ...[
-            if (i > 0) const SizedBox(width: 10),
-            SizedBox(
-              width: 150,
-              child: _emphasized(context, i, isRunning, cards[i]),
-            ),
+      child: RouteXGlassSurface(
+        variant: _dashboardChromeVariant,
+        tintAlphaFactor: 1,
+        blurFactor: system.isMobile ? 1 : 0.3,
+        radius: 18,
+        expand: false,
+        capsule: true,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < cards.length; i++) ...[
+              if (i > 0)
+                VerticalDivider(
+                  width: 1,
+                  indent: 11,
+                  endIndent: 11,
+                  color: context.colorScheme.outlineVariant
+                      .withValues(alpha: 0.42),
+                ),
+              SizedBox(
+                width: cardWidths[i],
+                child: _emphasized(context, i, isRunning, cards[i]),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -326,7 +353,8 @@ class _StatsStrip extends ConsumerWidget {
 /// connected; Subscription (index 3) stays relevant regardless. Dims the
 /// former instead of giving every card equal weight no matter what it's
 /// currently saying.
-Widget _emphasized(BuildContext context, int index, bool isRunning, Widget card) =>
+Widget _emphasized(
+        BuildContext context, int index, bool isRunning, Widget card) =>
     AnimatedOpacity(
       duration: RouteXMotion.resolve(context, RouteXMotion.base),
       curve: RouteXMotion.curve,
@@ -442,40 +470,39 @@ class _StatCard extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) => RouteXGlassSurface(
-        // 1:1 with _PremiumSideNavigation in home.dart: same variant, same
-        // tintAlphaFactor/blurFactor. Only radius differs, because it scales
-        // with the surface's own size the same way the sidebar's 26 doesn't
-        // apply to a 44px-tall pill either.
-        variant: _dashboardChromeVariant,
-        tintAlphaFactor: system.isMobile ? 1 : 0,
-        blurFactor: system.isMobile ? 1 : 0.3,
-        radius: compact ? 13 : 16,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 9 : 11,
-            vertical: compact ? 6 : 7,
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.textTheme.labelSmall?.copyWith(
-                  color: context.colorScheme.onSurfaceVariant,
-                ),
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 9 : 11,
+          vertical: compact ? 6 : 7,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textTheme.labelSmall?.copyWith(
+                color: context.colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(height: 2),
-              DefaultTextStyle.merge(
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            DefaultTextStyle.merge(
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              child: AnimatedSwitcher(
+                duration: RouteXMotion.resolve(context, RouteXMotion.fast),
+                switchInCurve: RouteXMotion.curve,
+                switchOutCurve: RouteXMotion.curve,
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: child,
+                ),
                 child: child,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
 }
@@ -539,7 +566,7 @@ class _ConnectBarState extends ConsumerState<_ConnectBar> {
     return RouteXGlassSurface(
       // 1:1 with the sidebar (_PremiumSideNavigation in home.dart).
       variant: _dashboardChromeVariant,
-      tintAlphaFactor: system.isMobile ? 1 : 0,
+      tintAlphaFactor: 1,
       blurFactor: system.isMobile ? 1 : 0.3,
       radius: 22,
       // Sits directly in a Column, so it must size to its content — the
@@ -601,7 +628,8 @@ class _ConnectBarState extends ConsumerState<_ConnectBar> {
                     // up/down — before this the circle just sat there for
                     // however long handleStart's await took.
                     child: AnimatedSwitcher(
-                      duration: RouteXMotion.resolve(context, RouteXMotion.fast),
+                      duration:
+                          RouteXMotion.resolve(context, RouteXMotion.fast),
                       switchInCurve: RouteXMotion.curve,
                       switchOutCurve: RouteXMotion.curve,
                       child: _pending
@@ -611,8 +639,9 @@ class _ConnectBarState extends ConsumerState<_ConnectBar> {
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.4,
-                                color:
-                                    isRunning ? const Color(0xFF09090A) : premiumMint,
+                                color: isRunning
+                                    ? const Color(0xFF09090A)
+                                    : premiumMint,
                               ),
                             )
                           : Icon(
@@ -643,7 +672,9 @@ class _ConnectBarState extends ConsumerState<_ConnectBar> {
                                 ? (isRussian ? 'Подключение…' : 'Connecting…')
                                 : isRunning
                                     ? (isRussian ? 'Подключено' : 'Connected')
-                                    : (isRussian ? 'Отключено' : 'Disconnected'),
+                                    : (isRussian
+                                        ? 'Отключено'
+                                        : 'Disconnected'),
                             key: ValueKey(_pending ? 'pending' : isRunning),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -687,7 +718,8 @@ class _ConnectBarState extends ConsumerState<_ConnectBar> {
                 // after the button's own natural size, which is what a
                 // full-width row of two unevenly-sized controls needs.
                 compact
-                    ? Expanded(child: _LocationChip(
+                    ? Expanded(
+                        child: _LocationChip(
                         code: code,
                         isRussian: isRussian,
                       ))
@@ -756,14 +788,16 @@ class _LocationChip extends StatelessWidget {
   Widget build(BuildContext context) => RouteXFocusableTap(
         borderRadius: 14,
         onTap: () => globalState.appController.toPage(PageLabel.proxies),
-        // Same reasoning as the Connect button next to it: a raw
-        // white-alpha fill was a second sheet of translucency stacked on
-        // the bar's own glass. `control` is the tier this material system
-        // already defines for exactly this.
-        child: RouteXGlassSurface(
-          variant: RouteXGlassVariant.control,
-          radius: 14,
-          expand: false,
+        // This control already lives on the Connect glass plane. A quiet
+        // vibrancy fill keeps it legible without stacking another lens.
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: context.colorScheme.onSurface.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: context.colorScheme.onSurface.withValues(alpha: 0.10),
+            ),
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Row(
@@ -794,4 +828,3 @@ class _LocationChip extends StatelessWidget {
         ),
       );
 }
-

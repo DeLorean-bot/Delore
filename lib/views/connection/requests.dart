@@ -166,6 +166,7 @@ class _LogConnectionsBodyState extends ConsumerState<LogConnectionsBody> {
                 ? NullStatus(
                     label: appLocalizations
                         .nullTip(appLocalizations.connectionsLog),
+                    icon: Icons.history_rounded,
                   )
                 : Align(
                     alignment: Alignment.topCenter,

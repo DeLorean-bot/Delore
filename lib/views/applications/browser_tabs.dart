@@ -183,7 +183,7 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
                     ? const NullStatus(
                         label: 'No tabs match the current search',
                       )
-                    : _SetupGuide(
+                    : _BridgeEmptyState(
                         onOpenChromium: () => _openExtensionFolder('chromium'),
                         onOpenFirefox: () => _openExtensionFolder('firefox'),
                       )
@@ -215,8 +215,8 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
   }
 }
 
-class _SetupGuide extends StatelessWidget {
-  const _SetupGuide({
+class _BridgeEmptyState extends StatelessWidget {
+  const _BridgeEmptyState({
     required this.onOpenChromium,
     required this.onOpenFirefox,
   });
@@ -225,98 +225,28 @@ class _SetupGuide extends StatelessWidget {
   final VoidCallback onOpenFirefox;
 
   @override
-  Widget build(BuildContext context) => Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 620),
-          child: RouteXGlassSurface(
-            variant: RouteXGlassVariant.panel,
-            radius: 24,
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.tab_rounded, size: 26),
-                      SizedBox(width: 12),
-                      Text(
-                        'Connect your browser',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  const _SetupStep(
-                    number: '1',
-                    text: 'Install Delore Browser Bridge for your browser.',
-                  ),
-                  const _SetupStep(
-                    number: '2',
-                    text:
-                        'For a local Chromium install, open the extensions page, enable Developer mode and choose Load unpacked.',
-                  ),
-                  const _SetupStep(
-                    number: '3',
-                    text:
-                        'Keep Delore open. Pairing and tab sync happen automatically.',
-                  ),
-                  const SizedBox(height: 18),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      FilledButton.icon(
-                        onPressed: onOpenChromium,
-                        icon: const Icon(Icons.language_rounded, size: 18),
-                        label: const Text('Chrome / Edge / Opera'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: onOpenFirefox,
-                        icon: const Icon(Icons.public_rounded, size: 18),
-                        label: const Text('Firefox'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+  Widget build(BuildContext context) {
+    final isRussian = Localizations.localeOf(context).languageCode == 'ru';
+    return RouteXStatusState(
+      icon: Icons.tab_rounded,
+      title: isRussian ? 'Подключите браузер' : 'Connect your browser',
+      detail: isRussian
+          ? 'Установите Delore Browser Bridge. Вкладки появятся здесь автоматически — без ручных правил.'
+          : 'Install Delore Browser Bridge. Tabs appear here automatically — no manual rules.',
+      actions: [
+        FilledButton.icon(
+          onPressed: onOpenChromium,
+          icon: const Icon(Icons.language_rounded, size: 18),
+          label: const Text('Chrome / Edge / Opera'),
         ),
-      );
-}
-
-class _SetupStep extends StatelessWidget {
-  const _SetupStep({required this.number, required this.text});
-
-  final String number;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 11),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 24,
-              height: 24,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: premiumMint.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Text(number),
-            ),
-            const SizedBox(width: 11),
-            Expanded(child: Text(text)),
-          ],
+        OutlinedButton.icon(
+          onPressed: onOpenFirefox,
+          icon: const Icon(Icons.public_rounded, size: 18),
+          label: const Text('Firefox'),
         ),
-      );
+      ],
+    );
+  }
 }
 
 class _BridgeHeader extends StatelessWidget {
@@ -333,59 +263,63 @@ class _BridgeHeader extends StatelessWidget {
   final VoidCallback onOpenFirefox;
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: context.colorScheme.surfaceContainerLow.withValues(alpha: 0.7),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: context.colorScheme.outlineVariant),
+  Widget build(BuildContext context) => RouteXGlassSurface(
+        variant: RouteXGlassVariant.control,
+        radius: 18,
+        tintAlphaFactor: 1,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: LayoutBuilder(builder: (context, constraints) {
+            final narrow = constraints.maxWidth < 820;
+            final status = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  connected ? Icons.link_rounded : Icons.link_off_rounded,
+                  color: connected
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.55),
+                  size: 19,
+                ),
+                const SizedBox(width: 8),
+                Text(connected
+                    ? 'Browser connected'
+                    : 'Extension not connected'),
+                const SizedBox(width: 8),
+                PopupMenuButton<String>(
+                  tooltip: 'Open extension folder',
+                  onSelected: (value) =>
+                      value == 'firefox' ? onOpenFirefox() : onOpenChromium(),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: 'chromium',
+                      child: Text('Chrome / Edge / Opera'),
+                    ),
+                    PopupMenuItem(value: 'firefox', child: Text('Firefox')),
+                  ],
+                  icon: const Icon(Icons.extension_rounded, size: 19),
+                ),
+              ],
+            );
+            final search = SizedBox(
+              height: 42,
+              child: TextField(
+                onChanged: onQueryChanged,
+                decoration: const InputDecoration(
+                  hintText: 'Search tabs or domains',
+                  prefixIcon: Icon(Icons.search_rounded, size: 18),
+                ),
+              ),
+            );
+            return narrow
+                ? Column(children: [status, const SizedBox(height: 8), search])
+                : Row(children: [
+                    status,
+                    const SizedBox(width: 12),
+                    Expanded(child: search),
+                  ]);
+          }),
         ),
-        child: LayoutBuilder(builder: (context, constraints) {
-          final narrow = constraints.maxWidth < 820;
-          final status = Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                connected ? Icons.link_rounded : Icons.link_off_rounded,
-                color: connected ? premiumMint : premiumAmber,
-                size: 19,
-              ),
-              const SizedBox(width: 8),
-              Text(connected ? 'Browser connected' : 'Extension not connected'),
-              const SizedBox(width: 8),
-              PopupMenuButton<String>(
-                tooltip: 'Open extension folder',
-                onSelected: (value) =>
-                    value == 'firefox' ? onOpenFirefox() : onOpenChromium(),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(
-                    value: 'chromium',
-                    child: Text('Chrome / Edge / Opera'),
-                  ),
-                  PopupMenuItem(value: 'firefox', child: Text('Firefox')),
-                ],
-                icon: const Icon(Icons.extension_rounded, size: 19),
-              ),
-            ],
-          );
-          final search = SizedBox(
-            height: 42,
-            child: TextField(
-              onChanged: onQueryChanged,
-              decoration: const InputDecoration(
-                hintText: 'Search tabs or domains',
-                prefixIcon: Icon(Icons.search_rounded, size: 18),
-              ),
-            ),
-          );
-          return narrow
-              ? Column(children: [status, const SizedBox(height: 8), search])
-              : Row(children: [
-                  status,
-                  const SizedBox(width: 12),
-                  Expanded(child: search),
-                ]);
-        }),
       );
 }
 
