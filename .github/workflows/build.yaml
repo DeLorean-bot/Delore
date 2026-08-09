@@ -116,6 +116,10 @@ jobs:
           cache-dependency-path: |
             core/go.sum
 
+      - name: Enable long paths for Flutter on Windows ARM64
+        if: startsWith(matrix.os, 'windows-11-arm')
+        run: git config --global core.longpaths true
+
       - name: Setup Flutter (ARM)
         if: startsWith(matrix.os, 'windows-11-arm') || startsWith(matrix.os, 'ubuntu-24.04-arm')
         uses: subosito/flutter-action@v2
