@@ -120,7 +120,8 @@ jobs:
         if: startsWith(matrix.os, 'windows-11-arm') || startsWith(matrix.os, 'ubuntu-24.04-arm')
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.44.9"
+          channel: master
+          flutter-version: "de01d5daa6"
           cache: true
 
       - name: Setup Flutter
