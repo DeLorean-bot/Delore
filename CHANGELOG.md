@@ -31,6 +31,7 @@
 * Preserved full-rate live Liquid Glass on the desktop dashboard while avoiding unnecessary rebuilds in navigation state
 * Isolated cached pages with repaint and ticker boundaries so inactive screens do not animate or repaint in the background
 * Fixed four unsafe MediaQuery lifecycle reads that could crash during navigation or window changes
+* Pinned every release builder to Flutter 3.44.9, replacing the moving ARM master channel that could reference unpublished engine artifacts
 
 **Polish and fixes**
 

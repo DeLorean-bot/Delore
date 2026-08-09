@@ -120,14 +120,14 @@ jobs:
         if: startsWith(matrix.os, 'windows-11-arm') || startsWith(matrix.os, 'ubuntu-24.04-arm')
         uses: subosito/flutter-action@v2
         with:
-          channel: "master"
+          flutter-version: "3.44.9"
           cache: true
 
       - name: Setup Flutter
         if: ${{ !(startsWith(matrix.os, 'windows-11-arm') || startsWith(matrix.os, 'ubuntu-24.04-arm')) }}
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.41.7"
+          flutter-version: "3.44.9"
           cache: true
 
       - run: flutter --version
