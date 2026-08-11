@@ -772,8 +772,17 @@ class GlobalState {
     // for the browser that opened it — otherwise the app rule matches every
     // destination from that process first and the site pin never fires.
     final domainRules = await DomainRoutingStore.clashRules(profile.id);
-    rules = [...domainRules, ...applicationRules, ...rules];
-    rawConfig["rule"] = rules;
+    final routingPlan = buildVisualRoutingPlan(
+      requestedMode: realPatchConfig.mode.name,
+      domainRules: domainRules,
+      applicationRules: applicationRules,
+      providerRules: List<dynamic>.from(rules),
+    );
+    // Native global mode never enters Mihomo's rule engine. When the user has
+    // visual site/app exceptions, keep the UI in Global but run the core in
+    // rule mode with MATCH,GLOBAL as the final fallback.
+    rawConfig["mode"] = routingPlan.coreMode;
+    rawConfig["rule"] = routingPlan.rules;
     return rawConfig;
   }
 

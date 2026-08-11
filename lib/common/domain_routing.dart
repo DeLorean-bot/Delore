@@ -68,6 +68,24 @@ class DomainRoutingStore {
     return value.replaceFirst(RegExp(r'^www\.'), '');
   }
 
+  /// Returns the most specific saved rule that covers [input]. A rule saved
+  /// for example.com also covers www.example.com and music.example.com, just
+  /// like the DOMAIN-SUFFIX rule sent to Mihomo.
+  static DomainRouteEntry? find(
+    Iterable<DomainRouteEntry> entries,
+    String input,
+  ) {
+    final domain = normalize(input);
+    final matches = entries.where(
+      (entry) => domain == entry.domain || domain.endsWith('.${entry.domain}'),
+    );
+    if (matches.isEmpty) return null;
+    return matches.reduce(
+      (current, candidate) =>
+          candidate.domain.length > current.domain.length ? candidate : current,
+    );
+  }
+
   static Future<List<DomainRouteEntry>> load(String profileId) async {
     final preferences = await SharedPreferences.getInstance();
     final raw = preferences.getString(_key(profileId));

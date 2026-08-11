@@ -92,4 +92,18 @@ void main() {
       r'PROCESS-PATH,C:\Program Files\Browser\browser.exe,India',
     ]);
   });
+
+  test('a saved domain also covers its subdomains after refresh', () {
+    const route = DomainRouteEntry(
+      domain: 'example.com',
+      route: ApplicationRoute.proxy,
+      target: 'Netherlands',
+    );
+
+    expect(
+      DomainRoutingStore.find(const [route], 'https://music.example.com/play'),
+      same(route),
+    );
+    expect(DomainRoutingStore.find(const [route], 'notexample.com'), isNull);
+  });
 }

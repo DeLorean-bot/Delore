@@ -649,7 +649,19 @@ class AppController {
   }
 
   Future<void> _updateClashConfig() async {
-    final updateParams = _ref.read(updateParamsProvider);
+    var updateParams = _ref.read(updateParamsProvider);
+    // patchRawConfig may emulate Global with rule mode so visual domain/app
+    // exceptions keep working. Preserve that effective mode during later live
+    // updates instead of accidentally switching the core back to native Global.
+    final runtimeRules = globalState.lastRuntimeConfig?["rule"];
+    final emulatedGlobal = updateParams.mode == Mode.global &&
+        globalState.lastRuntimeConfig?["mode"] == Mode.rule.name &&
+        runtimeRules is List &&
+        runtimeRules.isNotEmpty &&
+        runtimeRules.last == 'MATCH,GLOBAL';
+    if (emulatedGlobal) {
+      updateParams = updateParams.copyWith(mode: Mode.rule);
+    }
     final res = await _requestAdmin(updateParams.tun.enable);
     if (res.isError) {
       return;
@@ -1802,10 +1814,16 @@ class AppController {
   void changeMode(Mode mode) {
     _ref.read(patchClashConfigProvider.notifier).updateState(
           (state) => state.copyWith(mode: mode),
-        );
+    );
     if (mode == Mode.global) {
       updateCurrentGroupName(GroupName.GLOBAL.name);
-      unawaited(_ensureGlobalSelection());
+      // A full apply is required to turn native Global into the visual routing
+      // plan (site/app exceptions followed by MATCH,GLOBAL). Select the real
+      // GLOBAL leaf first so the fallback can never briefly point at DIRECT.
+      unawaited(() async {
+        await _ensureGlobalSelection();
+        await applyProfile();
+      }());
     }
     addCheckIpNumDebounce();
   }

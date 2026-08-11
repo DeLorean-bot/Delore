@@ -46,6 +46,7 @@ export 'system.dart';
 export 'text.dart';
 export 'tray.dart';
 export 'utils.dart';
+export 'visual_routing.dart';
 export 'window.dart';
 export 'windows.dart';
 export 'zashboard.dart';

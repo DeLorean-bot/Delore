@@ -171,13 +171,10 @@ class ClashCore {
     return connections;
   }
 
-  void closeConnection(String id) {
-    clashInterface.closeConnection(id);
-  }
+  FutureOr<bool> closeConnection(String id) =>
+      clashInterface.closeConnection(id);
 
-  void closeConnections() {
-    clashInterface.closeConnections();
-  }
+  FutureOr<bool> closeConnections() => clashInterface.closeConnections();
 
   void resetConnections() {
     clashInterface.resetConnections();

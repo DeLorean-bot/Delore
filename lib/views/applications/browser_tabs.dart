@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flclashx/clash/clash.dart';
 import 'package:flclashx/common/common.dart';
 import 'package:flclashx/providers/providers.dart';
 import 'package:flclashx/services/browser_bridge_service.dart';
@@ -96,15 +97,22 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
     return names.firstOrNull;
   }
 
-  DomainRouteEntry? _routeFor(String domain) {
-    for (final route in _routes) {
-      if (route.domain == domain) return route;
-    }
-    return null;
-  }
+  DomainRouteEntry? _routeFor(String domain) =>
+      DomainRoutingStore.find(_routes, domain);
 
   Future<void> _setRoute(
     BrowserTabInfo tab,
+    ApplicationRoute route, {
+    String? explicitTarget,
+  }) =>
+      _setDomainRoute(
+        tab.domain,
+        route,
+        explicitTarget: explicitTarget,
+      );
+
+  Future<void> _setDomainRoute(
+    String rawDomain,
     ApplicationRoute route, {
     String? explicitTarget,
   }) async {
@@ -113,11 +121,13 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
       context.showSnackBar('Add or select a profile first');
       return;
     }
-    final previous = _routeFor(tab.domain);
+    final domain = DomainRoutingStore.normalize(rawDomain);
+    final previous = _routeFor(domain);
+    final storedDomain = previous?.domain ?? domain;
     if (route == ApplicationRoute.rule) {
-      await DomainRoutingStore.remove(profileId, tab.domain);
+      await DomainRoutingStore.remove(profileId, storedDomain);
       setState(() => _routes = _routes
-          .where((entry) => entry.domain != tab.domain)
+          .where((entry) => entry.domain != storedDomain)
           .toList(growable: false));
     } else {
       final target = route == ApplicationRoute.direct
@@ -129,7 +139,7 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
         return;
       }
       final entry = DomainRouteEntry(
-        domain: tab.domain,
+        domain: storedDomain,
         route: route,
         target: target,
         favorite: previous?.favorite ?? false,
@@ -138,24 +148,68 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
       setState(() {
         _routes = [
           for (final current in _routes)
-            if (current.domain != tab.domain) current,
+            if (current.domain != storedDomain) current,
           entry,
         ];
       });
     }
     await _applyRoutes();
     if (mounted) {
-      context.showSnackBar('${tab.domain} route updated for every browser tab');
+      final running = ref.read(runTimeProvider) != null;
+      context.showSnackBar(
+        running
+            ? '$storedDomain route updated for every browser tab'
+            : '$storedDomain saved · connect Delore to activate routing',
+      );
     }
   }
 
   Future<void> _applyRoutes() {
     final next = _applyQueue.then(
-      (_) => globalState.appController.applyProfile(),
-      onError: (_) => globalState.appController.applyProfile(),
+      (_) => _applyRoutesNow(),
+      onError: (_) => _applyRoutesNow(),
     );
     _applyQueue = next;
     return next;
+  }
+
+  Future<void> _applyRoutesNow() async {
+    await globalState.appController.applyProfile();
+    // Chrome keeps HTTP/2 and QUIC sessions alive across refreshes. Without
+    // closing them, an already open tab can continue through its previous
+    // location even though the new domain rule is active in the core.
+    await clashCore.closeConnections();
+  }
+
+  void _showConfiguredRoutes() {
+    unawaited(showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: SizedBox(
+            height: MediaQuery.sizeOf(sheetContext).height * 0.68,
+            child: _ConfiguredRoutesPanel(
+              routes: _routes,
+              onRouteChanged: (
+                domain,
+                route, {
+                explicitTarget,
+              }) async {
+                await _setDomainRoute(
+                  domain,
+                  route,
+                  explicitTarget: explicitTarget,
+                );
+                if (sheetContext.mounted) Navigator.pop(sheetContext);
+              },
+            ),
+          ),
+        ),
+      ),
+    ));
   }
 
   Future<void> _openExtensionFolder(String browser) async {
@@ -184,6 +238,9 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
       if (previous != next) unawaited(_load());
     });
     final connected = _bridgeStatus.connected;
+    final routingActive = ref.watch(
+      runTimeProvider.select((runtime) => runtime != null),
+    );
     final tabs = _tabs.where((tab) {
       if (_query.isEmpty) return true;
       return tab.title.toLowerCase().contains(_query) ||
@@ -202,9 +259,14 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
             onOpenChromium: () => _openExtensionFolder('chromium'),
             onOpenFirefox: () => _openExtensionFolder('firefox'),
           ),
+          if (!routingActive) ...[
+            const SizedBox(height: 10),
+            const _RoutingPausedBanner(),
+          ],
           const SizedBox(height: 12),
-          Expanded(
-            child: tabs.isEmpty
+          Expanded(child: LayoutBuilder(builder: (context, constraints) {
+            final showSidePanel = constraints.maxWidth >= 1080;
+            final tabsView = tabs.isEmpty
                 ? connected && _query.isNotEmpty
                     ? const NullStatus(label: 'No tabs match your search')
                     : _BridgeEmptyState(
@@ -233,9 +295,199 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
                         ),
                       );
                     },
+                  );
+            if (showSidePanel) {
+              return Row(children: [
+                Expanded(child: tabsView),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 330,
+                  child: _ConfiguredRoutesPanel(
+                    routes: _routes,
+                    onRouteChanged: _setDomainRoute,
                   ),
-          ),
+                ),
+              ]);
+            }
+            return Column(children: [
+              if (_routes.isNotEmpty) ...[
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: _showConfiguredRoutes,
+                    icon: const Icon(Icons.tune_rounded, size: 18),
+                    label: Text('Configured sites · ${_routes.length}'),
+                  ),
+                ),
+                const SizedBox(height: 6),
+              ],
+              Expanded(child: tabsView),
+            ]);
+          })),
         ],
+      ),
+    );
+  }
+}
+
+class _RoutingPausedBanner extends StatelessWidget {
+  const _RoutingPausedBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final isRussian = Localizations.localeOf(context).languageCode == 'ru';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.11)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.pause_circle_outline_rounded, size: 19),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(
+            isRussian
+                ? 'Маршрутизация приостановлена. Правила сохранены — подключите Delore, чтобы они начали работать.'
+                : 'Routing is paused. Your rules are saved — connect Delore to activate them.',
+            style: context.textTheme.bodySmall,
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _ConfiguredRoutesPanel extends StatelessWidget {
+  const _ConfiguredRoutesPanel({
+    required this.routes,
+    required this.onRouteChanged,
+  });
+
+  final List<DomainRouteEntry> routes;
+  final Future<void> Function(
+    String domain,
+    ApplicationRoute route, {
+    String? explicitTarget,
+  }) onRouteChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final isRussian = Localizations.localeOf(context).languageCode == 'ru';
+    final sorted = [...routes]..sort((a, b) => a.domain.compareTo(b.domain));
+    return RouteXGlassSurface(
+      variant: RouteXGlassVariant.panel,
+      radius: 20,
+      tintAlphaFactor: 0.78,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.route_rounded, size: 19),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isRussian ? 'Настроенные сайты' : 'Configured sites',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              Text(
+                '${routes.length}',
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: context.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ]),
+            const SizedBox(height: 4),
+            Text(
+              isRussian
+                  ? 'Сохраняются по домену после обновления и перезапуска'
+                  : 'Saved by domain and kept after refresh or restart',
+              style: context.textTheme.bodySmall?.copyWith(
+                color: context.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: sorted.isEmpty
+                  ? Center(
+                      child: Text(
+                        isRussian
+                            ? 'Выберите локацию для вкладки — её домен появится здесь'
+                            : 'Pick a location for a tab to save its domain here',
+                        textAlign: TextAlign.center,
+                        style: context.textTheme.bodySmall?.copyWith(
+                          color: context.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: sorted.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, index) {
+                        final entry = sorted[index];
+                        return Container(
+                          padding: const EdgeInsets.all(9),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.28),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.08),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(children: [
+                                const Icon(Icons.language_rounded, size: 17),
+                                const SizedBox(width: 7),
+                                Expanded(
+                                  child: Text(
+                                    entry.domain,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: 'Remove route',
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () => onRouteChanged(
+                                    entry.domain,
+                                    ApplicationRoute.rule,
+                                  ),
+                                  icon:
+                                      const Icon(Icons.close_rounded, size: 17),
+                                ),
+                              ]),
+                              const SizedBox(height: 6),
+                              ProxyRouteControl(
+                                width: double.infinity,
+                                route: entry.route,
+                                routeTarget: entry.target,
+                                onChanged: (route) => onRouteChanged(
+                                  entry.domain,
+                                  route,
+                                ),
+                                onPickLocation: (target) => onRouteChanged(
+                                  entry.domain,
+                                  ApplicationRoute.proxy,
+                                  explicitTarget: target,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
