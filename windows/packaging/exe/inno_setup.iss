@@ -32,6 +32,7 @@ const
 var
   IsUpgrade: Boolean;
   PreviousVersion: String;
+  HadLegacyDesktopShortcut: Boolean;
 
 procedure SHChangeNotify(wEventId: Integer; uFlags: Integer; dwItem1: Integer; dwItem2: Integer); external 'SHChangeNotify@shell32.dll stdcall';
 
@@ -79,6 +80,31 @@ begin
   Result := IsUpgrade;
 end;
 
+function HasCommandLineSwitch(const Switch: String): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+  begin
+    if CompareText(ParamStr(I), Switch) = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
+function ShouldLaunchApp(): Boolean;
+begin
+  Result := (not WizardSilent) or HasCommandLineSwitch('/RESTARTAPP');
+end;
+
+function ShouldMigrateLegacyDesktopShortcut(): Boolean;
+begin
+  Result := IsUpgrade and HadLegacyDesktopShortcut;
+end;
+
 function GetInstalledVersion(): String;
 var
   UninstallKey: String;
@@ -99,6 +125,9 @@ var
 begin
   // Check if app is already installed
   IsUpgrade := IsAppInstalled();
+  HadLegacyDesktopShortcut :=
+    FileExists(ExpandConstant('{commondesktop}\FlClashX.lnk')) or
+    FileExists(ExpandConstant('{userdesktop}\FlClashX.lnk'));
   if IsUpgrade then
     PreviousVersion := GetInstalledVersion();
   
@@ -232,6 +261,12 @@ Name: "chineseSimplified"; MessagesFile: {% if locale.file %}{{ locale.file }}{%
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checkedonce; Check: not IsUpgradeInstallation
+[InstallDelete]
+Type: files; Name: "{app}\\FlClashX.exe"
+Type: files; Name: "{commondesktop}\\FlClashX.lnk"
+Type: files; Name: "{userdesktop}\\FlClashX.lnk"
+Type: files; Name: "{commonprograms}\\FlClashX.lnk"
+Type: files; Name: "{userprograms}\\FlClashX.lnk"
 [Files]
 Source: "{{SOURCE_DIR}}\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
@@ -239,5 +274,6 @@ Source: "{{SOURCE_DIR}}\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdi
 [Icons]
 Name: "{autoprograms}\\{{DISPLAY_NAME}}"; Filename: "{app}\\{{EXECUTABLE_NAME}}"
 Name: "{autodesktop}\\{{DISPLAY_NAME}}"; Filename: "{app}\\{{EXECUTABLE_NAME}}"; Tasks: desktopicon
+Name: "{commondesktop}\\{{DISPLAY_NAME}}"; Filename: "{app}\\{{EXECUTABLE_NAME}}"; Check: ShouldMigrateLegacyDesktopShortcut
 [Run]
-Filename: "{app}\\{{EXECUTABLE_NAME}}"; Description: "{cm:LaunchProgram,{{DISPLAY_NAME}}}"; Flags: {% if PRIVILEGES_REQUIRED == 'admin' %}runascurrentuser{% endif %} nowait postinstall skipifsilent
+Filename: "{app}\\{{EXECUTABLE_NAME}}"; Description: "{cm:LaunchProgram,{{DISPLAY_NAME}}}"; Flags: {% if PRIVILEGES_REQUIRED == 'admin' %}runascurrentuser{% endif %} nowait; Check: ShouldLaunchApp

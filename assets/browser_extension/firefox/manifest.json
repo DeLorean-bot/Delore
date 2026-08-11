@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Delore Browser Bridge",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Shows your open browser tabs inside Delore for one-click routing.",
   "icons": {
     "16": "icon16.png",

@@ -52,6 +52,31 @@ class BrowserTabInfo {
   final DateTime lastSeen;
 }
 
+class BrowserBridgeStatus {
+  const BrowserBridgeStatus({
+    this.running = false,
+    this.lastSync,
+    this.browser,
+    this.reportedTabs = 0,
+    this.acceptedTabs = 0,
+    this.error,
+  });
+
+  final bool running;
+  final DateTime? lastSync;
+  final String? browser;
+  final int reportedTabs;
+  final int acceptedTabs;
+  final String? error;
+
+  bool get connected {
+    final sync = lastSync;
+    return running &&
+        sync != null &&
+        DateTime.now().difference(sync) < const Duration(seconds: 50);
+  }
+}
+
 class BrowserBridgeService {
   BrowserBridgeService._();
 
@@ -62,13 +87,17 @@ class BrowserBridgeService {
   static final instance = BrowserBridgeService._();
 
   final _controller = StreamController<List<BrowserTabInfo>>.broadcast();
+  final _statusController = StreamController<BrowserBridgeStatus>.broadcast();
   final Map<String, BrowserTabInfo> _tabs = {};
   HttpServer? _server;
   Future<void>? _starting;
   String? _token;
+  BrowserBridgeStatus _status = const BrowserBridgeStatus();
 
   Stream<List<BrowserTabInfo>> get stream => _controller.stream;
+  Stream<BrowserBridgeStatus> get statusStream => _statusController.stream;
   List<BrowserTabInfo> get tabs => List.unmodifiable(_tabs.values);
+  BrowserBridgeStatus get status => _status;
   bool get isRunning => _server != null;
 
   Future<String> get pairingToken async {
@@ -98,29 +127,66 @@ class BrowserBridgeService {
       _server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
       _server!.listen(_handle, onError: (Object error) {
         commonPrint.log('Browser Bridge error: $error');
+        _publishStatus(BrowserBridgeStatus(
+          running: true,
+          lastSync: _status.lastSync,
+          browser: _status.browser,
+          reportedTabs: _status.reportedTabs,
+          acceptedTabs: _status.acceptedTabs,
+          error: 'Local bridge error',
+        ));
       });
+      _publishStatus(BrowserBridgeStatus(
+        running: true,
+        lastSync: _status.lastSync,
+        browser: _status.browser,
+        reportedTabs: _status.reportedTabs,
+        acceptedTabs: _status.acceptedTabs,
+      ));
     } catch (error) {
       _starting = null;
       commonPrint.log('Browser Bridge could not bind 127.0.0.1:$port: $error');
+      _publishStatus(const BrowserBridgeStatus(
+        error: 'Could not start the local browser bridge',
+      ));
     }
+  }
+
+  Future<void> restart() async {
+    await stop();
+    await start();
   }
 
   Future<void> stop() async {
     await _server?.close(force: true);
     _server = null;
     _starting = null;
+    _publishStatus(BrowserBridgeStatus(
+      lastSync: _status.lastSync,
+      browser: _status.browser,
+      reportedTabs: _status.reportedTabs,
+      acceptedTabs: _status.acceptedTabs,
+    ));
   }
 
   Future<void> _handle(HttpRequest request) async {
     _addCors(request.response);
     if (request.method == 'OPTIONS') {
-      request.response
-        ..statusCode = HttpStatus.noContent
-        ..close();
+      request.response.statusCode = HttpStatus.noContent;
+      await request.response.close();
       return;
     }
     if (request.uri.path == '/status' && request.method == 'GET') {
-      _json(request.response, {'name': 'Delore Browser Bridge', 'ready': true});
+      _json(request.response, {
+        'name': 'Delore Browser Bridge',
+        'ready': true,
+        'connected': _status.connected,
+        'browser': _status.browser,
+        'reportedTabs': _status.reportedTabs,
+        'acceptedTabs': _status.acceptedTabs,
+        'lastSync': _status.lastSync?.toIso8601String(),
+        'error': _status.error,
+      });
       return;
     }
     if (request.uri.path == '/pair' && request.method == 'GET') {
@@ -145,6 +211,14 @@ class BrowserBridgeService {
       return;
     }
     if (request.headers.value('x-delore-token') != _token) {
+      _publishStatus(BrowserBridgeStatus(
+        running: true,
+        lastSync: _status.lastSync,
+        browser: _status.browser,
+        reportedTabs: _status.reportedTabs,
+        acceptedTabs: _status.acceptedTabs,
+        error: 'The extension pairing expired; reconnecting',
+      ));
       _json(request.response, {'error': 'unauthorized'},
           status: HttpStatus.unauthorized);
       return;
@@ -167,6 +241,7 @@ class BrowserBridgeService {
       final seenAt = DateTime.now();
       final prefix = '${browser.toLowerCase()}:$instance:';
       _tabs.removeWhere((key, _) => key.startsWith(prefix));
+      var accepted = 0;
       for (final value in values.take(500)) {
         if (value is! Map) continue;
         final tab = BrowserTabInfo.fromJson(
@@ -180,6 +255,7 @@ class BrowserBridgeService {
           continue;
         }
         _tabs['$prefix${tab.id}'] = tab;
+        accepted++;
       }
       _tabs.removeWhere(
         (_, tab) =>
@@ -190,11 +266,31 @@ class BrowserBridgeService {
           return a.title.toLowerCase().compareTo(b.title.toLowerCase());
         });
       _controller.add(snapshot);
-      _json(request.response, {'ok': true, 'accepted': values.length});
+      _publishStatus(BrowserBridgeStatus(
+        running: true,
+        lastSync: seenAt,
+        browser: browser,
+        reportedTabs: values.length,
+        acceptedTabs: accepted,
+      ));
+      _json(request.response, {'ok': true, 'accepted': accepted});
     } catch (error) {
+      _publishStatus(BrowserBridgeStatus(
+        running: true,
+        lastSync: _status.lastSync,
+        browser: _status.browser,
+        reportedTabs: _status.reportedTabs,
+        acceptedTabs: _status.acceptedTabs,
+        error: 'The extension sent an invalid tab list',
+      ));
       _json(request.response, {'error': 'invalid_payload', 'detail': '$error'},
           status: HttpStatus.badRequest);
     }
+  }
+
+  void _publishStatus(BrowserBridgeStatus value) {
+    _status = value;
+    _statusController.add(value);
   }
 
   bool _isBrowserExtensionOrigin(String origin) {
@@ -216,8 +312,8 @@ class BrowserBridgeService {
     response
       ..statusCode = status
       ..headers.contentType = ContentType.json
-      ..write(jsonEncode(value))
-      ..close();
+      ..write(jsonEncode(value));
+    unawaited(response.close());
   }
 }
 

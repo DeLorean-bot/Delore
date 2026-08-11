@@ -42,7 +42,7 @@ class AboutView extends StatelessWidget {
       request.checkForUpdate,
       title: appLocalizations.checkUpdate,
     );
-    globalState.appController.checkUpdateResultHandle(
+    await globalState.appController.checkUpdateResultHandle(
       data: data,
       handleError: true,
     );

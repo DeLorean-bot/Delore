@@ -396,7 +396,7 @@ class _$AppSettingPropsImpl implements _AppSettingProps {
       this.closeConnections = true,
       this.testUrl = defaultTestUrl,
       this.isAnimateToPage = true,
-      this.autoCheckUpdate = false,
+      this.autoCheckUpdate = true,
       this.showLabel = false,
       this.disclaimerAccepted = false,
       this.minimizeOnExit = false,

@@ -30,7 +30,7 @@ async function pairingToken() {
   return data.token;
 }
 
-async function syncTabs() {
+async function syncTabs(retryPairing = true) {
   try {
     const token = await pairingToken();
     const tabs = await chrome.tabs.query({});
@@ -53,6 +53,10 @@ async function syncTabs() {
         }))
       })
     });
+    if ((response.status === 401 || response.status === 403) && retryPairing) {
+      await chrome.storage.local.remove('pairingToken');
+      return syncTabs(false);
+    }
     const ok = response.ok;
     await chrome.storage.local.set({lastSync: Date.now(), lastError: ok ? '' : `HTTP ${response.status}`});
     return {ok, reason: ok ? '' : `HTTP ${response.status}`};
@@ -92,3 +96,9 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
     return true;
   }
 });
+
+// Restore the alarm on every worker start and sync immediately. This covers
+// the common case where Delore was installed/reset after the browser add-on
+// and the cached pairing token is no longer valid.
+chrome.alarms.create('delore-heartbeat', {periodInMinutes: 0.5});
+syncTabs();

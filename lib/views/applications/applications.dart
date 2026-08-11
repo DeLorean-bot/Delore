@@ -106,6 +106,7 @@ class _ApplicationsViewState extends ConsumerState<ApplicationsView>
         Expanded(
           child: IndexedStack(
             index: _tab.index,
+            sizing: StackFit.expand,
             children: [
               _AppRoutingBody(
                 key: _appsKey,

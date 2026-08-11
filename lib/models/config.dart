@@ -74,7 +74,7 @@ class AppSettingProps with _$AppSettingProps {
     @Default(true) bool closeConnections,
     @Default(defaultTestUrl) String testUrl,
     @Default(true) bool isAnimateToPage,
-    @Default(false) bool autoCheckUpdate,
+    @Default(true) bool autoCheckUpdate,
     @Default(false) bool showLabel,
     @Default(false) bool disclaimerAccepted,
     @Default(false) bool minimizeOnExit,
@@ -91,9 +91,8 @@ class AppSettingProps with _$AppSettingProps {
   factory AppSettingProps.fromJson(Map<String, Object?> json) =>
       _$AppSettingPropsFromJson(json);
 
-  factory AppSettingProps.safeFromJson(Map<String, Object?>? json) => json == null
-        ? defaultAppSettingProps
-        : AppSettingProps.fromJson(json);
+  factory AppSettingProps.safeFromJson(Map<String, Object?>? json) =>
+      json == null ? defaultAppSettingProps : AppSettingProps.fromJson(json);
 }
 
 @freezed

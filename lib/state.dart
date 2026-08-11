@@ -18,6 +18,7 @@ import 'package:flutter_js/flutter_js.dart';
 import 'package:material_color_utilities/palettes/core_palette.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'common/common.dart';
@@ -149,6 +150,18 @@ class GlobalState {
         const Config(
           themeProps: defaultThemeProps,
         );
+    // The legacy updater was disabled by default and only opened a browser.
+    // Enable the new background installer once for existing users, while still
+    // respecting any choice they make in Settings afterwards.
+    final sharedPreferences = await SharedPreferences.getInstance();
+    const updaterMigrationKey = 'delore_app_updater_v2_migrated';
+    if (sharedPreferences.getBool(updaterMigrationKey) != true) {
+      config = config.copyWith(
+        appSetting: config.appSetting.copyWith(autoCheckUpdate: true),
+      );
+      await preferences.saveConfig(config);
+      await sharedPreferences.setBool(updaterMigrationKey, true);
+    }
     await globalState.migrateOldData(config);
     await AppLocalizations.load(
       utils.getLocaleForString(config.appSetting.locale) ??
@@ -622,28 +635,20 @@ class GlobalState {
       }
     }
 
-    if (rawConfig["tun"] == null) {
-      rawConfig["tun"] = {};
-    }
-    rawConfig["tun"]["enable"] =
-        Platform.isAndroid ? true : realPatchConfig.tun.enable;
-    rawConfig["tun"]["device"] = realPatchConfig.tun.device;
-    rawConfig["tun"]["dns-hijack"] = realPatchConfig.tun.dnsHijack;
-
-    // Set TUN stack
-    if (config.appSetting.overrideNetworkSettings) {
-      // User wants to override - use value from UI (always write)
-      rawConfig["tun"]["stack"] = realPatchConfig.tun.stack.name;
-    } else {
-      // Use provider value - only set if not already in rawConfig, use patchConfig value (which is synced from provider)
-      final currentStack = rawConfig["tun"]["stack"];
-      if (currentStack == null) {
-        rawConfig["tun"]["stack"] = realPatchConfig.tun.stack.name;
-      }
-    }
-
-    rawConfig["tun"]["route-address"] = realPatchConfig.tun.routeAddress;
-    rawConfig["tun"]["auto-route"] = realPatchConfig.tun.autoRoute;
+    // Match Mihomo clients such as Koala: when the profile already supplies a
+    // complete TUN section, preserve it as one coherent routing setup. Mixing
+    // the profile's strict-route/auto-detect-interface with Delore's device,
+    // DNS hijack and route list can produce a valid-looking configuration that
+    // nevertheless drops DNS or selected destinations on Windows. The app
+    // still owns the on/off switch; all other fields are replaced only when
+    // the user explicitly enables network overrides or the profile has no TUN
+    // section to preserve.
+    rawConfig["tun"] = buildRuntimeTun(
+      providerTun: rawConfig["tun"],
+      patchTun: realPatchConfig.tun,
+      enable: Platform.isAndroid ? true : realPatchConfig.tun.enable,
+      overrideProvider: config.appSetting.overrideNetworkSettings,
+    );
     rawConfig["geodata-loader"] = realPatchConfig.geodataLoader.name;
     if (rawConfig["sniffer"]?["sniff"] != null) {
       for (final value in (rawConfig["sniffer"]?["sniff"] as Map).values) {

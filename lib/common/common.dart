@@ -1,5 +1,6 @@
 export 'android.dart';
 export 'application_routing.dart';
+export 'app_update.dart';
 export 'app_localizations.dart';
 export 'color.dart';
 export 'constant.dart';
@@ -37,6 +38,7 @@ export 'protocol.dart';
 export 'proxy.dart';
 export 'render.dart';
 export 'request.dart';
+export 'runtime_config_patch.dart';
 export 'scroll.dart';
 export 'statusbar.dart';
 export 'string.dart';

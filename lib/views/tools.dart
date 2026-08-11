@@ -14,6 +14,7 @@ import 'package:flclashx/views/access.dart';
 import 'package:flclashx/views/application_setting.dart';
 import 'package:flclashx/views/config/config.dart';
 import 'package:flclashx/views/hotkey.dart';
+import 'package:flclashx/views/report_issue.dart';
 import 'package:flclashx/views/route_doctor.dart';
 import 'package:flclashx/widgets/widgets.dart';
 import 'package:flutter/material.dart';
@@ -79,6 +80,7 @@ class _ToolboxViewState extends ConsumerState<ToolsView> {
           title: AppLocalizations.of(context).other,
           items: [
             const _RouteDoctorItem(),
+            const _ReportIssueItem(),
             const _RuntimeConfigItem(),
             const _DisclaimerItem(),
             if (enableDeveloperMode) const _DeveloperItem(),
@@ -141,6 +143,25 @@ class _ToolboxViewState extends ConsumerState<ToolsView> {
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 36),
         ),
       ),
+    );
+  }
+}
+
+class _ReportIssueItem extends StatelessWidget {
+  const _ReportIssueItem();
+
+  @override
+  Widget build(BuildContext context) {
+    final isRussian = Localizations.localeOf(context).languageCode == 'ru';
+    return ListItem(
+      leading: const Icon(Icons.bug_report_outlined),
+      title: Text(isRussian ? 'Сообщить о проблеме' : 'Report a problem'),
+      subtitle: Text(
+        isRussian
+            ? 'Описать ошибку и приложить безопасную диагностику'
+            : 'Describe an issue and attach safe diagnostics',
+      ),
+      onTap: () async => showReportIssue(context),
     );
   }
 }

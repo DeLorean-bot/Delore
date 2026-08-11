@@ -95,7 +95,8 @@ class AppController {
       }
     }
 
-    commonPrint.log('[initForegroundCache] profileName="$profileName" serviceName="$serviceName"');
+    commonPrint.log(
+        '[initForegroundCache] profileName="$profileName" serviceName="$serviceName"');
     vpn?.updateProfileInfo(
       profileName: profileName,
       serviceName: serviceName,
@@ -292,7 +293,8 @@ class AppController {
                 autoRun: effectiveSettings.contains('autostart'),
                 autoCheckUpdate: effectiveSettings.contains('autoupdate'),
                 openLogs: effectiveSettings.contains('openlogs'),
-                closeConnections: effectiveSettings.contains('closeconnections'),
+                closeConnections:
+                    effectiveSettings.contains('closeconnections'),
               ));
     } catch (e) {
       // Silently ignore subscription settings errors
@@ -424,67 +426,66 @@ class AppController {
 
   Future<void> updateProfile(Profile profile) async {
     _ref.read(profilesProvider.notifier).setProfile(
-      profile.copyWith(isUpdating: true),
-    );
+          profile.copyWith(isUpdating: true),
+        );
     try {
-    final prefs = await SharedPreferences.getInstance();
-    final shouldSend = prefs.getBool('sendDeviceHeaders') ?? true;
-    final updateViaProxy = prefs.getBool('updateViaProxy') ?? false;
-    final newProfile = await profile.update(
-      shouldSendHeaders: shouldSend,
-      useProxy: updateViaProxy,
-    );
+      final prefs = await SharedPreferences.getInstance();
+      final shouldSend = prefs.getBool('sendDeviceHeaders') ?? true;
+      final updateViaProxy = prefs.getBool('updateViaProxy') ?? false;
+      final newProfile = await profile.update(
+        shouldSendHeaders: shouldSend,
+        useProxy: updateViaProxy,
+      );
 
-    final mergedHeaders = Map<String, String>.from(profile.providerHeaders)
-      ..addAll(newProfile.providerHeaders);
-    for (final key in ['announce', 'support-url']) {
-      if (!newProfile.providerHeaders.containsKey(key)) {
-        mergedHeaders.remove(key);
+      final mergedHeaders = Map<String, String>.from(profile.providerHeaders)
+        ..addAll(newProfile.providerHeaders);
+      for (final key in ['announce', 'support-url']) {
+        if (!newProfile.providerHeaders.containsKey(key)) {
+          mergedHeaders.remove(key);
+        }
       }
-    }
-    final mergedProfile = newProfile.copyWith(
-      providerHeaders: mergedHeaders,
-      isUpdating: false,
-    );
+      final mergedProfile = newProfile.copyWith(
+        providerHeaders: mergedHeaders,
+        isUpdating: false,
+      );
 
-    // Apply the header-driven app settings (theme/flclashx-hex, flclashx-settings,
-    // flclashx-custom view/widgets, etc.) ONLY when the updated profile is the ACTIVE
-    // one. Otherwise auto-updating a background profile would push its headers into the
-    // global settings and clobber the active profile's ("last updated wins"). Mirrors
-    // the active-profile gate on applyProfileDebounce below; the reactive header
-    // providers (background / global-mode / server-info) already read the active profile.
-    if (mergedHeaders.isNotEmpty &&
-        profile.id == _ref.read(currentProfileIdProvider)) {
-      _applyAllHeaderSettings(mergedProfile, isNewProfile: false);
-    }
+      // Apply the header-driven app settings (theme/flclashx-hex, flclashx-settings,
+      // flclashx-custom view/widgets, etc.) ONLY when the updated profile is the ACTIVE
+      // one. Otherwise auto-updating a background profile would push its headers into the
+      // global settings and clobber the active profile's ("last updated wins"). Mirrors
+      // the active-profile gate on applyProfileDebounce below; the reactive header
+      // providers (background / global-mode / server-info) already read the active profile.
+      if (mergedHeaders.isNotEmpty &&
+          profile.id == _ref.read(currentProfileIdProvider)) {
+        _applyAllHeaderSettings(mergedProfile, isNewProfile: false);
+      }
 
-    final showHwidLimit = mergedHeaders['x-hwid-max-devices-reached']?.toLowerCase() == 'true';
-    final announceText = mergedHeaders['announce'];
-    if (showHwidLimit && announceText != null && announceText.isNotEmpty) {
-      _showHwidLimitNotice(announceText, mergedHeaders['support-url']);
-    }
+      final showHwidLimit =
+          mergedHeaders['x-hwid-max-devices-reached']?.toLowerCase() == 'true';
+      final announceText = mergedHeaders['announce'];
+      if (showHwidLimit && announceText != null && announceText.isNotEmpty) {
+        _showHwidLimitNotice(announceText, mergedHeaders['support-url']);
+      }
 
-    if (mergedHeaders['x-hwid-not-supported']?.toLowerCase() == 'true') {
-      _showHwidNotSupportedNotice();
-    }
+      if (mergedHeaders['x-hwid-not-supported']?.toLowerCase() == 'true') {
+        _showHwidNotSupportedNotice();
+      }
 
-    _ref
-        .read(profilesProvider.notifier)
-        .setProfile(mergedProfile);
+      _ref.read(profilesProvider.notifier).setProfile(mergedProfile);
 
-    if (profile.id == _ref.read(currentProfileIdProvider)) {
-      applyProfileDebounce(silence: true);
-    }
+      if (profile.id == _ref.read(currentProfileIdProvider)) {
+        applyProfileDebounce(silence: true);
+      }
 
-    // Check subscription expiration and show notification if needed
-    unawaited(SubscriptionNotificationService.checkAndNotify(newProfile)
-        .catchError((e) {
-      commonPrint.log("Error checking subscription: $e");
-    }));
+      // Check subscription expiration and show notification if needed
+      unawaited(SubscriptionNotificationService.checkAndNotify(newProfile)
+          .catchError((e) {
+        commonPrint.log("Error checking subscription: $e");
+      }));
     } catch (e) {
       _ref.read(profilesProvider.notifier).setProfile(
-        profile.copyWith(isUpdating: false),
-      );
+            profile.copyWith(isUpdating: false),
+          );
       rethrow;
     }
   }
@@ -801,7 +802,6 @@ class AppController {
     _ref.read(requestsProvider.notifier).value = FixedList(maxLength);
     globalState.cacheHeightMap = {};
     globalState.cacheScrollPosition = {};
-
   }
 
   void updateBrightness(Brightness brightness) {
@@ -1155,8 +1155,14 @@ class AppController {
 
   Future<void> autoCheckUpdate() async {
     if (!_ref.read(appSettingProvider).autoCheckUpdate) return;
-    final res = await request.checkForUpdate();
-    checkUpdateResultHandle(data: res);
+    try {
+      final res = await request.checkForUpdate();
+      await checkUpdateResultHandle(data: res);
+    } catch (e) {
+      // Startup must never fail because GitHub is unavailable. A manual check
+      // still reports its error through the normal loading surface.
+      commonPrint.log('Automatic app update check failed: $e');
+    }
   }
 
   Future<void> checkUpdateResultHandle({
@@ -1169,6 +1175,17 @@ class AppController {
     if (data != null) {
       final tagName = data['tag_name'];
       final body = data['body'];
+      PreparedAppUpdate? preparedUpdate;
+      try {
+        // Download before prompting. If the user accepts, Windows can update
+        // immediately instead of sending them through a browser and another
+        // manual download. The completed installer is reused on the next
+        // launch when the prompt is dismissed.
+        preparedUpdate = await appUpdater.prepare(data);
+      } catch (e) {
+        commonPrint.log('Could not prepare app update $tagName: $e');
+      }
+      if (!context.mounted) return;
       final submits = utils.parseReleaseBody(body);
       final textTheme = context.textTheme;
       final res = await globalState.showMessage(
@@ -1188,10 +1205,20 @@ class AppController {
               ),
           ],
         ),
-        confirmText: appLocalizations.goDownload,
+        confirmText: preparedUpdate == null
+            ? appLocalizations.goDownload
+            : appLocalizations.update,
       );
       if (res != true) {
         return;
+      }
+      if (preparedUpdate != null) {
+        final launched = await appUpdater.install(
+          preparedUpdate,
+          launchElevated: (executable, arguments) =>
+              windows?.runas(executable, arguments) ?? false,
+        );
+        if (launched) return;
       }
       unawaited(launchUrl(
         Uri.parse("https://github.com/$repository/releases/latest"),
@@ -1453,7 +1480,8 @@ class AppController {
         _applyAllHeaderSettings(profile, isNewProfile: true);
 
         final headers = profile.providerHeaders;
-        final showHwidLimit = headers['x-hwid-max-devices-reached']?.toLowerCase() == 'true';
+        final showHwidLimit =
+            headers['x-hwid-max-devices-reached']?.toLowerCase() == 'true';
         final announceText = headers['announce'];
         if (showHwidLimit && announceText != null && announceText.isNotEmpty) {
           _showHwidLimitNotice(announceText, headers['support-url']);
@@ -1814,9 +1842,7 @@ class AppController {
         .firstWhere(usable, orElse: () => '');
     final target = usable(inUse)
         ? inUse
-        : global.all
-            .map((p) => p.name)
-            .firstWhere(usable, orElse: () => '');
+        : global.all.map((p) => p.name).firstWhere(usable, orElse: () => '');
     if (!usable(target)) return;
 
     await changeProxy(groupName: globalName, proxyName: target);

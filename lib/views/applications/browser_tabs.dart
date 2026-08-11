@@ -22,8 +22,12 @@ class BrowserTabsBody extends ConsumerStatefulWidget {
 
 class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
   StreamSubscription<List<BrowserTabInfo>>? _subscription;
+  StreamSubscription<BrowserBridgeStatus>? _statusSubscription;
+  Timer? _clock;
   List<BrowserTabInfo> _tabs = const [];
   List<DomainRouteEntry> _routes = const [];
+  BrowserBridgeStatus _bridgeStatus = browserBridge.status;
+  Future<void> _applyQueue = Future.value();
   String _query = '';
 
   @override
@@ -33,19 +37,35 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
     _subscription = browserBridge.stream.listen((tabs) {
       if (mounted) setState(() => _tabs = tabs);
     });
+    _statusSubscription = browserBridge.statusStream.listen((status) {
+      if (mounted) setState(() => _bridgeStatus = status);
+    });
+    _syncClock();
     unawaited(_load());
   }
 
   @override
   void didUpdateWidget(BrowserTabsBody oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.active != widget.active) _syncClock();
     if (!oldWidget.active && widget.active) unawaited(_load());
   }
 
   @override
   void dispose() {
-    _subscription?.cancel();
+    unawaited(_subscription?.cancel());
+    unawaited(_statusSubscription?.cancel());
+    _clock?.cancel();
     super.dispose();
+  }
+
+  void _syncClock() {
+    _clock?.cancel();
+    _clock = null;
+    if (!widget.active) return;
+    _clock = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) setState(() => _bridgeStatus = browserBridge.status);
+    });
   }
 
   Future<void> _load() async {
@@ -123,10 +143,19 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
         ];
       });
     }
-    await globalState.appController.applyProfile();
+    await _applyRoutes();
     if (mounted) {
       context.showSnackBar('${tab.domain} route updated for every browser tab');
     }
+  }
+
+  Future<void> _applyRoutes() {
+    final next = _applyQueue.then(
+      (_) => globalState.appController.applyProfile(),
+      onError: (_) => globalState.appController.applyProfile(),
+    );
+    _applyQueue = next;
+    return next;
   }
 
   Future<void> _openExtensionFolder(String browser) async {
@@ -137,7 +166,7 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
       'flutter_assets',
       relative,
     );
-    final directory = Directory(await Directory(packaged).exists()
+    final directory = Directory(Directory(packaged).existsSync()
         ? packaged
         : p.join(Directory.current.path, relative));
     if (Platform.isWindows) {
@@ -154,10 +183,7 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
     ref.listen(currentProfileIdProvider, (previous, next) {
       if (previous != next) unawaited(_load());
     });
-    final now = DateTime.now();
-    final connected = _tabs.any(
-      (tab) => now.difference(tab.lastSeen) < const Duration(seconds: 50),
-    );
+    final connected = _bridgeStatus.connected;
     final tabs = _tabs.where((tab) {
       if (_query.isEmpty) return true;
       return tab.title.toLowerCase().contains(_query) ||
@@ -170,7 +196,7 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
       child: Column(
         children: [
           _BridgeHeader(
-            connected: connected,
+            status: _bridgeStatus,
             onQueryChanged: (value) =>
                 setState(() => _query = value.trim().toLowerCase()),
             onOpenChromium: () => _openExtensionFolder('chromium'),
@@ -179,11 +205,11 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
           const SizedBox(height: 12),
           Expanded(
             child: tabs.isEmpty
-                ? connected
-                    ? const NullStatus(
-                        label: 'No tabs match the current search',
-                      )
+                ? connected && _query.isNotEmpty
+                    ? const NullStatus(label: 'No tabs match your search')
                     : _BridgeEmptyState(
+                        status: _bridgeStatus,
+                        onRestart: () async => browserBridge.restart(),
                         onOpenChromium: () => _openExtensionFolder('chromium'),
                         onOpenFirefox: () => _openExtensionFolder('firefox'),
                       )
@@ -217,23 +243,66 @@ class _BrowserTabsBodyState extends ConsumerState<BrowserTabsBody> {
 
 class _BridgeEmptyState extends StatelessWidget {
   const _BridgeEmptyState({
+    required this.status,
+    required this.onRestart,
     required this.onOpenChromium,
     required this.onOpenFirefox,
   });
 
+  final BrowserBridgeStatus status;
+  final Future<void> Function() onRestart;
   final VoidCallback onOpenChromium;
   final VoidCallback onOpenFirefox;
 
   @override
   Widget build(BuildContext context) {
     final isRussian = Localizations.localeOf(context).languageCode == 'ru';
+    final connected = status.connected;
+    final hasError = status.error != null;
+    final title = switch ((status.running, connected, hasError)) {
+      (false, _, true) => isRussian
+          ? 'Мост браузера не запустился'
+          : 'Browser Bridge did not start',
+      (_, _, true) => isRussian
+          ? 'Расширение переподключается'
+          : 'Reconnecting the extension',
+      (_, true, _) => isRussian
+          ? '${status.browser ?? 'Браузер'} подключён'
+          : '${status.browser ?? 'Browser'} connected',
+      (true, false, _) =>
+        isRussian ? 'Ожидаем расширение' : 'Waiting for the extension',
+      _ => isRussian ? 'Запускаем мост браузера' : 'Starting Browser Bridge',
+    };
+    final detail = switch ((status.running, connected, hasError)) {
+      (false, _, true) => status.error!,
+      (_, _, true) => isRussian
+          ? 'Delore автоматически обновит pairing и повторит синхронизацию.'
+          : 'Delore will refresh pairing and retry automatically.',
+      (_, true, _) when status.reportedTabs == 0 => isRussian
+          ? 'Расширение работает. В браузере пока нет открытых вкладок.'
+          : 'The extension is working. There are no open tabs yet.',
+      (_, true, _) when status.acceptedTabs == 0 => isRussian
+          ? 'Открыты только служебные страницы. Обычные сайты появятся здесь автоматически.'
+          : 'Only internal browser pages are open. Regular websites will appear automatically.',
+      (_, true, _) => isRussian
+          ? 'Вкладки синхронизированы. Выберите локацию — Delore применит правило сайта автоматически.'
+          : 'Tabs are synced. Pick a location and Delore will apply the site rule automatically.',
+      _ => isRussian
+          ? 'Откройте установленное расширение один раз или нажмите «Синхронизировать». Delore сделает остальное.'
+          : 'Open the installed extension once or press Sync. Delore handles the rest.',
+    };
     return RouteXStatusState(
       icon: Icons.tab_rounded,
-      title: isRussian ? 'Подключите браузер' : 'Connect your browser',
-      detail: isRussian
-          ? 'Установите Delore Browser Bridge. Вкладки появятся здесь автоматически — без ручных правил.'
-          : 'Install Delore Browser Bridge. Tabs appear here automatically — no manual rules.',
+      title: title,
+      detail: detail,
+      loading: status.running && !connected && !hasError,
       actions: [
+        if (!status.running)
+          OutlinedButton.icon(
+            onPressed: onRestart,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: Text(isRussian ? 'Повторить' : 'Try again'),
+          ),
         FilledButton.icon(
           onPressed: onOpenChromium,
           icon: const Icon(Icons.language_rounded, size: 18),
@@ -251,13 +320,13 @@ class _BridgeEmptyState extends StatelessWidget {
 
 class _BridgeHeader extends StatelessWidget {
   const _BridgeHeader({
-    required this.connected,
+    required this.status,
     required this.onQueryChanged,
     required this.onOpenChromium,
     required this.onOpenFirefox,
   });
 
-  final bool connected;
+  final BrowserBridgeStatus status;
   final ValueChanged<String> onQueryChanged;
   final VoidCallback onOpenChromium;
   final VoidCallback onOpenFirefox;
@@ -266,25 +335,30 @@ class _BridgeHeader extends StatelessWidget {
   Widget build(BuildContext context) => RouteXGlassSurface(
         variant: RouteXGlassVariant.control,
         radius: 18,
+        expand: false,
         tintAlphaFactor: 1,
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: LayoutBuilder(builder: (context, constraints) {
             final narrow = constraints.maxWidth < 820;
-            final status = Row(
+            final statusView = Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  connected ? Icons.link_rounded : Icons.link_off_rounded,
-                  color: connected
+                  status.connected
+                      ? Icons.link_rounded
+                      : Icons.link_off_rounded,
+                  color: status.connected
                       ? Colors.white
                       : Colors.white.withValues(alpha: 0.55),
                   size: 19,
                 ),
                 const SizedBox(width: 8),
-                Text(connected
-                    ? 'Browser connected'
-                    : 'Extension not connected'),
+                Text(
+                  status.connected
+                      ? '${status.browser ?? 'Browser'} · ${status.acceptedTabs} tabs'
+                      : status.error ?? 'Waiting for extension',
+                ),
                 const SizedBox(width: 8),
                 PopupMenuButton<String>(
                   tooltip: 'Open extension folder',
@@ -312,9 +386,11 @@ class _BridgeHeader extends StatelessWidget {
               ),
             );
             return narrow
-                ? Column(children: [status, const SizedBox(height: 8), search])
+                ? Column(
+                    children: [statusView, const SizedBox(height: 8), search],
+                  )
                 : Row(children: [
-                    status,
+                    statusView,
                     const SizedBox(width: 12),
                     Expanded(child: search),
                   ]);

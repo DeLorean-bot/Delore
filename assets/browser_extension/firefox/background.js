@@ -21,7 +21,7 @@ async function pairingToken() {
   return data.token;
 }
 
-async function syncTabs() {
+async function syncTabs(retryPairing = true) {
   try {
     const token = await pairingToken();
     const tabs = await chrome.tabs.query({});
@@ -33,6 +33,10 @@ async function syncTabs() {
         tabs: tabs.map(tab => ({id: tab.id, windowId: tab.windowId, title: tab.title || '', url: tab.url || '', favIconUrl: tab.favIconUrl || '', active: Boolean(tab.active)}))
       })
     });
+    if ((response.status === 401 || response.status === 403) && retryPairing) {
+      await chrome.storage.local.remove('pairingToken');
+      return syncTabs(false);
+    }
     const ok = response.ok;
     await chrome.storage.local.set({lastSync: Date.now(), lastError: ok ? '' : `HTTP ${response.status}`});
     return {ok, reason: ok ? '' : `HTTP ${response.status}`};
@@ -56,3 +60,9 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
   if (message?.type === 'status') { chrome.storage.local.get(['pairingToken', 'lastSync', 'lastError']).then(sendResponse); return true; }
   if (message?.type === 'sync') { syncTabs().then(sendResponse); return true; }
 });
+
+// An installed extension can wake after Delore (or after its pairing token was
+// regenerated) without receiving onStartup/onInstalled again. Always restore
+// the heartbeat and attempt one immediate self-healing sync.
+chrome.alarms.create('delore-heartbeat', {periodInMinutes: 0.5});
+syncTabs();
