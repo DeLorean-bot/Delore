@@ -71,6 +71,9 @@ class ProxyRouteControl extends StatelessWidget {
       ApplicationRoute.direct =>
         routeTarget == null ? 'Proxy' : stripLocationFlagPrefix(routeTarget!),
     };
+    final proxyFlagCode = route == ApplicationRoute.proxy && routeTarget != null
+        ? flagToCountryCode(routeTarget!)
+        : null;
     return Container(
       width: width,
       height: 44,
@@ -93,6 +96,13 @@ class ProxyRouteControl extends StatelessWidget {
                     : '',
                 child: RouteOption(
                   label: proxyLabel,
+                  leading: proxyFlagCode == null
+                      ? null
+                      : LocationFlag(
+                          key: const ValueKey('selected-location-flag'),
+                          code: proxyFlagCode,
+                          selected: true,
+                        ),
                   selected: route != ApplicationRoute.direct,
                   color: route == ApplicationRoute.rule
                       ? premiumAmber
@@ -282,9 +292,10 @@ class LocationOption extends StatelessWidget {
           ),
           child: Row(
             children: [
-              indent
-                  ? LocationFlag(code: flagCode, selected: selected)
-                  : CommonTargetIcon(src: icon, size: 24),
+              if (indent)
+                LocationFlag(code: flagCode, selected: selected)
+              else
+                CommonTargetIcon(src: icon, size: 24),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -352,7 +363,8 @@ class LocationFlag extends StatelessWidget {
         width: size,
         height: size * 0.75,
         fit: BoxFit.cover,
-        placeholder: (_, __) => SizedBox(width: size, height: size * 0.75),
+        placeholder: (_, __) =>
+            const SizedBox(width: size, height: size * 0.75),
         errorWidget: (_, __, ___) => dot(),
       ),
     );
@@ -366,12 +378,14 @@ class RouteOption extends StatelessWidget {
     required this.selected,
     required this.color,
     required this.onPressed,
+    this.leading,
   });
 
   final String label;
   final bool selected;
   final Color color;
   final VoidCallback onPressed;
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) => TextButton(
@@ -386,14 +400,26 @@ class RouteOption extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
           ),
         ),
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (leading != null) ...[
+              leading!,
+              const SizedBox(width: 6),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
         ),
       );
 }
