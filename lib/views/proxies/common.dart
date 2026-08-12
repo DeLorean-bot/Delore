@@ -59,43 +59,45 @@ Future<void> delayTest(List<Proxy> proxies, [String? testUrl]) async {
   final appController = globalState.appController;
   final proxyNames = proxies.map((proxy) => proxy.name).toSet().toList();
 
-  final delayProxies = proxyNames.map<Future>((proxyName) async {
-    final state = appController.getProxyCardState(proxyName);
-    final url = state.testUrl.getSafeValue(
-      appController.getRealTestUrl(testUrl),
-    );
-    final name = state.proxyName;
-    if (name.isEmpty) {
-      return;
-    }
-    appController.setDelay(
-      Delay(
-        url: url,
-        name: name,
-        value: 0,
-      ),
-    );
-    try {
-      appController.setDelay(
-        await clashCore.getDelay(
-          url,
-          name,
-        ),
+  // Keep this comfortably below the core semaphore (50). Starting every node
+  // in a large subscription at once causes packet loss and false timeouts for
+  // QUIC/TLS-heavy transports such as Hysteria2, XHTTP and Reality/ML-KEM.
+  // Futures must be created inside the loop: creating them before `batch()`
+  // starts every test immediately and makes the batching ineffective.
+  for (final batchProxyNames in proxyNames.batch(16)) {
+    await Future.wait(batchProxyNames.map((proxyName) async {
+      final state = appController.getProxyCardState(proxyName);
+      final url = state.testUrl.getSafeValue(
+        appController.getRealTestUrl(testUrl),
       );
-    } catch (_) {
+      final name = state.proxyName;
+      if (name.isEmpty) {
+        return;
+      }
       appController.setDelay(
         Delay(
           url: url,
           name: name,
-          value: -1,
+          value: 0,
         ),
       );
-    }
-  }).toList();
-
-  final batchesDelayProxies = delayProxies.batch(100);
-  for (final batchDelayProxies in batchesDelayProxies) {
-    await Future.wait(batchDelayProxies);
+      try {
+        appController.setDelay(
+          await clashCore.getDelay(
+            url,
+            name,
+          ),
+        );
+      } catch (_) {
+        appController.setDelay(
+          Delay(
+            url: url,
+            name: name,
+            value: -1,
+          ),
+        );
+      }
+    }));
   }
   appController.addSortNum();
 }

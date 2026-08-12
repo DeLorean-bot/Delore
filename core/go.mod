@@ -7,12 +7,6 @@ require (
 	golang.org/x/sync v0.11.0
 )
 
-// Newer browser fingerprints (Firefox 148, Safari 26.3) live on the upstream
-// `v1.9.0-mod-meta` branch, which is a branch (not a tag) -> pseudo-version
-// v0.0.0-..., lower than mihomo's pinned v1.8.7. Force it via replace so
-// `client-fingerprint: firefox` / `safari` resolve to the new specs.
-replace github.com/metacubex/utls => github.com/metacubex/utls v0.0.0-20260715025833-a77524af3a17
-
 require (
 	github.com/RyuaNerin/go-krypto v1.3.0 // indirect
 	github.com/Yawning/aez v0.0.0-20211027044916-e49e68abd344 // indirect

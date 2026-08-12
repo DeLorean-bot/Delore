@@ -36,9 +36,26 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> with PageMixin {
       await clashCore.healthCheck();
       return;
     }
-    await Future.wait(
-      groups.map((group) => delayTest(group.all, group.testUrl)),
-    );
+    // A physical node is commonly present both in Select Proxy and in its
+    // protocol group. Test it once instead of opening duplicate QUIC/TLS
+    // handshakes from every group at the same time.
+    final proxiesByUrl = <String?, Map<String, Proxy>>{};
+    for (final group in groups) {
+      final proxies = proxiesByUrl.putIfAbsent(group.testUrl, () => {});
+      for (final proxy in group.all) {
+        proxies.putIfAbsent(proxy.name, () => proxy);
+      }
+    }
+
+    final seen = <String>{};
+    for (final entry in proxiesByUrl.entries) {
+      final unique = entry.value.values
+          .where((proxy) => seen.add(proxy.name))
+          .toList(growable: false);
+      if (unique.isNotEmpty) {
+        await delayTest(unique, entry.key);
+      }
+    }
   }
 
   @override

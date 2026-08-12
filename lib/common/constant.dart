@@ -26,7 +26,10 @@ final baseInfoEdgeInsets = EdgeInsets.symmetric(
 
 final defaultTextScaleFactor =
     WidgetsBinding.instance.platformDispatcher.textScaleFactor;
-const httpTimeoutDuration = Duration(milliseconds: 5000);
+// Modern transports perform more work during their first handshake (QUIC for
+// Hysteria2, Reality/ML-KEM and XHTTP session setup). Five seconds made healthy
+// nodes look dead on a cold or busy connection, especially during a group test.
+const httpTimeoutDuration = Duration(seconds: 10);
 const moreDuration = Duration(milliseconds: 100);
 const animateDuration = Duration(milliseconds: 100);
 const midDuration = Duration(milliseconds: 200);

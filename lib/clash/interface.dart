@@ -192,18 +192,18 @@ abstract class ClashHandlerInterface with ClashInterface {
 
   @override
   Future<bool> setUiActive(bool active) => invoke<bool>(
-      method: ActionMethod.setUiActive,
-      data: active,
-      // Short timeout so an older core without this handler degrades silently
-      // instead of leaving a pending completer.
-      timeout: const Duration(seconds: 2),
-    );
+        method: ActionMethod.setUiActive,
+        data: active,
+        // Short timeout so an older core without this handler degrades silently
+        // instead of leaving a pending completer.
+        timeout: const Duration(seconds: 2),
+      );
 
   @override
   Future<bool> shutdown() => invoke<bool>(
-      method: ActionMethod.shutdown,
-      timeout: const Duration(seconds: 1),
-    );
+        method: ActionMethod.shutdown,
+        timeout: const Duration(seconds: 1),
+      );
 
   @override
   Future<bool> get isInit => invoke<bool>(
@@ -259,87 +259,90 @@ abstract class ClashHandlerInterface with ClashInterface {
 
   @override
   Future<bool> crash() => invoke<bool>(
-      method: ActionMethod.crash,
-    );
+        method: ActionMethod.crash,
+      );
 
   @override
   Future<Map> getProxies() => invoke<Map>(
-      method: ActionMethod.getProxies,
-      timeout: const Duration(seconds: 5),
-    );
+        method: ActionMethod.getProxies,
+        timeout: const Duration(seconds: 5),
+      );
 
   @override
-  FutureOr<String> changeProxy(ChangeProxyParams changeProxyParams) => invoke<String>(
-      method: ActionMethod.changeProxy,
-      data: json.encode(changeProxyParams),
-    );
+  FutureOr<String> changeProxy(ChangeProxyParams changeProxyParams) =>
+      invoke<String>(
+        method: ActionMethod.changeProxy,
+        data: json.encode(changeProxyParams),
+      );
 
   @override
   FutureOr<String> getExternalProviders() => invoke<String>(
-      method: ActionMethod.getExternalProviders,
-    );
+        method: ActionMethod.getExternalProviders,
+      );
 
   @override
-  FutureOr<String> getExternalProvider(String externalProviderName) => invoke<String>(
-      method: ActionMethod.getExternalProvider,
-      data: externalProviderName,
-    );
+  FutureOr<String> getExternalProvider(String externalProviderName) =>
+      invoke<String>(
+        method: ActionMethod.getExternalProvider,
+        data: externalProviderName,
+      );
 
   @override
   Future<String> updateGeoData(UpdateGeoDataParams params) => invoke<String>(
-        method: ActionMethod.updateGeoData,
-        data: json.encode(params),
-        timeout: const Duration(seconds: 100));
+      method: ActionMethod.updateGeoData,
+      data: json.encode(params),
+      timeout: const Duration(seconds: 100));
 
   @override
   Future<String> sideLoadExternalProvider({
     required String providerName,
     required String data,
-  }) => invoke<String>(
-      method: ActionMethod.sideLoadExternalProvider,
-      data: json.encode({
-        "providerName": providerName,
-        "data": data,
-      }),
-    );
+  }) =>
+      invoke<String>(
+        method: ActionMethod.sideLoadExternalProvider,
+        data: json.encode({
+          "providerName": providerName,
+          "data": data,
+        }),
+      );
 
   @override
   Future<String> updateExternalProvider(String providerName) => invoke<String>(
-      method: ActionMethod.updateExternalProvider,
-      data: providerName,
-      timeout: const Duration(minutes: 1),
-    );
+        method: ActionMethod.updateExternalProvider,
+        data: providerName,
+        timeout: const Duration(minutes: 1),
+      );
 
   @override
   FutureOr<String> getConnections() => invoke<String>(
-      method: ActionMethod.getConnections,
-    );
+        method: ActionMethod.getConnections,
+      );
 
   @override
   Future<bool> closeConnections() => invoke<bool>(
-      method: ActionMethod.closeConnections,
-    );
+        method: ActionMethod.closeConnections,
+      );
 
   @override
   Future<bool> resetConnections() => invoke<bool>(
-      method: ActionMethod.resetConnections,
-    );
+        method: ActionMethod.resetConnections,
+      );
 
   @override
   Future<bool> closeConnection(String id) => invoke<bool>(
-      method: ActionMethod.closeConnection,
-      data: id,
-    );
+        method: ActionMethod.closeConnection,
+        data: id,
+      );
 
   @override
   FutureOr<String> getTotalTraffic() => invoke<String>(
-      method: ActionMethod.getTotalTraffic,
-    );
+        method: ActionMethod.getTotalTraffic,
+      );
 
   @override
   FutureOr<String> getTraffic() => invoke<String>(
-      method: ActionMethod.getTraffic,
-    );
+        method: ActionMethod.getTraffic,
+      );
 
   @override
   void resetTraffic() {
@@ -360,13 +363,13 @@ abstract class ClashHandlerInterface with ClashInterface {
 
   @override
   Future<bool> startListener() => invoke<bool>(
-      method: ActionMethod.startListener,
-    );
+        method: ActionMethod.startListener,
+      );
 
   @override
   Future<bool> stopListener() => invoke<bool>(
-      method: ActionMethod.stopListener,
-    );
+        method: ActionMethod.stopListener,
+      );
 
   @override
   Future<String> asyncTestDelay(String url, String proxyName) {
@@ -378,39 +381,40 @@ abstract class ClashHandlerInterface with ClashInterface {
     return invoke<String>(
       method: ActionMethod.asyncTestDelay,
       data: json.encode(delayParams),
-      timeout: const Duration(
-        milliseconds: 6000,
-      ),
+      // Leave IPC headroom beyond the core's own URLTest deadline. Otherwise
+      // Flutter can manufacture a timeout while mihomo is still completing a
+      // valid QUIC/TLS handshake.
+      timeout: httpTimeoutDuration + const Duration(seconds: 2),
       onTimeout: () => json.encode(
-          Delay(
-            name: proxyName,
-            value: -1,
-            url: url,
-          ),
+        Delay(
+          name: proxyName,
+          value: -1,
+          url: url,
         ),
+      ),
     );
   }
 
   @override
   Future<void> healthCheck([String groupName = '']) => invoke<String>(
-      method: ActionMethod.healthCheck,
-      data: groupName,
-      timeout: const Duration(seconds: 30),
-    );
+        method: ActionMethod.healthCheck,
+        data: groupName,
+        timeout: const Duration(seconds: 30),
+      );
 
   @override
   FutureOr<String> getCountryCode(String ip) => invoke<String>(
-      method: ActionMethod.getCountryCode,
-      data: ip,
-    );
+        method: ActionMethod.getCountryCode,
+        data: ip,
+      );
 
   @override
   FutureOr<String> getMemory() => invoke<String>(
-      method: ActionMethod.getMemory,
-    );
+        method: ActionMethod.getMemory,
+      );
 
   @override
   FutureOr<String> getCoreVersion() => invoke<String>(
-      method: ActionMethod.getCoreVersion,
-    );
+        method: ActionMethod.getCoreVersion,
+      );
 }
