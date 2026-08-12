@@ -552,7 +552,18 @@ class GlobalState {
         : p.join(await appPath.homeDirPath, "zashboard");
     rawConfig["external-ui"] = uiDir;
     effectiveExternalUi.value = uiDir;
-    rawConfig["interface-name"] = "";
+    // Keep Delore's own proxy sockets off another desktop VPN's TUN route.
+    // This matters especially for UDP/QUIC protocols such as Hysteria2: a
+    // concurrently running client may block UDP/443 while TCP nodes appear
+    // healthy. The helper returns an empty string outside Windows or when no
+    // safe physical uplink can be identified, preserving Mihomo's fallback.
+    rawConfig["interface-name"] = await detectWindowsPhysicalInterface();
+    // Mihomo deprecated the global fingerprint because it leaks one TLS
+    // identity into unrelated transports. Koala deliberately omits it from
+    // the generated runtime config; retaining it here makes Hysteria2/QUIC
+    // fail on Windows in configurations where the same nodes work in Koala.
+    // Per-proxy `client-fingerprint` values remain untouched.
+    rawConfig.remove("global-client-fingerprint");
     if (rawConfig["external-ui-url"] == null ||
         rawConfig["external-ui-url"] == "") {
       rawConfig["external-ui-url"] = "";
